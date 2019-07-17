@@ -4,5 +4,5 @@ the command - <br>
 
 To use the environment: <br>
 `import gym` <br>
-`import gym_foo` <br>
-`env = gym.make('foo-v0')`
+`import gym_acgrid` <br>
+`env = gym.make('acgrid-v0')`

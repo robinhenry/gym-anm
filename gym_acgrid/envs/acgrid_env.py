@@ -13,5 +13,6 @@ class AcgridEnv(gym.Env):
 
     def reset(self):
         pass
+
     def render(self, mode='human', close=False):
         pass
