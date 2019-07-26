@@ -1,0 +1,14 @@
+Questions to ask:
+
+1. What should Q of storage unit be like when charging? Should Q be negative?
+2.
+3.
+
+
+
+
+To do:
+- re-define model to have transformer only on 1 side (see Matpower model)
+- get expressions for line currents on each end of the line
+- contraint both line currents
+- use a fix power factor = 0.98 for wind turbines
