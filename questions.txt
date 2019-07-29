@@ -1,14 +1,11 @@
 Questions to ask:
 
-1. What should Q of storage unit be like when charging? Should Q be negative?
-2.
-3.
-
-
+2. How should I convert MVA branch rating to current rating? Is Imax / baseMVA
+enough?
+3. should time series always be initialized on January, 1st?
 
 
 To do:
-- re-define model to have transformer only on 1 side (see Matpower model)
-- get expressions for line currents on each end of the line
-- contraint both line currents
-- use a fix power factor = 0.98 for wind turbines
+- create realistic time series for load.
+- reset time series generation in env.reset().
+- change name of project to gym-smartgrid
