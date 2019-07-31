@@ -75,7 +75,7 @@ import numpy as np
 # QC2MAX: maximum reactive power output at PC2 (MVAr).
 
 
-def load_case():
+def load():
 
     case = {"version": "ANM"}
 

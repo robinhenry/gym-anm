@@ -56,10 +56,6 @@ class Simulator(object):
         self.storage = case['storage']
         self.baseMVA = case['baseMVA']
 
-        # Initialize generator objects of time series for DGs and passive loads.
-        #self.wind_gens = vre_gens
-        #self.load_gens = load_gens
-
         # Check that the slack bus is correctly specified in the input case.
         self._init_check_slack_bus()
 
@@ -120,6 +116,7 @@ class Simulator(object):
 
     def reset(self):
         """ Reset the simulator. """
+
         self.SoC = self.max_soc / 2.
 
     def get_vre_specs(self):

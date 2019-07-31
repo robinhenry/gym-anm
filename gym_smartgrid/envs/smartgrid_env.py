@@ -57,7 +57,7 @@ class SmartGridEnv(gym.Env):
                                    self.simulator.DELTA_T, self.t_init)
 
         # Initialize load stochastic processes.
-        self.loads = init_load(load_pmax)
+        self.loads = init_load(load_pmax, self.simulator.DELTA_T, self.np_random)
 
         self.timestep = 0
         self.total_reward = 0.
@@ -72,8 +72,8 @@ class SmartGridEnv(gym.Env):
         self.timestep += 1
 
         # Get the output of the stochastic processes (vre generation, loads).
-        P_loads = [load.next(self.timestep) for load in self.loads]
-        P_gens = [gen.next(self.timestep) for gen in self.generators]
+        P_loads = self.loads.next(self.timestep)
+        P_gens = self.generators.next(self.timestep)
 
         # Simulate a transition and compute the reward.
         reward = self.simulator.transition(P_loads, P_gens, *action)
@@ -118,6 +118,6 @@ class SmartGridEnv(gym.Env):
 
 class SmartGridEnv2(SmartGridEnv):
     def __init__(self):
-        case = case2.load_case()
+        case = case2.load()
         super().__init__(case)
 

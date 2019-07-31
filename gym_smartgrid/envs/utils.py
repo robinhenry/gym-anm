@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.stats import norm
-import matplotlib.pyplot as plt
+import os
+
+
+DAYS_PER_MONTH = [31, 30, 28, 31, 30, 31, 31, 30, 31, 30, 31, 30]
 
 
 def init_vre(wind, solar, delta_t, noise_factor=0.1, np_random=None):
@@ -17,32 +20,40 @@ def init_vre(wind, solar, delta_t, noise_factor=0.1, np_random=None):
     :return: a list of generator objects, one for each generator.
     """
 
-    # Initialize random generator.
-    rng_state = np.random.RandomState() if np_random is None else np_random
+    return VRESet(wind, solar, delta_t, noise_factor, np_random)
 
-    dev_gen = {}
+def init_load(factors, delta_t, np_random):
 
-    # Create a generator object for each wind energy resource.
-    for dev_idx, Pmax in wind:
-        dev_gen[dev_idx] = WindGenerator(Pmax, delta_t, noise_factor, rng_state)
+    # Load basic demand curves from files.
+    curves_per_month = _load_demand_curves()
 
-    # Create a generator object for each solar energy resource.
-    for dev_idx, Pmax in solar:
-        dev_gen[dev_idx] = SolarGenerator(Pmax, delta_t, noise_factor, rng_state)
+    load_generators = LoadSet(delta_t, factors, curves_per_month, np_random)
 
-    # Transform the dictionary into a list, ordered by device index.
-    generators = []
-    for dev_idx in sorted(dev_gen.keys()):
-        generators.append(dev_gen[dev_idx])
+    return load_generators
 
-    return generators
+def _load_demand_curves():
+    """
+    Load and return demand curves stored in .csv files.
 
-def init_load(factors):
-    generators = []
-    for i in range(len(factors)):
-        generators.append(LoadGenerator(factors[i]))
+    This function loads the data stored in folder 'data_demand_curves' as a
+    list of ndarray, one for each month of the year (in order). Each array is a
+    N_day x 96 matrix, where element [i, j] of the array represents the load
+    demand on day i, at timestep j, where each timestep is assumed to last 15
+    minutes. The data is normalized to be in [0.2, 0.8].
 
-    return generators
+    :return: a list of 12 ndarray, each containing 29-31 demand curves.
+    """
+
+    curves_per_month = []
+    for i in range(12):
+        current_file = os.path.dirname(__file__)
+        filename = os.path.join(current_file,
+                                'data_demand_curves',
+                               'curves_' +  str(i) + '.csv')
+        curves = np.loadtxt(filename, delimiter=',')
+        curves_per_month.append(curves)
+
+    return curves_per_month
 
 
 class DistributedGenerator(object):
@@ -50,7 +61,7 @@ class DistributedGenerator(object):
         self.delta_t = delta_t  # 0.25 if time-step is 15 minutes.
         self.P_max = P_max  # installed capacity (MW).
         self.noise_factor = noise_factor  # multiply noise from N(0, 1).
-        self.T = 24 * 365  # number of hours in a year.
+        self.T = 24 * sum(DAYS_PER_MONTH)  # number of hours in a year.
         self.np_random = np_random  # RandomState to seed the random generator.
 
     def next(self, timestep):
@@ -177,18 +188,132 @@ class SolarGenerator(DistributedGenerator):
 
         # Shift hour to be centered on December, 22nd (Winter Solstice).
         h = hour + 240
+
         return 0.25 * np.sin(h * 2 * np.pi / self.T - np.pi / 2) + 0.75
 
 
-class LoadGenerator(object):
-    def __init__(self, p_init=-20):
-        self.p = p_init
+class VRESet(object):
+    def __init__(self, wind, solar, delta_t, noise_factor, np_random):
 
-    def __iter__(self):
-        return self
+        # Initialize random generator.
+        rng_state = np.random.RandomState() if np_random is None else np_random
+
+        dev_gen = {}
+
+        # Create a generator object for each wind energy resource.
+        for dev_idx, Pmax in wind:
+            dev_gen[dev_idx] = WindGenerator(Pmax, delta_t, noise_factor, rng_state)
+
+        # Create a generator object for each solar energy resource.
+        for dev_idx, Pmax in solar:
+            dev_gen[dev_idx] = SolarGenerator(Pmax, delta_t, noise_factor, rng_state)
+
+        # Transform the dictionary into a list, ordered by device index.
+        self.generators = []
+        for dev_idx in sorted(dev_gen.keys()):
+            self.generators.append(dev_gen[dev_idx])
 
     def next(self, timestep):
-        return self.p
+        next_p = [vre.next(timestep - 1) for vre in self.generators]
+
+
+
+class LoadSet(object):
+    def __init__(self, delta_t, factors, basic_curves, np_random):
+
+        self.delta_t = delta_t
+        self.month = 0
+        self.day = 0
+        self.np_random  = np_random
+
+        # Store basic demand curves.
+        self.basic_curves = basic_curves
+
+        # Create N_load generator objects to model passive loads.
+        self.loads = []
+        for factor in factors:
+            self.loads.append(LoadGenerator(factor))
+
+    def next(self, timestep):
+
+        # Get the index of the timestep within a single day.
+        t_intraday = int((timestep - 1) % (24 / self.delta_t))
+
+        if not t_intraday:
+
+            # Increase the current date.
+            self._increase_date()
+
+            for load in self.loads:
+
+                # Select a random day in the month.
+                day = self.np_random.randint(0, 31)
+
+                # Generate a new demand curve for each load.
+                load.set_daily_curve(day, self.month,
+                                     self.basic_curves[self.month][day, :],
+                                     self.np_random)
+
+        # Get the next real power injection of each load.
+        next_p = []
+        for load in self.loads:
+            next_p.append(load.next(t_intraday))
+
+        return next_p
+
+    def _increase_date(self):
+
+        self.day += 1
+        if self.day >= DAYS_PER_MONTH[self.month]:
+            self.month = (self.month + 1) % 12
+            self.day = 0
+
+
+class LoadGenerator(object):
+    def __init__(self, factor, ran_factor=0.01):
+        self.factor = factor
+        self.month = 0
+        self.day = 0
+        self.ran_factor = ran_factor
+
+    @property
+    def month(self):
+        return self._month
+
+    @month.setter
+    def month(self, value):
+        if value < 0 or value > 11:
+            raise ValueError('The month index should be in [0, 11] (assuming '
+                             '0-indexing).')
+        else:
+            self._month = value
+
+    @property
+    def day(self):
+        return self._day
+
+    @day.setter
+    def day(self, value):
+        if value < 0 or value > 30:
+            raise ValueError('The day index should be in [0, 30] (assuming '
+                             '0-indexing).')
+        else:
+            self._day = value
+
+    def set_daily_curve(self, day, month, curve, np_random):
+
+        self.day = day
+        self.month = month
+
+        # Add noise sampled from a Gaussian.
+        self.demand = curve + self.ran_factor * np_random.normal(size=curve.size)
+
+        # Multiply curve by magnitude factor specific to the passive load.
+        self.demand *= self.factor
+
+    def next(self, t_intraday):
+        return self.demand[t_intraday]
+
 
 
 if __name__ == '__main__':

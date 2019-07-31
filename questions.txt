@@ -1,11 +1,8 @@
 Questions to ask:
 
-2. How should I convert MVA branch rating to current rating? Is Imax / baseMVA
-enough?
 3. should time series always be initialized on January, 1st?
 
 
 To do:
-- create realistic time series for load.
 - reset time series generation in env.reset().
-- change name of project to gym-smartgrid
+- clean code generating stochastic processes
