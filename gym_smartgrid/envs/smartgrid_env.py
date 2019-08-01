@@ -1,11 +1,10 @@
 import gym
-from gym import error, spaces, utils
+from gym import spaces
 from gym.utils import seeding
 import numpy as np
 
-from gym_smartgrid.envs import simulator
-from gym_smartgrid.envs.utils import init_load, init_vre
-from gym_smartgrid.envs.cases import case2
+from .smartgrid_simulator.simulator import Simulator
+from .smartgrid_simulator.utils import init_load, init_vre
 
 
 class SmartGridEnv(gym.Env):
@@ -14,21 +13,25 @@ class SmartGridEnv(gym.Env):
     def __init__(self, case):
 
         self.t_init = 0
+        self.is_render = False
 
         # Set random seed.
         self.seed()
 
         # Initialize AC power grid simulator.
-        self.simulator = simulator.Simulator(case, self.np_random)
+        self.simulator = Simulator(case, self.np_random)
 
         # Initialize action space for each action type.
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
+
         space_curtailment = spaces.Box(low=P_curt_bounds[1, :],
                                        high=P_curt_bounds[0, :],
                                        dtype=np.float32)
+
         space_alpha = spaces.Box(low=alpha_bounds[1, :],
                                  high=alpha_bounds[0, :],
                                  dtype=np.float32)
+
         space_q = spaces.Box(low=q_bounds[1, :], high=q_bounds[0, :],
                              dtype=np.float32)
 
@@ -44,10 +47,13 @@ class SmartGridEnv(gym.Env):
                            shape=(self.simulator.N_bus,),
                            dtype=np.float32)
         q_obs = p_obs
+
         i_obs = spaces.Box(low=0., high=np.inf, shape=(self.simulator.N_branch,),
                            dtype=np.float32)
+
         soc_obs = spaces.Box(low=np.zeros(shape=(self.simulator.N_storage,)),
                              high=self.simulator.max_soc, dtype=np.float32)
+
         self.observation_space = spaces.Tuple((p_obs, q_obs, i_obs, soc_obs))
 
         # Initialize distributed generators (stochastic processes).
@@ -89,12 +95,17 @@ class SmartGridEnv(gym.Env):
         # Information returned for debugging.
         info = None
 
+        # Update the visualization.
+        if self.is_render:
+            self._update_visualization(obs)
+
         return obs, reward, self.done, info
 
     def _get_obs(self):
         # Create a (4,) tuple of observations.
         obs = np.array(self.simulator.P), np.array(self.simulator.Q), \
               np.array(self.simulator.I_br_magn), np.array(self.simulator.SoC)
+
         return obs
 
     def seed(self, seed=None):
@@ -114,10 +125,4 @@ class SmartGridEnv(gym.Env):
 
     def close(self):
         raise NotImplementedError
-
-
-class SmartGridEnv2(SmartGridEnv):
-    def __init__(self):
-        case = case2.load()
-        super().__init__(case)
 

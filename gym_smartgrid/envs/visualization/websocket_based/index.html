@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple client</title>
+
+  <script type="text/javascript">
+
+    var ws;
+
+    function init() {
+
+      // Connect to Web Socket
+      ws = new WebSocket("ws://localhost:9001/");
+
+      // Set event handlers.
+      ws.onopen = function() {
+        // output("onopen");
+      };
+
+      ws.onmessage = function(e) {
+        // e.data contains received string.
+        updateBar(e.data);
+      };
+
+      ws.onclose = function() {
+        //output("onclose");
+      };
+
+      ws.onerror = function(e) {
+        output("onerror");
+        console.log(e)
+      };
+
+    }
+
+    function updateBar(percentage) {
+        document.getElementById("myBar").value = percentage;
+    }
+
+
+    function output(str) {
+      var log = document.getElementById("log");
+      var escaped = str.replace(/&/, "&amp;").replace(/</, "&lt;").
+        replace(/>/, "&gt;").replace(/"/, "&quot;"); // "
+      log.innerHTML = escaped + "<br>" + log.innerHTML;
+    }
+
+    </script>
+</head>
+<body onload="init();">
+    <div id="current_number"></div>
+    <div id="log"></div>
+    <progress id="myBar" value="0" max="100"></progress>
+</body>
+</html>

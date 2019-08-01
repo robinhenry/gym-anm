@@ -60,10 +60,10 @@ class Simulator(object):
         self._init_check_slack_bus()
 
         # Number of elements in all sets.
-        self.N_bus = self.buses.shape[0]  # Number of buses.
-        self.N_branch = self.branches.shape[0] # Number of transmission lines.
-        self.N_device = self.gen.shape[0] + self.storage.shape[0] # of devices.
-        self.N_storage = self.storage.shape[0] # Number of storage units.
+        self.N_bus = self.buses.shape[0]
+        self.N_branch = self.branches.shape[0]
+        self.N_device = self.gen.shape[0] + self.storage.shape[0]
+        self.N_storage = self.storage.shape[0]
 
         # Store pairs of buses representing transmission lines (0-indexed).
         lines = []

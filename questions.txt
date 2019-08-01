@@ -6,3 +6,14 @@ Questions to ask:
 To do:
 - reset time series generation in env.reset().
 - clean code generating stochastic processes
+
+
+
+
+1. Create env
+2. Start Dash app, implemented as a class storing the env object
+3. Start action loop
+4. Every x seconds, refresh Dash app by calling a method of self.env (ex: env
+.get_obs)
+
+-> shouldn't need any external file
