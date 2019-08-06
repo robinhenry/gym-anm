@@ -3,8 +3,9 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 
-from .smartgrid_simulator.simulator import Simulator
-from .smartgrid_simulator.utils import init_load, init_vre
+from gym_smartgrid.smartgrid_simulator import Simulator
+from gym_smartgrid.smartgrid_simulator.utils import init_load, init_vre
+from gym_smartgrid.visualization import rendering
 
 
 class SmartGridEnv(gym.Env):
@@ -13,7 +14,7 @@ class SmartGridEnv(gym.Env):
     def __init__(self, case):
 
         self.t_init = 0
-        self.is_render = False
+        self.render_mode = None
 
         # Set random seed.
         self.seed()
@@ -96,7 +97,7 @@ class SmartGridEnv(gym.Env):
         info = None
 
         # Update the visualization.
-        if self.is_render:
+        if self.render_mode == 'human':
             self._update_visualization(obs)
 
         return obs, reward, self.done, info
@@ -105,7 +106,6 @@ class SmartGridEnv(gym.Env):
         # Create a (4,) tuple of observations.
         obs = np.array(self.simulator.P), np.array(self.simulator.Q), \
               np.array(self.simulator.I_br_magn), np.array(self.simulator.SoC)
-
         return obs
 
     def seed(self, seed=None):
@@ -120,9 +120,23 @@ class SmartGridEnv(gym.Env):
 
         return obs
 
-    def render(self, mode='human', close=False):
-        raise NotImplementedError
+    def render(self, mode='human'):
+        if mode == 'human':
+            self.render_mode = 'human'
+            operation_bounds = self.simulator.get_operating_bounds()
+            self.http_server, self.ws_server = rendering.start(
+                *operation_bounds)
+        else:
+            raise NotImplementedError
+
+    def _update_visualization(self, obs):
+        lines = self.simulator.lines
+        currents = {}
+        for idx, line in enumerate(lines):
+            currents[line] = obs[2][idx]
+        rendering.update(self.ws_server.address, obs[0], currents,
+                         obs[3])
 
     def close(self):
-        raise NotImplementedError
-
+        rendering.close(self.http_server, self.ws_server)
+        self.render_mode = None

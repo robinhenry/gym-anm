@@ -144,6 +144,22 @@ class Simulator(object):
 
         return wind, solar, load
 
+    def get_operating_bounds(self):
+        P_min = []
+        P_max = []
+        for dev_idx in range(self.N_device):
+            rule = self.pq_rules[dev_idx]
+            P_min.append(rule.pmin)
+            P_max.append(rule.pmax)
+
+        soc_min = []
+        soc_max = []
+        for storage_idx in range(self.N_storage):
+            soc_min.append(0)
+            soc_max.append(self.max_soc[storage_idx])
+
+        return P_min, P_max, self.Imax, soc_min, soc_max
+
     def _init_build_device_bus_mapping(self):
         """
         Creates 2 dictionaries to easily mapping between devices and buses.
@@ -215,7 +231,6 @@ class Simulator(object):
         define the corresponding region of feasible (P, Q) injections.
         Everything is expressed in in MW or MVAr.
         """
-
         self.pq_rules = {}
 
         # Store restrictions for passive load power injections in a dict.
@@ -570,7 +585,7 @@ class Simulator(object):
         currents are not symmetrical, the current magnitude in branch (i,
         j) is taken to be max(abs(I_ij, I_ji)).
 
-        :return: a dict {(i, j) : I_ij} for each directed branch (i, j) (p.u.).
+        :return: a list of branch current magnitudes (p.u.).
         """
 
         I_br_magn = []
