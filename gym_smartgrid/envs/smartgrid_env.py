@@ -3,7 +3,7 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import pandas as pd
-import datetime
+import datetime as dt
 import time
 import ast
 
@@ -21,8 +21,8 @@ class SmartGridEnv(gym.Env):
         # Set random seed.
         self.seed()
 
-        self.timestep_length = datetime.timedelta(minutes=15)
-        self.episode_max_length = datetime.timedelta(days=3 * 365)
+        self.timestep_length = dt.timedelta(minutes=15)
+        self.episode_max_length = dt.timedelta(days=3 * 365)
         self.year = 2019
 
         # Initialize AC power grid simulator.
@@ -186,18 +186,28 @@ class SmartGridEnv(gym.Env):
         self.sleep_time = sleep_time
 
         history = pd.read_csv(path)
-        network_specs = ast.literal_eval(history.network_specs[0])
+        ns, obs, p_pot, times = self._unpack_history(history)
 
-        obs = ast.literal_eval(history.obs[1:])
-        p_potential = ast.literal_eval(history.potential[1:])
-        times = ast.literal_eval(history.time[1:])
+        self._init_render(ns)
 
-        self._init_render(network_specs)
-
-        for i in range(obs.size):
-            self._update_render(times[i], obs[i], p_potential[i])
+        for i in range(len(obs)):
+            self._update_render(times[i], obs[i], p_pot[i])
 
         self.close()
+
+    def _unpack_history(self, history):
+        ns = ast.literal_eval(history.network_specs[0])
+
+        obs = history.obs[1:].values
+        obs = [ast.literal_eval(o) for o in obs]
+
+        p_potential = history.potential[1:].values
+        p_potential = [ast.literal_eval(p) for p in p_potential]
+
+        times = history.time[1:].values
+        times = [dt.datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in times]
+
+        return ns, obs, p_potential, times
 
     def close(self, path=None):
         to_return = None
