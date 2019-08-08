@@ -2,14 +2,23 @@
 <html>
 <head>
     <link rel="stylesheet" href="styles.css">
-
+    <script src="svg_files/case6/svgLabels.js"></script>
+    <script src="dynamicVisualization.js"></script>
     <title>SmartGrid-gym</title>
 </head>
 
 <body onload="init();">
-    <object id="svg-network" data="svg_files/case5/case5.svg"
-            type="image/svg+xml"></object>
-    <script src="svg_files/case5/svgLabels.js"></script>
-    <script src="dynamicVisualization.js"></script>
-</body>
+
+    <time datetime="2014-09-20" class="icon">
+        <strong id="month"></strong>
+        <span id="day"></span>
+    </time>
+
+    <div>
+        <canvas id="clock" width="100" height="100"></canvas>
+    </div>
+    <script src="clock.js"></script>
+
+    <object id="svg-network" data="svg_files/case6/case6.svg"
+            type="image/svg+xml"></object></body>
 </html>

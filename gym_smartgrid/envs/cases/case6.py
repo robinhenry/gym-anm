@@ -36,13 +36,7 @@ import numpy as np
 # QC1MAX: maximum reactive power output at PC1 (MVAr).
 # QC2MIN: minimum reactive power output at PC2 (MVAr).
 # QC2MAX: maximum reactive power output at PC2 (MVAr).
-# RAMP_AGC: ramp rate for load following/AGC (MW/min).
-# RAMP_10: ramp rate for 10 minute reserves (MW).
-# RAMP_30: ramp rate for 30 minute reserves (MW).
-# RAMP_Q: ramp rate for reactive power (2sec timescale) (MVAr/min).
-# APF: are participation factor.
-
-# Note: RAMP_AGC - APF fields are not used.
+# VRE_TYPE: type of resource: 0 -> slack (or non-VRE generator), -1 -> load, 1 -> wind, 2 -> solar.
 
 ### 3. Branch data.
 # F_BUS: "from" bus number.
@@ -81,7 +75,7 @@ import numpy as np
 # QC2MAX: maximum reactive power output at PC2 (MVAr).
 
 
-def case5():
+def load():
 
     case = {"version": "ANM"}
 
@@ -93,32 +87,34 @@ def case5():
         [2, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9],
         [3, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9],
         [4, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9],
-        [5, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9]
+        [5, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9],
+        [6, 1, 0, 0, 0, 0, 1, 1, 0, 13.8, 1, 1.1, 0.9]
     ])
 
     # gen_bus Pg Qg Qmax Qmin Vg mBase status Pmax Pmin Pc1 Pc2 Qc1min Qc1max
-    # Qc2min Qc2max Ramp_agc ramp_10 ramp_30 ramp_q apf
+    # Qc2min Qc2max vre_type
     case["gen"] = np.array([
-        [1,  0.,     0., 100, -100, 1.04, 100, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [3, -1., -0.267,   0,    0,  0.0, 100, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [4, -1., -0.254,   0,    0,  0.0, 100, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [5, -1., -0.233,   0,    0,  0.0, 100, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [2,  1.,    0.1,   5,   -5,  0.0, 100, 1, 20.0, 0.0, 7.5, 20.0, -5., 5., -2., 2., 0.0, 0.0, 0.0, 0.0, 0.0]
+        [1,  0., 0., 100, -100, 1.04, 100, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0],
+        [4, -1., -0.267,   0,    0,  0.0, 100, 1, 0., -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1],
+        [4, 1., 0.1, 5, -5, 0.0, 100, 1, 20.0, 0.0, 7.5, 20.0, -5., 5., -2., 2., 2],
+        [5, -1., -0.254,   0,    0,  0.0, 100, 1, .0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1],
+        [5, 1., 0.1, 5, -5, 0.0, 100, 1, 20.0, 0.0, 7.5, 20.0, -5., 5., -2., 2., 1],
+        [6, -1., -0.254, 0, 0, 0.0, 100, 1, .0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1],
     ])
 
     # fbus tbus r x b rateA rateB rateC ratio angle status angmin angmax
     case["branch"] = np.array([
         [1, 2, 0.035, 0.02, 0., 14, 14, 14, 0, 0, 1, -360.0, 360.0],
-        [2, 3, 0.5,    0.4, 0., 14, 14, 14, 0, 0, 1, -360.0, 360.0],
-        [3, 4, 0.5,    0.4, 0.,  7,  7,  7, 0, 0, 1, -360.0, 360.0],
-        [3, 5, 0.5,    0.4, 0.,  7,  7,  7, 0, 0, 1, -360.0, 360.0]
+        [2, 3, 0.5, 0.4, 0., 14, 14, 14, 0, 0, 1, -360.0, 360.0],
+        [2, 4, 0.5, 0.4, 0.,  7,  7,  7, 0, 0, 1, -360.0, 360.0],
+        [3, 5, 0.5, 0.4, 0.,  7,  7,  7, 0, 0, 1, -360.0, 360.0],
+        [3, 6, 0.5, 0.4, 0., 7, 7, 7, 0, 0, 1, -360.0, 360.0]
     ])
 
     # bus_i soc_max round_trip_eff_coef Pmax Qmax Qmin Pc1 Pc2 Qc1min Qc1max
     # Qc2min Qc2max
     case["storage"] = np.array([
-        [1, 10, 2, 0.9],
-        [3, 5,  2, 0.9]
+        [6, 50, 0.9, 5, 3, 5, 7, -2.94, 2.94, -1.69, 1.69],
     ])
 
     return case

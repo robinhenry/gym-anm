@@ -93,8 +93,8 @@ class Simulator(object):
 
         # Get bounds on voltage magnitude at all buses, except the slack bus (
         # in p.u.).
-        self.Vmin = self.buses[1:, Simulator.BUS_H['VMIN']]
-        self.Vmax = self.buses[1:, Simulator.BUS_H['VMAX']]
+        self.Vmin = self.buses[:, Simulator.BUS_H['VMIN']]
+        self.Vmax = self.buses[:, Simulator.BUS_H['VMAX']]
 
         # Get voltage magnitude set-point at slack bus (in p.u.).
         self.V_magn_slack = self.gen[0, Simulator.GEN_H['VG']]
@@ -111,8 +111,9 @@ class Simulator(object):
         # Initialize state of charge (SoC) of storage units.
         self.SoC = self.max_soc / 2.
 
-        # Initialize variables used as observations.
-        self.P, self.Q, self.I_br_magn = None, None, None
+        # Initialize variables.
+        self.P_device, self.Q_device = None, None
+        self.P_br, self.Q_br, self.I_br, self.I_br_magn = None, None, None, None
 
     def reset(self):
         """ Reset the simulator. """
@@ -144,10 +145,13 @@ class Simulator(object):
 
         return wind, solar, load
 
-    def get_operating_bounds(self):
-        P_min = []
-        P_max = []
-        for dev_idx in range(self.N_device):
+    def get_network_specs(self):
+
+        dev_type = list(self.gen[:, Simulator.GEN_H['VRE_TYPE']])
+
+        P_min = [self.gen[0, self.GEN_H['PMIN']]]
+        P_max = [self.gen[0, self.GEN_H['PMAX']]]
+        for dev_idx in range(1, self.N_device):
             rule = self.pq_rules[dev_idx]
             P_min.append(rule.pmin)
             P_max.append(rule.pmax)
@@ -158,7 +162,7 @@ class Simulator(object):
             soc_min.append(0)
             soc_max.append(self.max_soc[storage_idx])
 
-        return P_min, P_max, self.Imax, soc_min, soc_max
+        return dev_type, P_min, P_max, self.Imax, soc_min, soc_max
 
     def _init_build_device_bus_mapping(self):
         """
@@ -203,7 +207,7 @@ class Simulator(object):
 
         # Add indices of storage units.
         for i in range(idx_dev, idx_dev + self.N_storage):
-            dev2bus[i] = int(self.storage[i - idx_dev, 0])
+            dev2bus[i] = int(self.storage[i - idx_dev, 0]) - 1
             dev2storage[i] = i - idx_dev
 
         self.dev2bus = dev2bus
@@ -213,7 +217,7 @@ class Simulator(object):
 
         # Initialize an empty dictionary to store lists of indices to easily
         # retrieve all generators / loads / storage units.
-        type2dev = {'slack': 0} # initialize with slack bus device.
+        type2dev = {'slack': [0]} # initialize with slack bus device.
 
         # Add distributed generators.
         type2dev['gen'] = np.nonzero(self.gen[:, Simulator.GEN_H['PG']] > 0.)[0]
@@ -233,15 +237,25 @@ class Simulator(object):
         """
         self.pq_rules = {}
 
-        # Store restrictions for passive load power injections in a dict.
+        # Store restrictions for slack bus.
+        for dev_idx in self.type2dev['slack']:
+            rule = PowerCapabilities('slack bus')
+            rule.pmin = self.gen[dev_idx, Simulator.GEN_H['PMIN']]
+            rule.pmax = self.gen[dev_idx, Simulator.GEN_H['PMAX']]
+            self.pq_rules[dev_idx] = rule
+
+        # Store restrictions for passive load power injections.
         for dev_idx in self.type2dev['load']:
             rule = PowerCapabilities('passive load')
+
+            rule.pmin = self.gen[dev_idx, Simulator.GEN_H['PMIN']]
+            rule.pmax = self.gen[dev_idx, Simulator.GEN_H['PMAX']]
 
             rule.qp_ratio = self.gen[dev_idx, Simulator.GEN_H['QG']] / \
                             self.gen[dev_idx, Simulator.GEN_H['PG']]
             self.pq_rules[dev_idx] = rule
 
-        # Store restrictions for distributed generators in a dict.
+        # Store restrictions for distributed generators.
         indices = (self.type2dev['gen'])
         for dev_idx in indices:
             rule = PowerCapabilities('distributed generator')
@@ -268,7 +282,7 @@ class Simulator(object):
 
             self.pq_rules[dev_idx] = rule
 
-        # Store restrictions for storage units in a dict.
+        # Store restrictions for storage units.
         for dev_idx in self.type2dev['storage']:
             rule = PowerCapabilities('storage unit')
             storage_idx = self.dev2storage[dev_idx]
@@ -276,6 +290,7 @@ class Simulator(object):
             if self.storage[storage_idx, Simulator.STORAGE_H['PMAX']] > 0.:
                 rule.pmax = self.storage[storage_idx,
                                          Simulator.STORAGE_H['PMAX']]
+                rule.pmin = 0.
 
             if self.storage[storage_idx, Simulator.STORAGE_H['QMAX']] > 0.:
                 rule.qmax = self.storage[storage_idx,
@@ -570,11 +585,52 @@ class Simulator(object):
         # 2. Solve PFEs and store nodal V (p.u.), P (MW), Q (MVAr) vectors.
         self.V, self.P, self.Q = self._solve_pfes(P_bus, Q_bus)
 
-        # 3. Compute I in each branch from V (p.u.)
-        self.I_br_magn = self._get_branch_currents()
+        # 3. Build the vectors of P and Q injections from devices.
+        self.P_device, self.Q_device = self._get_device_P(Ps, Qs)
+
+        # 4. Compute I in each branch from V (p.u.)
+        self.I_br, self.I_br_magn = self._get_branch_currents()
+
+        # 5. Compute P (MW), Q (MVar) power flows in each branch.
+        self.P_br, self.Q_br = self._compute_branch_PQ()
 
         ### Return the total reward associated with the transition. ###
         return self._get_reward(P_potential, P_curt)
+
+    def _compute_branch_PQ(self):
+        """ Return P (MW), Q (MVar) flow in each branch. """
+        S_branch = []
+        for line_idx, line in enumerate(self.lines):
+            s_branch = self.V[line[0]] * np.conj(self.I_br[line_idx])
+            S_branch.append(s_branch * self.baseMVA)
+
+        P_branch = [np.real(s) for s in S_branch]
+        Q_branch = [np.imag(s) for s in S_branch]
+
+        return P_branch, Q_branch
+
+    def _get_device_P(self, Ps, Qs):
+        P_device = [0] * self.N_device
+        Q_device = [0] * self.N_device
+
+        # P and Q injection from single device at slack bus.
+        P_device[0] = self.P[0]
+        Q_device[0] = self.Q[0]
+
+        for dev_idx in self.type2dev['gen']:
+            gen_idx = self.dev2gen[dev_idx]
+            P_device[dev_idx] = Ps['generator'][gen_idx]
+            Q_device[dev_idx] = Qs['generator'][gen_idx]
+        for dev_idx in self.type2dev['load']:
+            load_idx = self.dev2load[dev_idx]
+            P_device[dev_idx] = Ps['load'][load_idx]
+            Q_device[dev_idx] = Qs['load'][load_idx]
+        for dev_idx in self.type2dev['storage']:
+            storage_idx = self.dev2storage[dev_idx]
+            P_device[dev_idx] = Ps['storage'][storage_idx]
+            Q_device[dev_idx] = Qs['storage'][storage_idx]
+
+        return P_device, Q_device
 
     def _get_branch_currents(self):
         """
@@ -588,20 +644,25 @@ class Simulator(object):
         :return: a list of branch current magnitudes (p.u.).
         """
 
-        I_br_magn = []
+        I_br = []
         for branch_idx, branch in enumerate(self.branches):
 
             # Get sending and receiving bus indices.
             i, j = self.lines[branch_idx]
 
             # Compute the current I_ij and I_ji (not symmetrical).
-            i_ij = np.abs(self._get_current_from_voltage(i, j))
-            i_ji = np.abs(self._get_current_from_voltage(j, i))
+            i_ij = self._get_current_from_voltage(i, j)
+            i_ji = self._get_current_from_voltage(j, i)
 
-            # Store the biggest current magnitude (i.e. closest to constraints).
-            I_br_magn.append(np.maximum(i_ij, i_ji))
+            # Store the current with the biggest current magnitude.
+            if np.abs(i_ij) >= np.abs(i_ji):
+                I_br.append(i_ij)
+            else:
+                I_br.append(- i_ji)
 
-        return I_br_magn
+        I_br_magn = [np.abs(i) for i in I_br]
+
+        return I_br, I_br_magn
 
     def _get_bus_total_injections(self, Ps, Qs):
         """
@@ -707,7 +768,7 @@ class Simulator(object):
         P, Q = [], []
         for dev_idx in self.type2dev['gen']:
             gen_idx = self.dev2gen[dev_idx]
-            p, q = self._get_single_gen_injection_point(P_gen[gen_idx], gen_idx)
+            p, q = self._get_single_gen_injection_point(P_gen[gen_idx], dev_idx)
             P.append(p)
             Q.append(q)
         return P, Q

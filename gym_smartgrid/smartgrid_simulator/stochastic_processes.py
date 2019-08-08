@@ -1,8 +1,7 @@
 import numpy as np
 from scipy.stats import norm
-
-
-DAYS_PER_MONTH = [31, 30, 28, 31, 30, 31, 31, 30, 31, 30, 31, 30]
+import datetime as dt
+from calendar import monthrange, isleap
 
 
 class VRESet(object):
@@ -14,20 +13,22 @@ class VRESet(object):
         dev_gen = {}
 
         # Create a generator object for each wind energy resource.
-        for dev_idx, Pmax in wind:
-            dev_gen[dev_idx] = WindGenerator(Pmax, delta_t, noise_factor, rng_state)
+        for dev_idx, Pmax in wind.items():
+            dev_gen[dev_idx] = WindGenerator(Pmax, delta_t, noise_factor,
+                                             rng_state)
 
         # Create a generator object for each solar energy resource.
-        for dev_idx, Pmax in solar:
-            dev_gen[dev_idx] = SolarGenerator(Pmax, delta_t, noise_factor, rng_state)
+        for dev_idx, Pmax in solar.items():
+            dev_gen[dev_idx] = SolarGenerator(Pmax, delta_t, noise_factor,
+                                              rng_state)
 
         # Transform the dictionary into a list, ordered by device index.
         self.generators = []
         for dev_idx in sorted(dev_gen.keys()):
             self.generators.append(dev_gen[dev_idx])
 
-    def next(self, timestep):
-        next_p = [vre.next(timestep - 1) for vre in self.generators]
+    def next(self, cur_time):
+        next_p = [vre.next(cur_time) for vre in self.generators]
         return next_p
 
 
@@ -35,8 +36,6 @@ class LoadSet(object):
     def __init__(self, delta_t, factors, basic_curves, np_random):
 
         self.delta_t = delta_t
-        self.month = 0
-        self.day = 0
         self.np_random  = np_random
 
         # Store basic demand curves.
@@ -47,25 +46,21 @@ class LoadSet(object):
         for factor in factors:
             self.loads.append(LoadGenerator(factor))
 
-    def next(self, timestep):
+    def next(self, cur_time):
 
         # Get the index of the timestep within a single day.
-        t_intraday = int((timestep - 1) % (24 / self.delta_t))
+        minutes = dt.timedelta(minutes=cur_time.hour * 60 + cur_time.minute)
+        t_intraday = int(minutes / self.delta_t) - 1
 
         if not t_intraday:
-
-            # Increase the current date.
-            self._increase_date()
-
             for load in self.loads:
-
                 # Select a random day in the month.
-                day = self.np_random.randint(0, 31)
+                last_day = monthrange(cur_time.year, cur_time.month)[1]
+                rand_day = self.np_random.randint(0, last_day)
 
                 # Generate a new demand curve for each load.
-                load.set_daily_curve(day, self.month,
-                                     self.basic_curves[self.month][day, :],
-                                     self.np_random)
+                curve = self.basic_curves[cur_time.month - 1][rand_day, :]
+                load.set_daily_curve(curve, self.np_random)
 
         # Get the next real power injection of each load.
         next_p = []
@@ -74,37 +69,30 @@ class LoadSet(object):
 
         return next_p
 
-    def _increase_date(self):
-
-        self.day += 1
-        if self.day >= DAYS_PER_MONTH[self.month]:
-            self.month = (self.month + 1) % 12
-            self.day = 0
-
 
 class DistributedGenerator(object):
     def __init__(self, P_max, delta_t, noise_factor, np_random):
-        self.delta_t = delta_t  # 0.25 if time-step is 15 minutes.
-        self.P_max = P_max  # installed capacity (MW).
-        self.noise_factor = noise_factor  # multiply noise from N(0, 1).
-        self.T = 24 * sum(DAYS_PER_MONTH)  # number of hours in a year.
+        self.delta_t = delta_t
+        self.P_max = P_max
+        self.noise_factor = noise_factor
         self.np_random = np_random  # RandomState to seed the random generator.
 
-    def next(self, timestep):
+    def next(self, t):
         raise NotImplementedError
+
+    def _get_T(self, year):
+        return 365 + isleap(year)
 
 
 class WindGenerator(DistributedGenerator):
     def __init__(self, P_max, delta_t, noise_factor, np_random):
         super().__init__(P_max, delta_t, noise_factor, np_random)
 
-    def next(self, timestep):
+    def next(self, cur_time):
         """ Return the next real power generation from the wind farm. """
 
-        hour = (timestep * self.delta_t) % self.T
-
         # Get a mean capacity factor based on the day of the year (deterministic).
-        next_p = self._yearly_pattern(hour)
+        next_p = self._yearly_pattern(cur_time)
 
         # Add random noise sampled from N(0, 1).
         next_p += self.noise_factor * self.np_random.normal(0., scale=1.)
@@ -118,7 +106,7 @@ class WindGenerator(DistributedGenerator):
 
         return self.p_injection
 
-    def _yearly_pattern(self, hour):
+    def _yearly_pattern(self, cur_time):
         """
         Return a factor to scale wind generation, based on the time of the year.
 
@@ -133,25 +121,23 @@ class WindGenerator(DistributedGenerator):
         """
 
         # Shift hour to be centered on December, 22nd (Winter Solstice).
-        h = hour + 240
-        return 0.15 * np.cos(h * 2 * np.pi / self.T) + 0.45
+        h = cur_time.hour + 240
+        return 0.15 * np.cos(h * 2 * np.pi / self._get_T(cur_time.year)) + 0.45
 
 
 class SolarGenerator(DistributedGenerator):
     def __init__(self, P_max, delta_t, noise_factor, np_random):
         super().__init__(P_max, delta_t, noise_factor, np_random)
 
-    def next(self, timestep):
+    def next(self, cur_time):
         """ Return the next real power generation from the solar farm. """
 
-        hour = (timestep * self.delta_t) % self.T
-
         # Get sunrise and sunset times for the current day.
-        self._sunset_sunrise_pattern(hour)
+        self._sunset_sunrise_pattern(cur_time)
 
         # Get a mean capacity factor based on the date and time (deterministic).
-        next_p = self._bell_curve(hour, self.sunrise, self.sunset) \
-                 * self._yearly_pattern(hour)
+        next_p = self._bell_curve(cur_time.hour, self.sunrise, self.sunset) \
+                 * self._yearly_pattern(cur_time)
 
         # Make sure that P stays within [0, 1].
         next_p = next_p if next_p > 0. else 0.
@@ -162,16 +148,17 @@ class SolarGenerator(DistributedGenerator):
 
         return self.p_injection
 
-    def _sunset_sunrise_pattern(self, hour):
+    def _sunset_sunrise_pattern(self, cur_time):
         """
         Compute the sunset and sunrise hour, based on the date of the year.
 
         :param hour: the number of hours since January, 1st at 12:00 a.m.
         """
 
-        h = hour + 240
-        self.sunset = 1.5 * np.sin(h * 2 * np.pi / self.T) + 18.5
-        self.sunrise = 1.5 * np.sin(h * 2 * np.pi / self.T) + 5.5
+        h = cur_time.hour + 240
+        T = self._get_T(cur_time.year)
+        self.sunset = 1.5 * np.sin(h * 2 * np.pi / T) + 18.5
+        self.sunrise = 1.5 * np.sin(h * 2 * np.pi / T) + 5.5
 
     def _bell_curve(self, hour, sunrise, sunset):
         """
@@ -198,7 +185,7 @@ class SolarGenerator(DistributedGenerator):
             p = 0.
         return p
 
-    def _yearly_pattern(self, hour):
+    def _yearly_pattern(self, cur_time):
         """
         Return a factor to scale solar generation, based on the time of the year.
 
@@ -213,46 +200,18 @@ class SolarGenerator(DistributedGenerator):
         """
 
         # Shift hour to be centered on December, 22nd (Winter Solstice).
-        h = hour + 240
+        h = cur_time.hour + 240
+        T = self._get_T(cur_time.year)
 
-        return 0.25 * np.sin(h * 2 * np.pi / self.T - np.pi / 2) + 0.75
+        return 0.25 * np.sin(h * 2 * np.pi / T - np.pi / 2) + 0.75
 
 
 class LoadGenerator(object):
     def __init__(self, factor, ran_factor=0.01):
         self.factor = factor
-        self.month = 0
-        self.day = 0
         self.ran_factor = ran_factor
 
-    @property
-    def month(self):
-        return self._month
-
-    @month.setter
-    def month(self, value):
-        if value < 0 or value > 11:
-            raise ValueError('The month index should be in [0, 11] (assuming '
-                             '0-indexing).')
-        else:
-            self._month = value
-
-    @property
-    def day(self):
-        return self._day
-
-    @day.setter
-    def day(self, value):
-        if value < 0 or value > 30:
-            raise ValueError('The day index should be in [0, 30] (assuming '
-                             '0-indexing).')
-        else:
-            self._day = value
-
-    def set_daily_curve(self, day, month, curve, np_random):
-
-        self.day = day
-        self.month = month
+    def set_daily_curve(self, curve, np_random):
 
         # Add noise sampled from a Gaussian.
         self.demand = curve + self.ran_factor * np_random.normal(size=curve.size)

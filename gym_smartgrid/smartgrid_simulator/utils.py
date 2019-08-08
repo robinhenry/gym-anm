@@ -24,9 +24,7 @@ def init_load(factors, delta_t, np_random):
 
     # Load basic demand curves from files.
     curves_per_month = _load_demand_curves()
-
     load_generators = LoadSet(delta_t, factors, curves_per_month, np_random)
-
     return load_generators
 
 def _load_demand_curves():

@@ -36,7 +36,7 @@ import numpy as np
 # QC1MAX: maximum reactive power output at PC1 (MVAr).
 # QC2MIN: minimum reactive power output at PC2 (MVAr).
 # QC2MAX: maximum reactive power output at PC2 (MVAr).
-# VRE_TYPE: type of resource: 0 -> slack -1 -> load, 1 -> wind, 2 -> solar.
+# VRE_TYPE: type of resource: 0 -> slack, -1 -> load, 1 -> wind, 2 -> solar.
 
 ### 3. Branch data.
 # F_BUS: "from" bus number.

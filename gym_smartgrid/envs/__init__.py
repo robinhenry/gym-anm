@@ -1,1 +1,1 @@
-from gym_smartgrid.envs.smartgrid_env2 import SmartGridEnv2
+from gym_smartgrid.envs.smartgrid_envs import SmartGridEnv2, SmartGridEnv6
