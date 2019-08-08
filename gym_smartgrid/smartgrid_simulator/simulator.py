@@ -137,7 +137,7 @@ class Simulator(object):
         wind, solar, load = {}, {}, []
         for dev_idx in range(self.gen.shape[0]):
             if self.gen[dev_idx, self.GEN_H['VRE_TYPE']] == -1:
-                load.append(self.gen[dev_idx, self.GEN_H['PMAX']])
+                load.append(self.gen[dev_idx, self.GEN_H['PMIN']])
             if self.gen[dev_idx, self.GEN_H['VRE_TYPE']] == 1.:
                 wind[dev_idx] = self.gen[dev_idx, self.GEN_H['PMAX']]
             if self.gen[dev_idx, self.GEN_H['VRE_TYPE']] == 2.:

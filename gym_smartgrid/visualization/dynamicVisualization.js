@@ -242,7 +242,12 @@ class PowerInjection {
   }
 
   rotateCurrentArrow(curValue) {
-    let rotationAngle = (curValue < 0) ? 180 : 0;
+    let rotationAngle;
+    if (this.devType < 0) {
+      rotationAngle = (curValue > 0) ? 180 : 0;
+    } else {
+      rotationAngle = (curValue < 0) ? 180 : 0;
+    }
     this.arrowRotation.setRotate(rotationAngle, this.arrowCenter[0], this.arrowCenter[1]);
   }
 }
