@@ -2,8 +2,10 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 import numpy as np
+import pandas as pd
 import datetime
 import time
+import ast
 
 import gym_smartgrid.utils
 from gym_smartgrid.smartgrid_simulator import Simulator
@@ -72,11 +74,6 @@ class SmartGridEnv(gym.Env):
         self.loads = utils.init_load(load_pmax, self.timestep_length,
                                 self.np_random)
 
-        self.total_reward = 0.
-        self.done = False
-        self.render_mode = None
-        self.render_speed = {0: 0, 1: 0.1, 2: 0.5, 3: 2}
-
     def step(self, action):
 
         # Check if the action is in the available action space.
@@ -112,11 +109,11 @@ class SmartGridEnv(gym.Env):
 
     def _get_obs(self):
         # Create a (4,) tuple of observations.
-        obs = np.array(self.simulator.P_device), \
-              np.array(self.simulator.Q_device), \
-              np.array(self.simulator.I_br_magn), \
-              np.array(self.simulator.SoC), \
-              np.array(self.simulator.P_br)
+        obs = list(self.simulator.P_device), \
+              list(self.simulator.Q_device), \
+              list(self.simulator.I_br_magn), \
+              list(self.simulator.SoC), \
+              list(self.simulator.P_br)
         return obs
 
     def seed(self, seed=None):
@@ -129,51 +126,89 @@ class SmartGridEnv(gym.Env):
         self.end_time = self.time + self.episode_max_length
 
         self.total_reward = 0.
+        self.done = False
+        self.render_mode = None
         self.simulator.reset()
         obs = self._get_obs()
 
         return obs
 
-    def render(self, mode='human', speed=0):
-        if mode == 'human':
-            if self.render_mode is None:
-                self.render_mode = 'human'
-                self.speed_level = speed
-                self._render_init()
+    def render(self, mode='human', sleep_time=0.1):
+        if self.render_mode is None:
+            if mode == 'human':
+                self.sleep_time = sleep_time
+            elif mode == 'save':
+                self.render_history = None
             else:
-                self._render_update()
-        elif mode == 'save':
-            if self.render_mode is None:
-                self.render_mode = 'save'
-                self._save_init()
-            else:
-                self._save_update()
+                raise NotImplementedError
+            self.render_mode = mode
+            network_specs = self.simulator.get_network_specs()
+            self._init_render(network_specs)
+        else:
+            self._update_render(self.time, self._get_obs(),
+                                list(self.P_gen_potential))
+
+    def _init_render(self, network_specs):
+        if self.render_mode in ['human', 'replay']:
+            self.http_server, self.ws_server = rendering.start(
+                *network_specs)
+        elif self.render_mode == 'save':
+            s = pd.Series({'network_specs': network_specs})
+            self.render_history = pd.DataFrame([s])
         else:
             raise NotImplementedError
-        
-    def _save_init(self):
-        pass
 
-    def _save_update(self):
-        pass
+    def _update_render(self, cur_time, obs, P_potential):
+        if self.render_mode in ['human', 'replay']:
+            rendering.update(self.ws_server.address,
+                             cur_time,
+                             obs[0],
+                             obs[2],
+                             obs[3],
+                             obs[4],
+                             P_potential)
+            time.sleep(self.sleep_time)
 
-    def _render_init(self):
-        network_specs = self.simulator.get_network_specs()
-        self.http_server, self.ws_server = rendering.start(
-            *network_specs)
+        elif self.render_mode == 'save':
+            d = {'time': self.time,
+                 'obs': obs,
+                 'potential': P_potential}
+            s = pd.Series(d)
+            self.render_history = self.render_history.append(s,
+                                                             ignore_index=True)
+        else:
+            raise NotImplementedError
 
-    def _render_update(self):
-        obs = self._get_obs()
-        rendering.update(self.ws_server.address,
-                         self.time,
-                         list(obs[0]),
-                         list(obs[2]),
-                         list(obs[3]),
-                         list(obs[4]),
-                         list(self.P_gen_potential))
+    def replay(self, path, sleep_time=0.1):
+        self.reset()
 
-        time.sleep(self.render_speed[self.speed_level])
+        self.render_mode = 'replay'
+        self.sleep_time = sleep_time
 
-    def close(self):
-        rendering.close(self.http_server, self.ws_server)
+        history = pd.read_csv(path)
+        network_specs = ast.literal_eval(history.network_specs[0])
+
+        obs = ast.literal_eval(history.obs[1:])
+        p_potential = ast.literal_eval(history.potential[1:])
+        times = ast.literal_eval(history.time[1:])
+
+        self._init_render(network_specs)
+
+        for i in range(obs.size):
+            self._update_render(times[i], obs[i], p_potential[i])
+
+        self.close()
+
+    def close(self, path=None):
+        to_return = None
+        if self.render_mode in ['human', 'replay']:
+            rendering.close(self.http_server, self.ws_server)
+        if self.render_mode == 'save':
+            if path is None:
+                raise ValueError('No path specified to save the history.')
+            self.render_history.to_csv(path, index = None, header=True)
+            to_return = self.render_history
+
         self.render_mode = None
+
+        return to_return
