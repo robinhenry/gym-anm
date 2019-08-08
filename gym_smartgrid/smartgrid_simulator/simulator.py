@@ -112,8 +112,8 @@ class Simulator(object):
         self.SoC = self.max_soc / 2.
 
         # Initialize variables.
-        self.P_device, self.Q_device = None, None
-        self.P_br, self.Q_br, self.I_br, self.I_br_magn = None, None, None, None
+        self.P_device, self.Q_device = [], []
+        self.P_br, self.Q_br, self.I_br, self.I_br_magn = [], [], [], []
 
     def reset(self):
         """ Reset the simulator. """
