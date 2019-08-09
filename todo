@@ -1,2 +1,22 @@
 REFACTORING:
 - make env6/utils into functions reusable by others.
+
+
+SIMULATOR:
+- create equivalent of pq_rules inside classes
+- use get_network_specs() to replace get_vre_specs()
+- implement check that final (P, Q) of storage is a valid injection point
+- un-comment check_casefile() and fix its bugs
+
+RENDERING:
+- add transformer instead of line 0 -> 1
+
+
+
+
+OBJECTIVES:
+- Friday: re-write simulator + comment whole project
+- Weekend: write tests
+- Next week: code finished by Friday
+- 2 weeks after: writing paper + documentation
+
