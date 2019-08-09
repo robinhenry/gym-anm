@@ -3,7 +3,6 @@ from calendar import monthrange, isleap
 
 import numpy as np
 import os
-
 from scipy.stats import norm
 
 
@@ -53,10 +52,6 @@ def _load_demand_curves():
         curves_per_month.append(curves)
 
     return curves_per_month
-
-
-if __name__ == '__main__':
-    pass
 
 
 class VRESet(object):

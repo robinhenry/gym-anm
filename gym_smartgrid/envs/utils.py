@@ -1,4 +1,6 @@
 import os
+from gym_smartgrid import RENDERING_FOLDER, WEB_FILES
+
 
 def write_html(svg_data):
 
@@ -28,11 +30,8 @@ def write_html(svg_data):
 </html>
 
     """.format(svg_data['labels'], svg_data['network'])
-    print(s)
-    par_dir = os.path.dirname(os.path.realpath(__file__))
-    par_dir = os.path.dirname(par_dir)
-    render_dir = os.path.join(par_dir, 'rendering')
-    html_file = os.path.join(render_dir, 'index.html')
+
+    html_file = os.path.join(RENDERING_FOLDER, WEB_FILES['index'])
 
     with open(html_file, 'w') as f:
         f.write(s)

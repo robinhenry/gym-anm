@@ -6,22 +6,30 @@ import pandas as pd
 import datetime as dt
 import time
 import ast
+import os
+from importlib.machinery import SourceFileLoader
 
 import gym_smartgrid.utils
 from gym_smartgrid.simulator import Simulator
-from gym_smartgrid.simulator import utils
 from gym_smartgrid.rendering import rendering
 from gym_smartgrid.envs.utils import write_html
+from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
 
 
 class SmartGridEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, case, svg_data):
+    def __init__(self, folder):
 
         # Load case.
-        self.case = case()
-        self.svg_data = svg_data
+        path_to_case = os.path.join(folder, ENV_FILES['case'])
+        self.case = SourceFileLoader("case", path_to_case).load_module().network
+
+        # Store paths to files needed for rendering.
+        rel_path = os.path.relpath(folder, RENDERING_FOLDER)
+
+        self.svg_data = {'network': os.path.join(rel_path, ENV_FILES['network'])}
+        self.svg_data['labels'] = os.path.join(rel_path, ENV_FILES['svgLabels'])
 
         # Set random seed.
         self.seed()
@@ -71,13 +79,19 @@ class SmartGridEnv(gym.Env):
         # Initialize distributed generators (stochastic processes).
         wind_pmax, solar_pmax, load_pmax = self.simulator.get_vre_specs()
 
-        self.generators = utils.init_vre(wind_pmax, solar_pmax,
-                                         self.timestep_length,
-                                         np_random=self.np_random)
+        self.generators = self.init_vre(wind_pmax, solar_pmax,
+                                        self.timestep_length,
+                                        np_random=self.np_random)
 
         # Initialize load stochastic processes.
-        self.loads = utils.init_load(load_pmax, self.timestep_length,
-                                self.np_random)
+        self.loads = self.init_load(load_pmax, self.timestep_length,
+                                    self.np_random)
+
+    def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
+        raise NotImplementedError
+
+    def init_load(self, load_pmax, delta_t, np_random):
+        raise NotImplementedError
 
     def step(self, action):
 

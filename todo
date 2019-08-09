@@ -1,0 +1,2 @@
+REFACTORING:
+- make env6/utils into functions reusable by others.

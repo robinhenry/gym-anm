@@ -1,13 +1,19 @@
 import os
-
 from gym_smartgrid.envs import SmartGridEnv
-from .case6 import load
+from .utils import init_load as i_load
+from .utils import init_vre as i_vre
 
 class SmartGridEnv6(SmartGridEnv):
     def __init__(self):
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        svg_data = {'network': os.path.join(dir_path, 'case6.svg')}
-        svg_data['labels'] = os.path.join(dir_path, 'svgLabels.js')
+        # Folder to new environment (== this folder).
+        path_to_folder = os.path.dirname(os.path.realpath(__file__))
 
-        super().__init__(load, svg_data)
+        super().__init__(path_to_folder)
+
+    def init_load(self, load_pmax, delta_t, np_random):
+        return i_load(load_pmax, delta_t, np_random)
+
+    def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
+        return i_vre(wind_pmax, solar_pmax, delta_t, np_random=np_random)
+
