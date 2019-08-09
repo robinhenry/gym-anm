@@ -8,15 +8,20 @@ import time
 import ast
 
 import gym_smartgrid.utils
-from gym_smartgrid.smartgrid_simulator import Simulator
-from gym_smartgrid.smartgrid_simulator import utils
-from gym_smartgrid.visualization import rendering
+from gym_smartgrid.simulator import Simulator
+from gym_smartgrid.simulator import utils
+from gym_smartgrid.rendering import rendering
+from gym_smartgrid.envs.utils import write_html
 
 
 class SmartGridEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, case):
+    def __init__(self, case, svg_data):
+
+        # Load case.
+        self.case = case()
+        self.svg_data = svg_data
 
         # Set random seed.
         self.seed()
@@ -26,7 +31,7 @@ class SmartGridEnv(gym.Env):
         self.year = 2019
 
         # Initialize AC power grid simulator.
-        self.simulator = Simulator(case, self.np_random)
+        self.simulator = Simulator(self.case, self.np_random)
 
         # Initialize action space for each action type.
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
@@ -150,6 +155,12 @@ class SmartGridEnv(gym.Env):
 
     def _init_render(self, network_specs):
         if self.render_mode in ['human', 'replay']:
+
+            if self.svg_data is None:
+                raise ValueError('svg data needs to be specified when '
+                                 'initializing an instance of the environment '
+                                 'for the rendering to be available.')
+            write_html(self.svg_data)
             self.http_server, self.ws_server = rendering.start(
                 *network_specs)
         elif self.render_mode == 'save':
