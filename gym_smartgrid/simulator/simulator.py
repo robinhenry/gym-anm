@@ -13,7 +13,7 @@ class Simulator(object):
     This class simulates an AC distribution system.
     """
 
-    def __init__(self, case, delta_t=0.25, lamb=1e3, rng=None):
+    def __init__(self, case, delta_t=15., lamb=1e3, rng=None):
         """
         Initialize the state of the distribution network and all variables.
 
@@ -22,9 +22,9 @@ class Simulator(object):
         """
 
         # Check the correctness of the case file.
-        utils.check_casefile(case)
+        #utils.check_casefile(case)
 
-        self.delta_t = delta_t
+        self.delta_t = delta_t / 60.
         self.lamb = lamb
 
         # Initialize random generator.
@@ -48,7 +48,7 @@ class Simulator(object):
         self.loads, self.gens, self.storages = {}, {}, {}
         dev_idx, load_idx, gen_idx, su_idx = 0, 0, 0, 0
         for dev in case['device']:
-            if dev[DEV_H['STATUS']]:
+            if dev[DEV_H['DEV_STATUS']]:
                 dev_type = dev[DEV_H['DEV_TYPE']]
 
                 if dev_type == -1:
@@ -89,28 +89,7 @@ class Simulator(object):
         self._build_admittance_matrix()
 
         self._compute_bus_bounds()
-
-        # Initialize variables.
-        self.P_device, self.Q_device = [], []
-        self.P_br, self.Q_br, self.I_br, self.I_br_magn = [], [], [], []
-
-    def _compute_bus_bounds(self):
-        P_min = [0.] * self.N_bus
-        P_max = [0.] * self.N_bus
-        Q_min = [0.] * self.N_bus
-        Q_max = [0.] * self.N_bus
-        for dev in [self.slack_dev] + list(self.gens.values()) \
-                    + list(self.loads.values()) + list(self.storages.values()):
-            P_min[dev.bus_id] += dev.p_min
-            P_max[dev.bus_id] += dev.p_max
-            Q_min[dev.bus_id] += dev.q_min
-            Q_max[dev.bus_id] += dev.q_max
-
-        for idx, bus in enumerate(self.buses):
-            bus.p_min = P_min[idx]
-            bus.p_max = P_max[idx]
-            bus.q_min = Q_min[idx]
-            bus.q_max = Q_max[idx]
+        self.network_specs = self.compute_network_specs()
 
     def _build_admittance_matrix(self):
         """
@@ -163,36 +142,86 @@ class Simulator(object):
         self.shunts = shunts
         self.series = series
 
+    def _compute_bus_bounds(self):
+        P_min = [0.] * self.N_bus
+        P_max = [0.] * self.N_bus
+        Q_min = [0.] * self.N_bus
+        Q_max = [0.] * self.N_bus
+
+        for dev in [self.slack_dev] + list(self.gens.values()) \
+                    + list(self.loads.values()) + list(self.storages.values()):
+            P_min[dev.bus_id] += dev.p_min
+            P_max[dev.bus_id] += dev.p_max
+            Q_min[dev.bus_id] += dev.q_min
+            Q_max[dev.bus_id] += dev.q_max
+
+        for idx, bus in enumerate(self.buses):
+            bus.p_min = P_min[idx]
+            bus.p_max = P_max[idx]
+            bus.q_min = Q_min[idx]
+            bus.q_max = Q_max[idx]
+
     def reset(self):
         """ Reset the simulator. """
 
         for su in self.storages.values():
             su.soc = su.soc_max / 2.
 
-    def get_network_specs(self):
-        P_min = [0.] * self.N_device
-        P_max = [0.] * self.N_device
+    def compute_network_specs(self):
+        P_min_bus = []
+        P_max_bus = []
+        Q_min_bus = []
+        Q_max_bus = []
+        V_min_bus = []
+        V_max_bus = []
+
+        P_min_dev = [0.] * self.N_device
+        P_max_dev = [0.] * self.N_device
+        Q_min_dev = [0.] * self.N_device
+        Q_max_dev = [0.] * self.N_device
         dev_type = [0.] * self.N_device
+
         soc_min = [0.] * self.N_storage
         soc_max = [0.] * self.N_storage
-        branch_rates = []
 
-        for dev in list(self.loads.values()) + list(self.gens.values()):
-            P_min[dev.dev_id] = dev.p_min
-            P_max[dev.dev_id] = dev.p_max
+        I_max = []
+
+        P_min_dev[0] = self.slack_dev.p_min
+        P_max_dev[0] = self.slack_dev.p_max
+        Q_min_dev[0] = self.slack_dev.q_min
+        Q_max_dev[0] = self.slack_dev.q_max
+
+        for dev in list(self.loads.values()) + list(self.gens.values()) \
+                   + list(self.storages.values()):
+            P_min_dev[dev.dev_id] = dev.p_min
+            P_max_dev[dev.dev_id] = dev.p_max
+            Q_min_dev[dev.dev_id] = dev.q_min
+            Q_max_dev[dev.dev_id] = dev.q_max
             dev_type[dev.dev_id] = dev.type
 
         for su in self.storages.values():
-            P_min[su.dev_id] = su.p_min
-            P_max[su.dev_id] = su.p_max
-            dev_type[su.dev_id] = su.type
             soc_min[su.type_id] = su.soc_min
             soc_max[su.type_id] = su.soc_max
 
         for branch in self.branches:
-            branch_rates.append(branch.i_max)
+            I_max.append(branch.i_max)
 
-        return dev_type, P_min, P_max, branch_rates, soc_min, soc_max
+        for bus in self.buses:
+            P_min_bus.append(bus.p_min)
+            P_max_bus.append(bus.p_max)
+            Q_min_bus.append(bus.q_min)
+            Q_max_bus.append(bus.q_max)
+            V_min_bus.append(bus.v_min)
+            V_max_bus.append(bus.v_max)
+
+        specs = {'PMIN_BUS': P_min_bus, 'PMAX_BUS': P_max_bus,
+                 'QMIN_BUS': Q_min_bus, 'QMAX_BUS': Q_max_dev,
+                 'VMIN_BUS': V_min_bus, 'VMAX_BUS': V_max_bus,
+                 'PMIN_DEV': P_min_dev, 'PMAX_DEV': P_max_dev,
+                 'QMIN_DEV': Q_min_dev, 'QMAX_DEV': Q_max_dev,
+                 'DEV_TYPE': dev_type, 'IMAX': I_max,
+                 'SOC_MIN': soc_min, 'SOC_MAX': soc_max}
+        return specs
 
     def get_action_space(self):
         """
@@ -237,30 +266,6 @@ class Simulator(object):
         return np.array(P_curt_bounds), np.array(alpha_bounds), \
                np.array(q_storage_bounds)
 
-    def get_obs_space(self):
-        P_min, P_max = [], []
-        Q_min, Q_max = [], []
-        for bus in self.buses:
-            P_min.append(bus.p_min)
-            P_max.append(bus.p_max)
-            Q_min.append(bus.q_min)
-            Q_max.append(bus.q_max)
-
-        I_br_max = []
-        for branch in self.branches:
-            I_br_max.append(branch.i_max)
-
-        soc_min = []
-        soc_max = []
-        for _, su in sorted(self.storages.items()):
-            soc_min.append(su.soc_min)
-            soc_max.append(su.soc_max)
-            
-        return np.array(P_min), np.array(P_max), \
-               np.array(Q_min), np.array(Q_max), \
-               np.array(I_br_max), \
-               np.array(soc_min), np.array(soc_max)
-
     def transition(self, P_load, P_potential, P_curt_limit, desired_alpha,
                    Q_storage_setpoints):
         """
@@ -297,27 +302,47 @@ class Simulator(object):
             gen.compute_pq(P_curt[gen.type_id])
 
         ### Manage storage units. ###
-        for su in self.storages.values():
-            su.manage(desired_alpha[su.type_id], self.delta_t,
-                      Q_storage_setpoints[su.type_id])
+        SOC = self._manage_storage(desired_alpha, Q_storage_setpoints)
 
         ### Compute electrical quantities of interest. ###
         # 1. Compute total P and Q injection at each bus.
         self._get_bus_total_injections()
 
         # 2. Solve PFEs and store nodal V (p.u.), P (MW), Q (MVAr) vectors.
-        P_bus, _, V_bus = self._solve_pfes()
+        P_bus, Q_bus, V_bus = self._solve_pfes()
 
-        # 4. Compute I in each branch from V (p.u.)
+        # 3. Compute I in each branch from V (p.u.)
         I_br = self._get_branch_currents()
 
-        # 5. Compute P (MW), Q (MVar) power flows in each branch.
-        self._compute_branch_PQ()
+        # 4. Compute P (MW), Q (MVar) power flows in each branch.
+        P_br, Q_br = self._compute_branch_PQ()
+
+        # 5. Get (P, Q) injection of each device.
+        P_dev = [self.slack_dev.p] + [0.] * (self.N_gen - 1)
+        Q_dev = [self.slack_dev.q] + [0.] * (self.N_gen - 1)
+        for dev in list(self.gens.values()) + list(self.loads.values()) + \
+                   list(self.storages.values()):
+            P_dev[dev.dev_id] = dev.p
+            Q_dev[dev.dev_id] = dev.q
+
+        # 6. Store all state variables in a dictionary.
+        self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_BUS': V_bus,
+                      'P_BR': P_br, 'Q_BR': Q_br, 'I_BR': I_br,
+                      'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC}
 
         ### Return the total reward associated with the transition. ###
         reward = self._get_reward(P_bus, P_potential, P_curt, I_br, V_bus)
 
         return reward
+
+    def _manage_storage(self, desired_alpha, Q_storage_setpoints):
+        SOC = [0.] * self.N_storage
+        for su in self.storages.values():
+            su.manage(desired_alpha[su.type_id], self.delta_t,
+                      Q_storage_setpoints[su.type_id])
+            SOC[su.type_id] = su.soc
+
+        return SOC
 
     def _get_bus_total_injections(self):
         """
@@ -490,10 +515,16 @@ class Simulator(object):
     def _compute_branch_PQ(self):
         """ Return P (MW), Q (MVar) flow in each branch. """
 
+        P_br, Q_br = [], []
         for branch in self.branches:
             s = self.buses[branch.f_bus].v * np.conj(branch.i)
             branch.p = np.real(s)
             branch.q = np.imag(s)
+
+            P_br.append(branch.p)
+            Q_br.append(branch.q)
+
+        return P_br, Q_br
 
     def _get_reward(self, P_bus, P_potential, P_curt, I_br, V_bus):
         """

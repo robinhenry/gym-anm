@@ -5,15 +5,14 @@ from gym_smartgrid.simulator.case_headers import BUS_H, BRANCH_H, DEV_H
 
 class Bus(object):
     def __init__(self, bus_case, is_slack=False):
-        self.id = bus_case[BUS_H['BUS_I']]
-        self.type = bus_case[BUS_H['BUS_TYPE']]
+        self.id = int(bus_case[BUS_H['BUS_I']])
+        self.type = int(bus_case[BUS_H['BUS_TYPE']])
         self.is_slack = is_slack
+        self.v_max = bus_case[BUS_H['VMAX']]
+        self.v_min = bus_case[BUS_H['VMIN']]
 
         if self.is_slack:
             self.v_slack = self.v_max
-        else:
-            self.v_max = bus_case[BUS_H['VMAX']]
-            self.v_min = bus_case[BUS_H['VMIN']]
 
         self.v = None  # p.u (complex)
         self.p = 0  # MW
@@ -28,8 +27,8 @@ class Bus(object):
 
 class TransmissionLine(object):
     def __init__(self, br_case):
-        self.f_bus = br_case[BRANCH_H['F_BUS']]
-        self.t_bus = br_case[BRANCH_H['T_BUS']]
+        self.f_bus = int(br_case[BRANCH_H['F_BUS']])
+        self.t_bus = int(br_case[BRANCH_H['T_BUS']])
         self.r = br_case[BRANCH_H['BR_R']]
         self.x = br_case[BRANCH_H['BR_X']]
         self.b = br_case[BRANCH_H['BR_B']]
@@ -50,8 +49,8 @@ class Device(object):
     def __init__(self, dev_id, dev_spec_id, dev_case):
         self.dev_id = dev_id
         self.type_id = dev_spec_id
-        self.bus_id = dev_case[DEV_H['BUS_I']]
-        self.type = dev_case[DEV_H['DEV_TYPE']]
+        self.bus_id = int(dev_case[DEV_H['BUS_I']])
+        self.type = int(dev_case[DEV_H['DEV_TYPE']])
         self.qp_ratio = dev_case[DEV_H['Q/P']]
         self.q_max = dev_case[DEV_H['QMAX']]
         self.q_min = dev_case[DEV_H['QMIN']]
@@ -60,22 +59,24 @@ class Device(object):
         self.soc_max = dev_case[DEV_H['SOC_MAX']]
         self.eff = dev_case[DEV_H['EFF']]
 
-        self._compute_lag_lead_limits()
+        self._compute_lag_lead_limits(dev_case)
 
         self.p = None  # MW
         self.q = None  # MVAr
 
     def _compute_lag_lead_limits(self, dev_case):
-        dQ_min = dev_case["QC2MIN"] - dev_case["QC1MIN"]
-        dQ_max = dev_case["QC2MAX"] - dev_case["QC1MAX"]
-        dP = dev_case["PC2"] - dev_case["PC1"]
+        dQ_min = dev_case[DEV_H["QC2MIN"]] - dev_case[DEV_H["QC1MIN"]]
+        dQ_max = dev_case[DEV_H["QC2MAX"]] - dev_case[DEV_H["QC1MAX"]]
+        dP = dev_case[DEV_H["PC2"]] - dev_case[DEV_H["PC1"]]
 
-        if dP and dev_case["PC1"]:
+        if dP and dev_case[DEV_H["PC1"]]:
             self.lag_slope = dQ_min / dP
-            self.lag_off = dev_case["QC1MIN"] - dQ_min / dP * dev_case["PC1"]
+            self.lag_off = dev_case[DEV_H["QC1MIN"]] \
+                           - dQ_min / dP * dev_case[DEV_H["PC1"]]
 
             self.lead_slope = dQ_max / dP
-            self.lead_off = dev_case["QC1MAX"] - dQ_max / dP * dev_case["PC1"]
+            self.lead_off = dev_case[DEV_H["QC1MAX"]] \
+                            - dQ_max / dP * dev_case[DEV_H["PC1"]]
 
         else:
             self.lag_slope, self.lag_off = None, None

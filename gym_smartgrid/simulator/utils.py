@@ -1,6 +1,6 @@
 import numpy as np
 
-from .case_headers import BUS_H, BRANCH_H, DEV_H, STORAGE_H
+from .case_headers import BUS_H, DEV_H
 
 
 def check_casefile(case):

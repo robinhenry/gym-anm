@@ -9,6 +9,5 @@ headers_dev = ['BUS_I', 'DEV_TYPE', 'Q/P', 'QMAX', 'QMIN',
 DEV_H = dict(zip(headers_dev, range(len(headers_dev))))
 
 headers_branch = ['F_BUS', 'T_BUS', 'BR_R', 'BR_X', 'BR_B', 'RATE_A',
-                  'TAP', 'SHIFT', 'BR_STATUS',
-                  'ANGMIN', 'ANGMAX']
+                  'TAP', 'SHIFT', 'BR_STATUS', 'ANGMIN', 'ANGMAX']
 BRANCH_H = dict(zip(headers_branch, range(len(headers_branch))))

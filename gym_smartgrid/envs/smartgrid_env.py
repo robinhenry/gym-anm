@@ -19,7 +19,7 @@ from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
 class SmartGridEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, folder):
+    def __init__(self, folder, delta_t=15, ):
 
         # Load case.
         path_to_case = os.path.join(folder, ENV_FILES['case'])
@@ -27,32 +27,33 @@ class SmartGridEnv(gym.Env):
 
         # Store paths to files needed for rendering.
         rel_path = os.path.relpath(folder, RENDERING_FOLDER)
-
         self.svg_data = {'network': os.path.join(rel_path, ENV_FILES['network'])}
         self.svg_data['labels'] = os.path.join(rel_path, ENV_FILES['svgLabels'])
 
         # Set random seed.
         self.seed()
 
-        self.timestep_length = dt.timedelta(minutes=15)
+        self.delta_t = delta_t
+        self.timestep_length = dt.timedelta(minutes=delta_t)
         self.episode_max_length = dt.timedelta(days=3 * 365)
         self.year = 2019
 
         # Initialize AC power grid simulator.
-        self.simulator = Simulator(self.case, self.np_random)
+        self.simulator = Simulator(self.case, delta_t=self.delta_t,
+                                   rng=self.np_random)
 
         # Initialize action space for each action type.
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
 
-        space_curtailment = spaces.Box(low=P_curt_bounds[1, :],
-                                       high=P_curt_bounds[0, :],
+        space_curtailment = spaces.Box(low=P_curt_bounds[:, 1],
+                                       high=P_curt_bounds[:, 0],
                                        dtype=np.float32)
 
-        space_alpha = spaces.Box(low=alpha_bounds[1, :],
-                                 high=alpha_bounds[0, :],
+        space_alpha = spaces.Box(low=alpha_bounds[:, 1],
+                                 high=alpha_bounds[:, 0],
                                  dtype=np.float32)
 
-        space_q = spaces.Box(low=q_bounds[1, :], high=q_bounds[0, :],
+        space_q = spaces.Box(low=q_bounds[:, 1], high=q_bounds[:, 0],
                              dtype=np.float32)
 
         # Initialize the global action space to be the product of 3 subspaces.
@@ -63,6 +64,21 @@ class SmartGridEnv(gym.Env):
         # - P, Q injection at each bus (2 * N),
         # - I magnitude in each transmission line,
         # - SoC at each storage unit (N_storage).
+
+        network_specs = self.simulator.network_specs
+        obs_space = []
+
+
+
+
+
+
+
+
+
+
+
+
         p_obs = spaces.Box(low=-np.inf, high=np.inf,
                            shape=(self.simulator.N_bus,),
                            dtype=np.float32)
@@ -161,7 +177,7 @@ class SmartGridEnv(gym.Env):
             else:
                 raise NotImplementedError
             self.render_mode = mode
-            network_specs = self.simulator.get_network_specs()
+            network_specs = self.simulator.compute_network_specs()
             self._init_render(network_specs)
         else:
             self._update_render(self.time, self._get_obs(),
