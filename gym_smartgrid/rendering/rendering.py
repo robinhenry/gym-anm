@@ -5,7 +5,8 @@ from websocket import create_connection
 import webbrowser
 import json
 import os
-import time
+
+from gym_smartgrid import ROOT_FOLDER, RENDERING_FOLDER
 
 
 class WsServer(object):
@@ -69,8 +70,7 @@ class HttpServer(object):
         return service
 
     def _start_http_server(self):
-        web_dir = os.path.dirname(__file__)
-        os.chdir(web_dir)
+        os.chdir(ROOT_FOLDER)
 
         httpd = HTTPServer((self.HOST, self.PORT), SimpleHTTPRequestHandler)
         print('Serving HTTP at : ' + self.HOST + ':' + str(self.PORT) + '...')
@@ -79,7 +79,7 @@ class HttpServer(object):
 def start(dev_type, p_min, p_max, i_max, soc_min, soc_max):
     http_server = HttpServer()
     ws_server = WsServer()
-    webbrowser.open_new(http_server.address)
+    webbrowser.open_new(http_server.address + '/rendering')
 
     ws = create_connection(ws_server.address)
 
