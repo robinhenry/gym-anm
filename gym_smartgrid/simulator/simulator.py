@@ -109,7 +109,7 @@ class Simulator(object):
 
         for branch in self.branches:
             # Compute the branch series admittance as y_s = 1 / (r + jx).
-            y_series = 1. / branch.r + 1.j * branch.x
+            y_series = 1. / (branch.r + 1.j * branch.x)
 
             # Compute the branch shunt admittance y_m = jb / 2.
             y_shunt = 1.j * branch.b / 2.
