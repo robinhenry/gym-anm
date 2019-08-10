@@ -107,7 +107,7 @@ class Generator(Device):
         p = np.maximum(p, self.p_min)
 
         q = p * self.qp_ratio
-        q = np.minimum()(q, self.q_max)
+        q = np.minimum(q, self.q_max)
         q = np.maximum(q, self.q_min)
 
         if (self.lead_slope is not None) and (self.lead_off is not None):

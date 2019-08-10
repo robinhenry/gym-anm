@@ -19,7 +19,7 @@ from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
 class SmartGridEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, folder, delta_t=15, ):
+    def __init__(self, folder, obs_values, delta_t=15, ):
 
         # Load case.
         path_to_case = os.path.join(folder, ENV_FILES['case'])
@@ -38,11 +38,24 @@ class SmartGridEnv(gym.Env):
         self.episode_max_length = dt.timedelta(days=3 * 365)
         self.year = 2019
 
+        self.obs_values = obs_values
+
         # Initialize AC power grid simulator.
         self.simulator = Simulator(self.case, delta_t=self.delta_t,
                                    rng=self.np_random)
 
-        # Initialize action space for each action type.
+        self.network_specs = self.simulator.network_specs
+        self.action_space = self._build_action_space()
+        self.observation_space = self._build_obs_space()
+
+        dev_specs = self._get_dev_specs()
+        self.generators = self.init_vre(dev_specs[2], dev_specs[3],
+                                        self.timestep_length, self.np_random)
+
+        self.loads = self.init_load(dev_specs[0], self.timestep_length,
+                                    self.np_random)
+
+    def _build_action_space(self):
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
 
         space_curtailment = spaces.Box(low=P_curt_bounds[:, 1],
@@ -56,52 +69,70 @@ class SmartGridEnv(gym.Env):
         space_q = spaces.Box(low=q_bounds[:, 1], high=q_bounds[:, 0],
                              dtype=np.float32)
 
-        # Initialize the global action space to be the product of 3 subspaces.
-        self.action_space = spaces.Tuple((space_curtailment, space_alpha,
-                                          space_q))
+        return spaces.Tuple((space_curtailment, space_alpha, space_q))
 
-        # Initialize observation space made of:
-        # - P, Q injection at each bus (2 * N),
-        # - I magnitude in each transmission line,
-        # - SoC at each storage unit (N_storage).
-
-        network_specs = self.simulator.network_specs
+    def _build_obs_space(self):
         obs_space = []
+        network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
+        if 'P_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['PMIN_BUS'],
+                               high=network_specs['PMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'Q_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['QMIN_BUS'],
+                               high=network_specs['QMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'V_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['VMIN_BUS'],
+                               high=network_specs['VMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'P_DEV' in self.obs_values:
+            space = spaces.Box(low=network_specs['PMIN_DEV'],
+                               high=network_specs['PMAX_DEV'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'Q_DEV' in self.obs_values:
+            space = spaces.Box(low=network_specs['QMIN_DEV'],
+                               high=network_specs['QMAX_DEV'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'I_BR' in self.obs_values:
+            shape = network_specs['IMAX_BR'].shape
+            space = spaces.Box(low=np.zeros(shape=shape),
+                               high=network_specs['IMAX_BR'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        if 'SOC' in self.obs_values:
+            space = spaces.Box(low=network_specs['SOC_MIN'],
+                               high=network_specs['SOC_MAX'],
+                               dtype=np.float32)
+            obs_space.append(space)
 
+        return spaces.Tuple(tuple(obs_space))
 
+    def _get_dev_specs(self):
+        load, power_plant, wind, solar = {}, {}, {}, {}
+        for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
+            p_max = self.network_specs['PMAX_DEV'][idx]
+            if dev_type == -1:
+                load[idx] = p_max
+            elif dev_type == 1:
+                power_plant[idx] = p_max
+            elif dev_type == 2:
+                wind[idx] = p_max
+            elif dev_type == 3:
+                solar[idx] = p_max
 
-
-
-
-        p_obs = spaces.Box(low=-np.inf, high=np.inf,
-                           shape=(self.simulator.N_bus,),
-                           dtype=np.float32)
-        q_obs = p_obs
-
-        i_obs = spaces.Box(low=0., high=np.inf, shape=(self.simulator.N_branch,),
-                           dtype=np.float32)
-
-        soc_obs = spaces.Box(low=np.zeros(shape=(self.simulator.N_storage,)),
-                             high=self.simulator.max_soc, dtype=np.float32)
-
-        self.observation_space = spaces.Tuple((p_obs, q_obs, i_obs, soc_obs))
-
-        # Initialize distributed generators (stochastic processes).
-        wind_pmax, solar_pmax, load_pmax = self.simulator.get_vre_specs()
-
-        self.generators = self.init_vre(wind_pmax, solar_pmax,
-                                        self.timestep_length,
-                                        np_random=self.np_random)
-
-        # Initialize load stochastic processes.
-        self.loads = self.init_load(load_pmax, self.timestep_length,
-                                    self.np_random)
+        return load, power_plant, wind, solar
 
     def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
         raise NotImplementedError
@@ -114,20 +145,19 @@ class SmartGridEnv(gym.Env):
         # Check if the action is in the available action space.
         assert self.action_space.contains(action), "%r (%s) invalid" \
                                                    % (action, type(action))
-
         self._increment_t()
 
         # Get the output of the stochastic processes (vre generation, loads).
         P_loads = self.loads.next(self.time)
-        P_gen_potential = self.generators.next(self.time)
-        self.P_gen_potential = P_gen_potential
+        self.P_gen_potential = self.generators.next(self.time)
 
         # Simulate a transition and compute the reward.
-        reward = self.simulator.transition(P_loads, P_gen_potential, *action)
+        reward = self.simulator.transition(P_loads, self.P_gen_potential, *action)
+        self.state = self.simulator.state
         self.total_reward += reward
 
-        # Create a (4,) tuple of observations.
-        obs = self._get_obs()
+        # Create a tuple of observations.
+        self.obs = self._get_observations()
 
         # End of episode if maximum number of timesteps has been reached.
         if self.time >= self.end_time:
@@ -136,19 +166,17 @@ class SmartGridEnv(gym.Env):
         # Information returned for debugging.
         info = None
 
-        return obs, reward, self.done, info
+        return self.obs, reward, self.done, info
 
     def _increment_t(self):
         self.time += self.timestep_length
         self.time = self.time.replace(year=self.year)
 
-    def _get_obs(self):
-        # Create a (4,) tuple of observations.
-        obs = list(self.simulator.P_device), \
-              list(self.simulator.Q_device), \
-              list(self.simulator.I_br_magn), \
-              list(self.simulator.SoC), \
-              list(self.simulator.P_br)
+    def _get_observations(self):
+        if self.state:
+            obs = [list(self.state[ob]) for ob in self.obs_values]
+        else:
+            obs = None
         return obs
 
     def seed(self, seed=None):
@@ -162,9 +190,10 @@ class SmartGridEnv(gym.Env):
 
         self.total_reward = 0.
         self.done = False
+        self.state = None
         self.render_mode = None
         self.simulator.reset()
-        obs = self._get_obs()
+        obs = self._get_observations()
 
         return obs
 
@@ -180,7 +209,7 @@ class SmartGridEnv(gym.Env):
             network_specs = self.simulator.compute_network_specs()
             self._init_render(network_specs)
         else:
-            self._update_render(self.time, self._get_obs(),
+            self._update_render(self.time, self._get_observations(),
                                 list(self.P_gen_potential))
 
     def _init_render(self, network_specs):

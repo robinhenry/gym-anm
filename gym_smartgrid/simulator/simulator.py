@@ -4,7 +4,6 @@ import scipy.optimize as optimize
 from gym_smartgrid.simulator.components import Bus, TransmissionLine, Load, \
     PowerPlant, \
     VRE, Storage
-from gym_smartgrid.simulator import utils
 from gym_smartgrid.simulator.case_headers import BRANCH_H, DEV_H
 
 
@@ -163,7 +162,7 @@ class Simulator(object):
 
     def reset(self):
         """ Reset the simulator. """
-
+        self.state = None
         for su in self.storages.values():
             su.soc = su.soc_max / 2.
 
@@ -215,11 +214,11 @@ class Simulator(object):
             V_max_bus.append(bus.v_max)
 
         specs = {'PMIN_BUS': P_min_bus, 'PMAX_BUS': P_max_bus,
-                 'QMIN_BUS': Q_min_bus, 'QMAX_BUS': Q_max_dev,
+                 'QMIN_BUS': Q_min_bus, 'QMAX_BUS': Q_max_bus,
                  'VMIN_BUS': V_min_bus, 'VMAX_BUS': V_max_bus,
                  'PMIN_DEV': P_min_dev, 'PMAX_DEV': P_max_dev,
                  'QMIN_DEV': Q_min_dev, 'QMAX_DEV': Q_max_dev,
-                 'DEV_TYPE': dev_type, 'IMAX': I_max,
+                 'DEV_TYPE': dev_type, 'IMAX_BR': I_max,
                  'SOC_MIN': soc_min, 'SOC_MAX': soc_max}
         return specs
 
@@ -299,7 +298,7 @@ class Simulator(object):
 
         # 2. Get (P, Q) feasible injection points (except slack bus).
         for gen in self.gens.values():
-            gen.compute_pq(P_curt[gen.type_id])
+            gen.compute_pq(P_curt[gen.type_id - 1])
 
         ### Manage storage units. ###
         SOC = self._manage_storage(desired_alpha, Q_storage_setpoints)
@@ -318,8 +317,8 @@ class Simulator(object):
         P_br, Q_br = self._compute_branch_PQ()
 
         # 5. Get (P, Q) injection of each device.
-        P_dev = [self.slack_dev.p] + [0.] * (self.N_gen - 1)
-        Q_dev = [self.slack_dev.q] + [0.] * (self.N_gen - 1)
+        P_dev = [self.slack_dev.p] + [0.] * (self.N_device - 1)
+        Q_dev = [self.slack_dev.q] + [0.] * (self.N_device - 1)
         for dev in list(self.gens.values()) + list(self.loads.values()) + \
                    list(self.storages.values()):
             P_dev[dev.dev_id] = dev.p
@@ -327,8 +326,8 @@ class Simulator(object):
 
         # 6. Store all state variables in a dictionary.
         self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_BUS': V_bus,
-                      'P_BR': P_br, 'Q_BR': Q_br, 'I_BR': I_br,
-                      'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC}
+                      'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC,
+                      'P_BR': P_br, 'Q_BR': Q_br, 'I_BR': I_br}
 
         ### Return the total reward associated with the transition. ###
         reward = self._get_reward(P_bus, P_potential, P_curt, I_br, V_bus)
@@ -544,7 +543,7 @@ class Simulator(object):
 
         # Compute energy loss due to curtailment. This is the difference
         # between the potential energy production, and the actual production.
-        if P_curt:
+        if P_curt.size:
             curt_loss = np.sum(np.max(P_potential - P_curt)) * self.delta_t
         else:
             curt_loss = 0.
@@ -571,7 +570,7 @@ class Simulator(object):
         v_penalty = 0.
         for bus in self.buses:
             v_magn = np.absolute(bus.v)
-            v_penalty += np.maximum(v_magn - bus.v_max) \
+            v_penalty += np.maximum(0, v_magn - bus.v_max) \
                          + np.maximum(0, bus.v_min - v_magn)
 
         # Compute the total current constraints violation (p.u.).

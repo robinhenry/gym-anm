@@ -8,8 +8,10 @@ class SmartGridEnv6(SmartGridEnv):
 
         # Folder to new environment (== this folder).
         path_to_folder = os.path.dirname(os.path.realpath(__file__))
+        obs_values = ['P_BUS', 'Q_BUS', 'I_BR', 'SOC']
+        delta_t = 15
 
-        super().__init__(path_to_folder)
+        super().__init__(path_to_folder, obs_values, delta_t)
 
     def init_load(self, load_pmax, delta_t, np_random):
         return i_load(load_pmax, delta_t, np_random)

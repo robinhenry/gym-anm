@@ -6,7 +6,7 @@ import os
 from scipy.stats import norm
 
 
-def init_vre(wind, solar, delta_t, noise_factor=0.1, np_random=None):
+def init_vre(wind, solar, delta_t, np_random, noise_factor=0.1,):
     """
     Return generator objects to model wind and solar generation.
 
