@@ -10,44 +10,63 @@ class Simulator(object):
     """
     A simulator of a single-phase AC electricity distribution network.
 
-    ...
-
     Attributes
     ----------
     delta_t : int
+        The amount of time between two time steps, in minutes.
     lamb : int
-    baseMVA
-    buses, branches, gens, storages
-    slack_dev
+        A penalty factor associated with violating operating constraints.
+    baseMVA : int
+        The base power of the system (MVA).
+    buses : dict of {int : `Bus`}
+        The buses of the grid, where for each {key: value} pair, the key is a
+        unique bus ID.
+    branches : dict of {int : `TransmissionLine`}
+        The transmission lines of the grid, where for each {key: value} pair, the
+        key is a unique transmission line ID.
+    gens : dict of {int : `Generator`}
+        The generators of the grid, where for each {key: value} pair, the key is
+        a unique generator ID. The slack bus is *not* included.
+    storages : dict of {int : `Storage`}
+        The storage units of the grid, where for each {key: value} pair, the key
+        is a unique storage unit ID.
+    slack_dev : `Generator`
+        The single generator connected to the slack bus.
     N_bus, N_branch, N_load, N_device, N_storage : int
-    Y_bus
-    taps
-    shunts
-    series
-    specs
-    state
-
-    Parameters
-    ----------
-    case : dict of array_like
-        A case dictionary describing the power grid.
-    delta_t : int, optional
-        The interval of time between two consecutive time steps (in minutes).
-    lamb : int, optional
-        A constant factor multiplying the penalty associated with violating
-        operational constraints.
-    rng : np.random.RandomState, optional
-        A random seed.
+        The number of elements in each set (including slack bus and device).
+    Y_bus : 2D numpy.ndarray
+        The nodal admittance matrix of the network.
+    specs : dict of {str : list}
+        The operating characteristics of the network.
+    state : dict of {str : array_like}
+        The current state of the system.
 
     Methods
     -------
     reset()
+        Reset the simulator.
     get_network_specs()
+        Get the operating characteristics of the network.
     get_action_space()
-    transition()
+        Get the control action space available.
+    transition(P_load, P_potential, P_curt_limit, desired_alpha, Q_storage)
+        Simulate a transition of the system from time t to time (t+1).
     """
 
     def __init__(self, case, delta_t=15, lamb=1e3, rng=None):
+        """
+        Parameters
+        ----------
+        case : dict of array_like
+            A case dictionary describing the power grid.
+        delta_t : int, optional
+            The interval of time between two consecutive time steps (in minutes).
+        lamb : int, optional
+            A constant factor multiplying the penalty associated with violating
+            operational constraints.
+        rng : np.random.RandomState, optional
+            A random seed.
+        """
 
         # Check the correctness of the input case file.
         #utils.check_casefile(case)
@@ -70,8 +89,7 @@ class Simulator(object):
         self.N_device = self.N_gen + self.N_load + self.N_storage
 
         # Build the nodal admittance matrix.
-        self.Y_bus, self.series, self.shunts, self.taps = \
-            self._build_admittance_matrix()
+        self.Y_bus = self._build_admittance_matrix()
 
         # Compute the range of possible (P, Q) injections of each bus.
         self._compute_bus_bounds()
@@ -130,46 +148,25 @@ class Simulator(object):
                                      f'device.')
                 dev_idx += 1
 
-
     def _build_admittance_matrix(self):
         """
         Build the nodal admittance matrix of the network (in p.u.).
         """
 
         Y_bus = np.zeros((self.N_bus, self.N_bus), dtype=np.complex)
-        taps = {}
-        shunts = {}
-        series = {}
 
-        for branch in self.branches:
-            # Compute the branch series admittance as y_s = 1 / (r + jx).
-            y_series = 1. / (branch.r + 1.j * branch.x)
-
-            # Compute the branch shunt admittance y_m = jb / 2.
-            y_shunt = 1.j * branch.b / 2.
-
-            # Create complex tap ratio of generator as: tap = a exp(j shift).
-            shift = branch.shift * np.pi / 180.
-            tap = branch.tap * np.exp(1.j * shift)
+        for br in self.branches:
 
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
-            Y_bus[branch.f_bus, branch.t_bus] = - np.conjugate(tap) * y_series
-            Y_bus[branch.t_bus, branch.f_bus] = - tap * y_series
+            Y_bus[br.f_bus, br.t_bus] = - np.conjugate(br.tap) * br.series
+            Y_bus[br.t_bus, br.f_bus] = - br.tap * br.series
 
             # Increment diagonal element of the admittance matrix Y_bus.
-            Y_bus[branch.f_bus, branch.f_bus] += (y_series + y_shunt) \
-                                                 * np.absolute(tap) ** 2
-            Y_bus[branch.t_bus, branch.t_bus] += y_series + y_shunt
+            Y_bus[br.f_bus, br.f_bus] += (br.series + br.shunt) \
+                                         * np.absolute(br.tap) ** 2
+            Y_bus[br.t_bus, br.t_bus] += br.series + br.shunt
 
-            # Store tap ratio, series admittance and shunt admittance.
-            taps[(branch.f_bus, branch.t_bus)] = tap
-            taps[(branch.t_bus, branch.f_bus)] = 1.
-            shunts[(branch.f_bus, branch.t_bus)] = y_shunt
-            shunts[(branch.t_bus, branch.f_bus)] = y_shunt
-            series[(branch.f_bus, branch.t_bus)] = y_series
-            series[(branch.t_bus, branch.f_bus)] = y_series
-
-        return Y_bus, series, shunts, taps
+        return Y_bus
 
     def _compute_bus_bounds(self):
         """
@@ -310,7 +307,7 @@ class Simulator(object):
                np.array(q_storage_bounds)
 
     def transition(self, P_load, P_potential, P_curt_limit, desired_alpha,
-                   Q_storage_setpoints):
+                   Q_storage):
         """
         Simulate a transition of the system from time t to time (t+1).
 
@@ -328,7 +325,7 @@ class Simulator(object):
             VRE curtailment instructions, excluding the slack bus (MW)
         desired_alpha : array_like
             Desired charging rate for each storage unit (MW).
-        Q_storage_setpoints : array_like
+        Q_storage : array_like
             Desired Q-setpoint of each storage unit (MVAr).
 
         Returns
@@ -352,7 +349,7 @@ class Simulator(object):
             gen.compute_pq(P_curt[gen.type_id - 1])
 
         ### Manage storage units. ###
-        SOC = self._manage_storage(desired_alpha, Q_storage_setpoints)
+        SOC = self._manage_storage(desired_alpha, Q_storage)
 
         ### Compute electrical quantities of interest. ###
         # 1. Compute total (P, Q) injection at each bus.
@@ -548,14 +545,11 @@ class Simulator(object):
         1D numpy.ndarray
             The complex current in each transmission line (p.u.).
         """
+
         I_br = []
         for branch in self.branches:
-            f_bus, t_bus = branch.f_bus, branch.t_bus
-            f_v = self.buses[f_bus].v
-            t_v = self.buses[t_bus].v
-
-            i_ij = self._get_current_from_voltage(f_bus, t_bus, f_v, t_v)
-            i_ji = self._get_current_from_voltage(t_bus, f_bus, t_v, f_v)
+            i_ij = self._get_current_from_voltage(branch)
+            i_ji = self._get_current_from_voltage(branch)
 
             if np.abs(i_ij) >= np.abs(i_ji):
                 branch.i = i_ij
@@ -566,32 +560,40 @@ class Simulator(object):
 
         return np.array(I_br)
 
-    def _get_current_from_voltage(self, i, j, v_i, v_j):
+    def _get_current_from_voltage(self, branch):
         """
-        Return the current sent on transmission line (i, j) at node i.
+        Compute the complex current injection on a transmission line.
 
-        This function computes the line complex current from bus i to bus j,
-        based on voltage values. This is the current value as it leaves node
-        i. Note that I_ij is different from I_ji.
+        Parameters
+        ----------
+        branch : `TransmissionLine`
+            The transmission line in which to compute the current injection.
 
-        :param i: the sending end of the line.
-        :param j: the receiving end of the line.
-        :return: the complex current on the desired transmission line (p.u.).
+        Returns
+        -------
+        complex
+            The complex current injection on the branch at bus `branch.f_bus`
+            (p.u.).
         """
+        v_i = self.buses[branch.f_bus].v
+        v_j = self.buses[branch.t_bus].v
 
-        # Get the characteristics of the transmission line and transformer.
-        tap = self.taps[(i, j)]
-        y_s = self.series[(i, j)]
-        y_shunt = self.shunts[(i, j)]
-
-        # Compute the complex current in the branch, as seen from node i (p.u.).
-        current = np.absolute(tap) ** 2 * (y_s + y_shunt) * v_i - \
-                  np.conjugate(tap) * y_s * v_j
+        current = np.absolute(branch.tap) ** 2 * (branch.series + branch.shunt) \
+                  * v_i - np.conjugate(branch.tap) * branch.series * v_j
 
         return current
 
     def _compute_branch_PQ(self):
-        """ Return P (MW), Q (MVar) flow in each branch. """
+        """
+        Compute the real and reactive power flows in each transmission line.
+
+        Returns
+        -------
+        P_br : list of float
+            The real power flow in each branch (MW).
+        Q_br : list of float
+            The reactive power flow in each branch (MVAr).
+        """
 
         P_br, Q_br = [], []
         for branch in self.branches:
@@ -612,8 +614,20 @@ class Simulator(object):
         losses, curtailment losses, (dis)charging losses, and operational
         constraints violation costs.
 
-        :param P_potential: the vector of potential nodal real generation (MW).
-        :return: the total reward associated with the current system state.
+        Parameters
+        ----------
+        P_bus : array_like
+            The nodal real power injection vector (MW).
+        P_potential : array_like
+            The potential real power generation of each VRE (MW).
+        P_curt : array_like
+            The actual generation of each VRE after curtailment (MW).
+
+        Returns
+        -------
+        reward : float
+            The total reward associated with the transition to a new system
+            state.
         """
 
         # Compute the total energy loss over the network. This includes
@@ -636,13 +650,12 @@ class Simulator(object):
 
     def _get_penalty(self):
         """
-        Return the penalty associated with operation constraints violation.
+        Compute the penalty associated with operation constraints violation.
 
-        This function returns a (big) penalty cost if the system violates
-        operation constraints, that is voltage magnitude and line current
-        constraints.
-
-        :return: the penalty associated with operation constraints violation.
+        Returns
+        -------
+        penalty : float
+            The penalty associated with operation constraints violation.
         """
 
         # Compute the total voltage constraints violation (p.u.).

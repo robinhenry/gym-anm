@@ -7,33 +7,48 @@ class Bus(object):
 
     Attributes
     ----------
-
-    Parameters
-    ----------
-    bus_case : array_like
-        The corresponding bus row in the case file describing the network.
-    is_slak : bool, optional
-        Indicate whether the bus is the slack bus.
-
-    Methods
-    -------
-
+    id : int
+        The bus unique ID.
+    type : int
+        The bus type (1 = PQ, 2 = PV, 3 = slack).
+    is_slack : bool
+        True if it is the slack bus, False otherwise.
+    v_min, v_max : float
+        The minimum and maximum voltage magnitude (p.u.).
+    v_slack : float
+        The fixed voltage magnitude, if it is the slack bus (p.u.).
+    v : float
+        The current complex bus voltage (p.u.).
+    p, q : float
+        The current real (MW) and reactive (MVAr) power injections at the bus.
+    p_min, p_max, q_min, q_max : float
+        The bounds on the feasible real and reactive power injections at the bus.
     """
-    def __init__(self, bus_case, is_slack=False):
+
+    def __init__(self, bus_case):
+        """
+        Parameters
+        ----------
+        bus_case : array_like
+            The corresponding bus row in the case file describing the network.
+        is_slak : bool, optional
+            True the bus is the slack bus, False otherwise.
+        """
 
         self.id = int(bus_case[BUS_H['BUS_I']])
         self.type = int(bus_case[BUS_H['BUS_TYPE']])
-        self.is_slack = is_slack
         self.v_max = bus_case[BUS_H['VMAX']]
         self.v_min = bus_case[BUS_H['VMIN']]
 
-        if self.is_slack:
+        if self.type == 3:
+            self.is_slack = True
             self.v_slack = self.v_max
+        else:
+            self.is_slack = False
 
-        self.v = None  # p.u (complex)
-        self.p = 0  # MW
-        self.q = 0  # MVAr
-
+        self.v = None
+        self.p = None
+        self.q = None
         self.p_min = None
         self.p_max = None
         self.q_min = None
