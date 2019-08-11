@@ -1,51 +1,30 @@
 import numpy as np
 
-from gym_smartgrid.constants import BUS_H, DEV_H, BRANCH_H
-
-
-class Bus(object):
-    def __init__(self, bus_case, is_slack=False):
-        self.id = int(bus_case[BUS_H['BUS_I']])
-        self.type = int(bus_case[BUS_H['BUS_TYPE']])
-        self.is_slack = is_slack
-        self.v_max = bus_case[BUS_H['VMAX']]
-        self.v_min = bus_case[BUS_H['VMIN']]
-
-        if self.is_slack:
-            self.v_slack = self.v_max
-
-        self.v = None  # p.u (complex)
-        self.p = 0  # MW
-        self.q = 0  # MVAr
-
-        self.p_min = None
-        self.p_max = None
-        self.q_min = None
-        self.q_max = None
-
-
-
-class TransmissionLine(object):
-    def __init__(self, br_case):
-        self.f_bus = int(br_case[BRANCH_H['F_BUS']])
-        self.t_bus = int(br_case[BRANCH_H['T_BUS']])
-        self.r = br_case[BRANCH_H['BR_R']]
-        self.x = br_case[BRANCH_H['BR_X']]
-        self.b = br_case[BRANCH_H['BR_B']]
-        self.i_max = br_case[BRANCH_H['RATE_A']]
-        self.tap = br_case[BRANCH_H['TAP']]
-        self.shift = br_case[BRANCH_H['SHIFT']]
-        self.ang_min = br_case[BRANCH_H['ANGMIN']]
-        self.ang_max = br_case[BRANCH_H['ANGMAX']]
-
-        self.tap = self.tap if self.tap > 0. else 1.
-
-        self.i = None  # p.u. (complex)
-        self.p = None  # MW
-        self.q = None  # MVAr
+from gym_smartgrid.constants import DEV_H
 
 
 class Device(object):
+    """
+    A electric device connected to an electric power grid.
+
+    Attributes
+    ----------
+
+    Parameters
+    ----------
+    dev_id : int
+        The ID corresponding to the device.
+    dev_spec_id : int
+        The ID of the device within the subset of devices of the same type.
+    dev_case : array_like
+        The corresponding device row in the case file describing the network.
+
+    Methods
+    -------
+
+    """
+
+
     def __init__(self, dev_id, dev_spec_id, dev_case):
         self.dev_id = dev_id
         self.type_id = dev_spec_id
@@ -87,6 +66,27 @@ class Device(object):
 
 
 class Load(Device):
+    """
+    A passive load connected to an electric power grid.
+
+    Attributes
+    ----------
+
+    Parameters
+    ----------
+    dev_id : int
+        The ID corresponding to the device.
+    load_id : int
+        The ID of the load within the subset of loads connected to the grid.
+    dev_case : array_like
+        The corresponding device row in the case file describing the network.
+
+    Methods
+    -------
+
+    """
+
+
     def __init__(self, dev_id, load_id, dev_case):
         super().__init__(dev_id, load_id, dev_case)
 

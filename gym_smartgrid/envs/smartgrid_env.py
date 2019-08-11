@@ -44,7 +44,7 @@ class SmartGridEnv(gym.Env):
         self.simulator = Simulator(self.case, delta_t=self.delta_t,
                                    rng=self.np_random)
 
-        self.network_specs = self.simulator.network_specs
+        self.network_specs = self.simulator.specs
         self.action_space = self._build_action_space()
         self.observation_space = self._build_obs_space()
 
@@ -207,7 +207,7 @@ class SmartGridEnv(gym.Env):
             else:
                 raise NotImplementedError
             self.render_mode = mode
-            network_specs = self.simulator.compute_network_specs()
+            network_specs = self.simulator.specs()
             self._init_render(network_specs)
         else:
             self._update_render(self.time, self._get_observations(),
@@ -224,7 +224,7 @@ class SmartGridEnv(gym.Env):
             self.http_server, self.ws_server = rendering.start(
                 *network_specs)
         elif self.render_mode == 'save':
-            s = pd.Series({'network_specs': network_specs})
+            s = pd.Series({'specs': network_specs})
             self.render_history = pd.DataFrame([s])
         else:
             raise NotImplementedError
@@ -267,7 +267,7 @@ class SmartGridEnv(gym.Env):
         self.close()
 
     def _unpack_history(self, history):
-        ns = ast.literal_eval(history.network_specs[0])
+        ns = ast.literal_eval(history.get_network_specs[0])
 
         obs = history.obs[1:].values
         obs = [ast.literal_eval(o) for o in obs]

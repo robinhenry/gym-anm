@@ -1,26 +1,55 @@
 import numpy as np
 import scipy.optimize as optimize
 
-from gym_smartgrid.simulator.components import Bus, TransmissionLine, Load, \
-    PowerPlant, \
-    VRE, Storage
+from gym_smartgrid.simulator.components import Load, TransmissionLine, \
+    PowerPlant, Storage, VRE, Bus
 from gym_smartgrid.constants import DEV_H, BRANCH_H
 
 
 class Simulator(object):
     """
-    This class simulates an AC distribution system.
+    A simulator of a single-phase AC electricity distribution network.
+
+    ...
+
+    Attributes
+    ----------
+    delta_t : int
+    lamb : int
+    baseMVA
+    buses, branches, gens, storages
+    slack_dev
+    N_bus, N_branch, N_load, N_device, N_storage : int
+    Y_bus
+    taps
+    shunts
+    series
+    specs
+    state
+
+    Parameters
+    ----------
+    case : dict of array_like
+        A case dictionary describing the power grid.
+    delta_t : int, optional
+        The interval of time between two consecutive time steps (in minutes).
+    lamb : int, optional
+        A constant factor multiplying the penalty associated with violating
+        operational constraints.
+    rng : np.random.RandomState, optional
+        A random seed.
+
+    Methods
+    -------
+    reset()
+    get_network_specs()
+    get_action_space()
+    transition()
     """
 
-    def __init__(self, case, delta_t=15., lamb=1e3, rng=None):
-        """
-        Initialize the state of the distribution network and all variables.
+    def __init__(self, case, delta_t=15, lamb=1e3, rng=None):
 
-        :param case: a case object containing parameters of the grid.
-        :param rng: a random seed.
-        """
-
-        # Check the correctness of the case file.
+        # Check the correctness of the input case file.
         #utils.check_casefile(case)
 
         self.delta_t = delta_t / 60.
@@ -29,7 +58,32 @@ class Simulator(object):
         # Initialize random generator.
         self.rng = np.random.RandomState() if rng is None else rng
 
-        # Load the test case.
+        # Load network case.
+        self._load_case(case)
+
+        # Number of elements in all sets.
+        self.N_bus = len(self.buses)
+        self.N_branch = len(self.branches)
+        self.N_load = len(self.loads)
+        self.N_gen = len(self.gens) + 1  # +1 for slack bus.
+        self.N_storage = len(self.storages)
+        self.N_device = self.N_gen + self.N_load + self.N_storage
+
+        # Build the nodal admittance matrix.
+        self.Y_bus, self.series, self.shunts, self.taps = \
+            self._build_admittance_matrix()
+
+        # Compute the range of possible (P, Q) injections of each bus.
+        self._compute_bus_bounds()
+
+        # Summarize the operating range of the network.
+        self.specs = self.get_network_specs()
+
+    def _load_case(self, case):
+        """
+        Initialize the network model based on parameters given in a case file.
+        """
+
         self.baseMVA = case['baseMVA']
 
         self.buses = []
@@ -76,33 +130,13 @@ class Simulator(object):
                                      f'device.')
                 dev_idx += 1
 
-        # Number of elements in all sets.
-        self.N_bus = len(self.buses)
-        self.N_branch = len(self.branches)
-        self.N_load = len(self.loads)
-        self.N_gen = len(self.gens) + 1
-        self.N_storage = len(self.storages)
-        self.N_device = self.N_gen + self.N_load + self.N_storage
-
-        # Build the nodal admittance matrix.
-        self._build_admittance_matrix()
-
-        self._compute_bus_bounds()
-        self.network_specs = self.compute_network_specs()
 
     def _build_admittance_matrix(self):
         """
         Build the nodal admittance matrix of the network (in p.u.).
-
-        This function builds the nodal admittance matrix of the network,
-        based on specifications given in the input case file (in p.u.).
         """
 
-        # Initialize an N-by-N empty complex admittance matrix.
         Y_bus = np.zeros((self.N_bus, self.N_bus), dtype=np.complex)
-
-        # Initialize an N_branch-by-N_branch dict to store tap ratios,
-        # series and shunt admittances of branches.
         taps = {}
         shunts = {}
         series = {}
@@ -119,8 +153,7 @@ class Simulator(object):
             tap = branch.tap * np.exp(1.j * shift)
 
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
-            Y_bus[branch.f_bus, branch.t_bus] = - np.conjugate(
-                tap) * y_series
+            Y_bus[branch.f_bus, branch.t_bus] = - np.conjugate(tap) * y_series
             Y_bus[branch.t_bus, branch.f_bus] = - tap * y_series
 
             # Increment diagonal element of the admittance matrix Y_bus.
@@ -136,17 +169,19 @@ class Simulator(object):
             series[(branch.f_bus, branch.t_bus)] = y_series
             series[(branch.t_bus, branch.f_bus)] = y_series
 
-        self.Y_bus = Y_bus
-        self.taps = taps
-        self.shunts = shunts
-        self.series = series
+        return Y_bus, series, shunts, taps
 
     def _compute_bus_bounds(self):
+        """
+        Compute the range of (P, Q) possible injections at each bus.
+        """
+
         P_min = [0.] * self.N_bus
         P_max = [0.] * self.N_bus
         Q_min = [0.] * self.N_bus
         Q_max = [0.] * self.N_bus
 
+        # Iterate over all devices connected to the power grid.
         for dev in [self.slack_dev] + list(self.gens.values()) \
                     + list(self.loads.values()) + list(self.storages.values()):
             P_min[dev.bus_id] += dev.p_min
@@ -154,6 +189,7 @@ class Simulator(object):
             Q_min[dev.bus_id] += dev.q_min
             Q_max[dev.bus_id] += dev.q_max
 
+        # Update each bus with its operation range.
         for idx, bus in enumerate(self.buses):
             bus.p_min = P_min[idx]
             bus.p_max = P_max[idx]
@@ -166,7 +202,17 @@ class Simulator(object):
         for su in self.storages.values():
             su.soc = su.soc_max / 2.
 
-    def compute_network_specs(self):
+    def get_network_specs(self):
+        """
+        Summarize the characteristics of the distribution network.
+
+        Returns
+        -------
+        specs: dict of {str: list}
+            A description of the operating range of the network. These values
+            can be used to define an observation space.
+        """
+
         P_min_bus = []
         P_max_bus = []
         Q_min_bus = []
@@ -224,38 +270,36 @@ class Simulator(object):
 
     def get_action_space(self):
         """
-        Return the upper and lower bound on each possible control action.
+        Return the range of each possible control action.
 
         This function returns the lower and upper bound of each action that
-        can be taken by the DSO. More specifically, it returns 3 ndarray,
-        each containing the upper and lower bounds of a type of action.
+        can be taken by the DSO.
 
-        For instance, P_curt_bounds[0, i] returns the maximum real power
-        injection of generator i (skipping slack bus), and P_curt_bounds[1,
-        i] its minimum injection.
+        Returns
+        -------
+        P_curt_bounds : 2D numpy.ndarray
+            The range of real power injection of VRE devices. For example,
+            P_curt_bounds[i, :] = [p_max, p_min] of the i^th VRE generator (MW).
+        alpha_bounds : 2D numpy.ndarray
+            The operating range of each storage unit. For example,
+            alpha_bounds[i, :] = [alpha_max, alpha_min] of each storage unit (MW).
+        q_storage_bounds : 2D numpy.ndarray
+            The range of reactive power injection of VRE devices. For example,
+            q_storage_bounds[i, :] = [q_max, q_min] of each storage unit (MVAr).
 
-        Note that the bounds returned by this
-        function are loose, i.e. some parts of those spaces might be
-        physically impossible to achieve due to other operating constraints.
-        This is just an indication of the range of action available to the
-        DSO.
-
-        :return P_curt_bounds: bounds on the P generation of each generator
-        device (ignoring slack device).
-        :return alpha_bounds: bounds on the rate of charge of each storage unit.
-        :return q_storage_bounds: bounds on the desired Q setpoint of each
-        storage unit.
+        Notes
+        -----
+        The bounds returned by this function are loose, i.e. some parts of
+        those spaces might be physically impossible to achieve due to other
+        operating constraints. This is just an indication of the range of action
+        available to the DSO.
         """
 
-        # Get bounds on the generation of each distributed generator (except
-        # slack bus).
         P_curt_bounds = []
         for _, gen in sorted(self.gens.items()):
             if gen.type >= 2.:
                 P_curt_bounds.append([gen.p_max, gen.p_min])
 
-        # Get bounds on the charging rate and on the Q setpoint of each
-        # storage unit.
         alpha_bounds = []
         q_storage_bounds = []
         for _, su in sorted(self.storages.items()):
@@ -268,35 +312,42 @@ class Simulator(object):
     def transition(self, P_load, P_potential, P_curt_limit, desired_alpha,
                    Q_storage_setpoints):
         """
-        Simulates a transition of the system from time t to time (t+1).
+        Simulate a transition of the system from time t to time (t+1).
 
         This function simulates a transition of the system after actions were
-        taken by the DSO, during the previous time step. The results of these
-        decisions then affect the new state of the system, and the associated
-        reward is returned.
+        taken by the DSO. The results of these decisions then affect the new
+        state of the system, and the associated reward is returned.
 
-        :param P_load: N_load vector of real power injection from load devices.
-        :param P_potential: (N_gen-1) vector of real power potential
-        injections from distributed generators.
-        :param P_curt_limit: (N_gen-1) vector of real power injection
-        curtailment instructions, ignoring the slack bus (MW).
-        :param desired_alpha: N_storage vector of desired charging rate for
-        each storage unit (MW).
-        :param Q_storage_setpoints: N_storage vector of desired Q-setpoint for
-        storage units (MVAr).
-        :return: the total reward associated with the transition.
+        Parameters
+        ----------
+        P_load : array_like
+            Real power injection from each load device (MW).
+        P_potential : array_like
+            Real power potential injection from each distributed generator (MW).
+        P_curt_limit : array_like
+            VRE curtailment instructions, excluding the slack bus (MW)
+        desired_alpha : array_like
+            Desired charging rate for each storage unit (MW).
+        Q_storage_setpoints : array_like
+            Desired Q-setpoint of each storage unit (MVAr).
+
+        Returns
+        -------
+        reward : float
+            The reward associated with the transition.
         """
 
         ### Manage passive loads. ###
-        # 1. Compute the reactive power injection at each load.
+        # 1. Compute the (P, Q) injection point of each load.
         for load in self.loads.values():
             load.compute_pq(P_load[load.type_id])
 
         ### Manage distributed generators. ###
-        # 1. Curtail potential production (except slack bus).
+        # 1. Curtail potential production.
         P_curt = np.minimum(P_potential, np.maximum(0, P_curt_limit))
 
-        # 2. Get (P, Q) feasible injection points (except slack bus).
+        # 2. Compute the (P, Q) injection point of each generator
+        # (except slack bus).
         for gen in self.gens.values():
             gen.compute_pq(P_curt[gen.type_id - 1])
 
@@ -304,19 +355,19 @@ class Simulator(object):
         SOC = self._manage_storage(desired_alpha, Q_storage_setpoints)
 
         ### Compute electrical quantities of interest. ###
-        # 1. Compute total P and Q injection at each bus.
+        # 1. Compute total (P, Q) injection at each bus.
         self._get_bus_total_injections()
 
-        # 2. Solve PFEs and store nodal V (p.u.), P (MW), Q (MVAr) vectors.
+        # 2. Solve PFEs and compute nodal V (p.u.), P (MW), Q (MVAr) vectors.
         P_bus, Q_bus, V_bus = self._solve_pfes()
 
-        # 3. Compute I in each branch from V (p.u.)
+        # 3. Compute I in each branch (p.u.)
         I_br = self._get_branch_currents()
 
-        # 4. Compute P (MW), Q (MVar) power flows in each branch.
+        # 4. Compute P (MW) and Q (MVar) power flows in each branch.
         P_br, Q_br = self._compute_branch_PQ()
 
-        # 5. Get (P, Q) injection of each device.
+        # 5. Compute (P, Q) injection of each device.
         P_dev = [self.slack_dev.p] + [0.] * (self.N_device - 1)
         Q_dev = [self.slack_dev.q] + [0.] * (self.N_device - 1)
         for dev in list(self.gens.values()) + list(self.loads.values()) + \
@@ -324,17 +375,33 @@ class Simulator(object):
             P_dev[dev.dev_id] = dev.p
             Q_dev[dev.dev_id] = dev.q
 
-        # 6. Store all state variables in a dictionary.
+        ### Store all state variables in a dictionary. ###
         self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_BUS': V_bus,
                       'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC,
                       'P_BR': P_br, 'Q_BR': Q_br, 'I_BR': I_br}
 
-        ### Return the total reward associated with the transition. ###
-        reward = self._get_reward(P_bus, P_potential, P_curt, I_br, V_bus)
+        ### Compute the total reward associated with the transition. ###
+        reward = self._get_reward(P_bus, P_potential, P_curt)
 
         return reward
 
     def _manage_storage(self, desired_alpha, Q_storage_setpoints):
+        """
+        Manage all storage units during a transition.
+
+        Parameters
+        ----------
+        desired_alpha : array_like
+            The desired charging rate of each storage unit (MW).
+        Q_storage_setpoints : array_like
+            The desired Q-setpoint of each storage unit (MVAr).
+
+        Returns
+        -------
+        SOC : list
+            The state of charge of each storage unit (MWh).
+        """
+
         SOC = [0.] * self.N_storage
         for su in self.storages.values():
             su.manage(desired_alpha[su.type_id], self.delta_t,
@@ -345,6 +412,7 @@ class Simulator(object):
 
     def _get_bus_total_injections(self):
         """
+        Compute the total (P, Q) injection point at each bus.
         """
 
         P_bus = [0] * self.N_bus
@@ -359,32 +427,37 @@ class Simulator(object):
             bus.p = P_bus[i]
             bus.q = Q_bus[i]
 
-        return
-
     def _solve_pfes(self):
         """
         Solve the power flow equations and return V, P, Q for each bus.
 
-        This function solves the power flow equations of the network. If no
-        solution is found, a ValueError is raised and a message displayed. The
-        real and reactive power injections at the slack bus are then retrieved
-        from the solution V, and the nodal vectors V, P, Q are reconstructed.
+        Returns
+        -------
+        P : numpy.ndarray
+            The nodal real power nodal injection vector.
+        Q : numpy.ndarray
+            The nodal reactive power injection vector.
+        V : numpy.ndarray
+            The nodal complex voltage vector.
 
-        :return: the N vectors of nodal V (p.u.), P (MW), and Q (MVAr).
+        Raises
+        ------
+        ValueError
+            Raised if no solution is found.
         """
 
         P_bus, Q_bus = [], []
-        for bus in self.buses[1:]:
+        for bus in self.buses[1:]:   # skip slack bus.
             P_bus.append(bus.p)
             Q_bus.append(bus.q)
 
-        # Initialize V to represent v_ij = 1 exp(j 0).
+        # Initialize complex V as v_ij = 1 exp(j 0).
         init_v = np.array([self.buses[0].v_slack] + [1.] * (self.N_bus - 1)
                           + [0.] * self.N_bus)
 
-        # Transform P, Q injections into p.u. values.
-        P_bus_pu = np.array(P_bus) / self.baseMVA # skip slack bus.
-        Q_bus_pu = np.array(Q_bus) / self.baseMVA # skip slack bus.
+        # Transform (P, Q) injections into p.u. values.
+        P_bus_pu = np.array(P_bus) / self.baseMVA
+        Q_bus_pu = np.array(Q_bus) / self.baseMVA
 
         # Solve the power flow equations of the network.
         sol = optimize.root(self._power_flow_eqs, init_v,
@@ -401,7 +474,7 @@ class Simulator(object):
         s_slack = (V * np.conjugate(np.dot(self.Y_bus, V)))[0]
 
         # Retrieve the real and reactive power injections at the slack bus (=
-        # slack device, since there is only 1 device at the slack bus).
+        # slack device).
         self.slack_dev.p = np.real(s_slack)
         self.slack_dev.q = np.imag(s_slack)
 
@@ -420,19 +493,23 @@ class Simulator(object):
         """
         Return the power flow equations to be solved.
 
-        This is a vector function, returning a vector of expressions which
-        must be equal to 0 (i.e. find the roots) to solve the Power Flow
-        Equations of the network. Everything should be expressed in p.u.
+        Parameters
+        ----------
+        v : 1D numpy.ndarray
+            Initial bus voltage guess, where elements 0 to N-1 represent the
+            real part of the initial guess for nodal voltage, and the N to 2N-1
+            elements their corresponding imaginary parts (p.u.).
+        Y : 2D numpy.ndarray
+            The network bus admittance matrix (p.u.).
+        P : 1D numpy.ndarray
+            Fixed real power nodal injections, excluding the slack bus (p.u.).
+        Q : 1D numpy.ndarray
+            Fixed reactive power nodal injections, excluding the slack bus (p.u.).
 
-        :param v: ndarray of size (2N,), where elements 0 to N-1 represent the
-        real part of the initial guess for nodal voltage, and the N to 2N-1
-        elements their corresponding imaginary parts (p.u.).
-        :param Y: the network bus admittance matrix (p.u.).
-        :param P: ndarray of size N-1 of fixed real power nodal injections,
-        excluding the slack bus (p.u.).
-        :param Q: ndarray of size N-1 of fixed reactive power nodal
-        injections, excluding the slack bus (p.u.).
-        :return: a vector of 4 expressions to find the roots of.
+        Returns
+        -------
+        2D numpy.ndarray
+            A vector of 4 expressions to find the roots of.
         """
 
         # Re-build complex nodal voltage array.
@@ -460,26 +537,26 @@ class Simulator(object):
 
     def _get_branch_currents(self):
         """
-        Return the current magnitude on each transmission line (in p.u.).
+        Compute the complex current on each transmission line (in p.u.).
 
-        This function returns the magnitude of the current I_ij, for each
-        transmission line (i, j). Since branch
-        currents are not symmetrical, the current magnitude in branch (i,
-        j) is taken to be max(abs(I_ij, I_ji)).
+        Since branch currents are not symmetrical, the current injection at each
+        end of the branch is computed, and the one with the highest magnitude
+        is kept, i.e. |I_ij| = max(|I_ij|, |I_ji|).
 
-        :return: a list of branch current magnitudes (p.u.).
+        Returns
+        -------
+        1D numpy.ndarray
+            The complex current in each transmission line (p.u.).
         """
         I_br = []
         for branch in self.branches:
             f_bus, t_bus = branch.f_bus, branch.t_bus
-
             f_v = self.buses[f_bus].v
             t_v = self.buses[t_bus].v
 
             i_ij = self._get_current_from_voltage(f_bus, t_bus, f_v, t_v)
             i_ji = self._get_current_from_voltage(t_bus, f_bus, t_v, f_v)
 
-            # Store the current with the biggest current magnitude.
             if np.abs(i_ij) >= np.abs(i_ji):
                 branch.i = i_ij
             else:
@@ -527,7 +604,7 @@ class Simulator(object):
 
         return P_br, Q_br
 
-    def _get_reward(self, P_bus, P_potential, P_curt, I_br, V_bus):
+    def _get_reward(self, P_bus, P_potential, P_curt):
         """
         Return the total reward associated with the current state of the system.
 
@@ -551,13 +628,13 @@ class Simulator(object):
             curt_loss = 0.
 
         # Get the penalty associated with violating operating constraints.
-        penalty = self._get_penalty(V_bus, I_br)
+        penalty = self._get_penalty()
 
         # Return reward as a negative cost.
         reward = - (energy_loss + curt_loss + penalty)
         return reward
 
-    def _get_penalty(self, V_bus, I_br):
+    def _get_penalty(self):
         """
         Return the penalty associated with operation constraints violation.
 
