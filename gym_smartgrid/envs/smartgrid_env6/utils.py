@@ -93,7 +93,7 @@ class LoadSet(object):
 
         # Create N_load generator objects to model passive loads.
         self.loads = []
-        for factor in factors:
+        for _, factor in sorted(factors.items()):
             self.loads.append(LoadGenerator(factor))
 
     def next(self, cur_time):

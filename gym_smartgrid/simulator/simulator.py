@@ -4,7 +4,7 @@ import scipy.optimize as optimize
 from gym_smartgrid.simulator.components import Bus, TransmissionLine, Load, \
     PowerPlant, \
     VRE, Storage
-from gym_smartgrid.simulator.case_headers import BRANCH_H, DEV_H
+from gym_smartgrid.constants import DEV_H, BRANCH_H
 
 
 class Simulator(object):
@@ -174,14 +174,14 @@ class Simulator(object):
         V_min_bus = []
         V_max_bus = []
 
-        P_min_dev = [0.] * self.N_device
-        P_max_dev = [0.] * self.N_device
-        Q_min_dev = [0.] * self.N_device
-        Q_max_dev = [0.] * self.N_device
-        dev_type = [0.] * self.N_device
+        P_min_dev = [0] * self.N_device
+        P_max_dev = [0] * self.N_device
+        Q_min_dev = [0] * self.N_device
+        Q_max_dev = [0] * self.N_device
+        dev_type = [0] * self.N_device
 
-        soc_min = [0.] * self.N_storage
-        soc_max = [0.] * self.N_storage
+        soc_min = [0] * self.N_storage
+        soc_max = [0] * self.N_storage
 
         I_max = []
 
@@ -345,19 +345,21 @@ class Simulator(object):
 
     def _get_bus_total_injections(self):
         """
-        Return the total real and reactive power injection at each bus.
-
-        :param Ps: a dict of lists of real power injection with keys {
-        'generator', 'load', 'storage'}.
-        :param Qs: a dict of lists of reactive power injection with keys {
-        'generator', 'load', 'storage'}.
-        :return: the total real (MW) and reactive (MVAr) power injection at each
-        bus, except the slack bus.
         """
-        for dev in list(self.gens.values()) + list(self.loads.values()) + \
-                   list(self.storages.values()):
-            self.buses[dev.bus_id].p += dev.p
-            self.buses[dev.bus_id].q += dev.q
+
+        P_bus = [0] * self.N_bus
+        Q_bus = [0] * self.N_bus
+        devs = list(self.gens.values()) + list(self.loads.values()) + \
+                   list(self.storages.values())
+        for dev in devs:
+            P_bus[dev.bus_id] += dev.p
+            Q_bus[dev.bus_id] += dev.q
+
+        for i, bus in enumerate(self.buses):
+            bus.p = P_bus[i]
+            bus.q = Q_bus[i]
+
+        return
 
     def _solve_pfes(self):
         """
@@ -372,7 +374,7 @@ class Simulator(object):
         """
 
         P_bus, Q_bus = [], []
-        for bus in self.buses:
+        for bus in self.buses[1:]:
             P_bus.append(bus.p)
             Q_bus.append(bus.q)
 
@@ -381,8 +383,8 @@ class Simulator(object):
                           + [0.] * self.N_bus)
 
         # Transform P, Q injections into p.u. values.
-        P_bus_pu = np.array(P_bus[1:]) / self.baseMVA # skip slack bus.
-        Q_bus_pu = np.array(Q_bus[1:]) / self.baseMVA # skip slack bus.
+        P_bus_pu = np.array(P_bus) / self.baseMVA # skip slack bus.
+        Q_bus_pu = np.array(Q_bus) / self.baseMVA # skip slack bus.
 
         # Solve the power flow equations of the network.
         sol = optimize.root(self._power_flow_eqs, init_v,

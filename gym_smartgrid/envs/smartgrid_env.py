@@ -19,7 +19,7 @@ from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
 class SmartGridEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, folder, obs_values, delta_t=15, ):
+    def __init__(self, folder, obs_values, delta_t=15, seed=None):
 
         # Load case.
         path_to_case = os.path.join(folder, ENV_FILES['case'])
@@ -31,7 +31,7 @@ class SmartGridEnv(gym.Env):
         self.svg_data['labels'] = os.path.join(rel_path, ENV_FILES['svgLabels'])
 
         # Set random seed.
-        self.seed()
+        self.seed(seed)
 
         self.delta_t = delta_t
         self.timestep_length = dt.timedelta(minutes=delta_t)
@@ -123,8 +123,9 @@ class SmartGridEnv(gym.Env):
         load, power_plant, wind, solar = {}, {}, {}, {}
         for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
             p_max = self.network_specs['PMAX_DEV'][idx]
+            p_min = self.network_specs['PMIN_DEV'][idx]
             if dev_type == -1:
-                load[idx] = p_max
+                load[idx] = p_min
             elif dev_type == 1:
                 power_plant[idx] = p_max
             elif dev_type == 2:

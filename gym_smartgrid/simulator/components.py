@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.simulator.case_headers import BUS_H, BRANCH_H, DEV_H
+from gym_smartgrid.constants import BUS_H, DEV_H, BRANCH_H
 
 
 class Bus(object):
@@ -158,7 +158,7 @@ class Storage(Device):
         # Case 1: upper limit.
         if self.soc + delta_soc > self.soc_max:
             delta_soc = self.soc_max - self.soc
-            max_alpha = 2 * delta_soc / (delta_t * (1 + eff))
+            max_alpha = 2 * delta_soc / (delta_t * (1 + self.eff))
 
         # Case 2: lower limit.
         elif self.soc + delta_soc < self.soc_min:
