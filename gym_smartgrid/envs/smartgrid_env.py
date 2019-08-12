@@ -14,12 +14,71 @@ from gym_smartgrid.simulator import Simulator
 from gym_smartgrid.rendering import rendering
 from gym_smartgrid.envs.utils import write_html
 from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
+from gym_smartgrid.constants import RENDERED_STATE_VALUES
 
 
 class SmartGridEnv(gym.Env):
+    """
+
+    Attributes
+    ----------
+    case : dict of {str : numpy.ndarray}
+    svg_data : dict of {str : str}
+    delta_t : int
+    timestep_length : datetime.timedelta
+    year : int
+    obs_values : list of str
+    simulator : Simulator
+    network_specs : dict of {str : array_like}
+    action_space : gym.spaces.Tuple
+    observation_space : gym.spaces.Tuple
+    state : dict of {str : array_like}
+    total_reward : float
+    obs : list of list of float
+    time : datetime.datetime
+    end_time : datetime.datetime
+    done : bool
+    render_mode : str
+    np_random : array_like
+    render_history : pandas.DataFrame
+    sleep_time : float
+
+    generators
+    loads
+
+    Methods
+    -------
+    init_vre()
+    init_load()
+    reset()
+    step(action)
+    render(mode='human', sleep_time=0.1)
+    replay(path, sleep_time=0.1)
+    close(path=None)
+
+    Notes
+    -----
+
+
+    """
+
+
     metadata = {'render.modes': ['human']}
 
     def __init__(self, folder, obs_values, delta_t=15, seed=None):
+        """
+        Parameters
+        ----------
+        folder : str
+            The absolute path to the folder providing the files to initialize a
+            specific environment.
+        obs_values : list of str
+            The values to include in the observation space.
+        delta_t : int, optional
+            The time interval between two consecutive time steps (minutes).
+        seed : int, optional
+            A random seed.
+        """
 
         # Load case.
         path_to_case = os.path.join(folder, ENV_FILES['case'])
@@ -33,6 +92,7 @@ class SmartGridEnv(gym.Env):
         # Set random seed.
         self.seed(seed)
 
+        # Time variables.
         self.delta_t = delta_t
         self.timestep_length = dt.timedelta(minutes=delta_t)
         self.episode_max_length = dt.timedelta(days=3 * 365)
@@ -43,19 +103,29 @@ class SmartGridEnv(gym.Env):
         # Initialize AC power grid simulator.
         self.simulator = Simulator(self.case, delta_t=self.delta_t,
                                    rng=self.np_random)
-
         self.network_specs = self.simulator.specs
+
+        # Build action and observation spaces.
         self.action_space = self._build_action_space()
         self.observation_space = self._build_obs_space()
 
+        # Initialize stochastic processes.
         dev_specs = self._get_dev_specs()
         self.generators = self.init_vre(dev_specs[2], dev_specs[3],
                                         self.timestep_length, self.np_random)
-
         self.loads = self.init_load(dev_specs[0], self.timestep_length,
                                     self.np_random)
 
     def _build_action_space(self):
+        """
+        Build the available action space.
+
+        Returns
+        -------
+        gym.spaces.Tuple
+            The action space of the environment.
+        """
+
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
 
         space_curtailment = spaces.Box(low=P_curt_bounds[:, 1],
@@ -72,6 +142,15 @@ class SmartGridEnv(gym.Env):
         return spaces.Tuple((space_curtailment, space_alpha, space_q))
 
     def _build_obs_space(self):
+        """
+        Build the observation space.
+
+        Returns
+        -------
+        gym.spaces.Tuple
+            The observation space.
+        """
+
         obs_space = []
         network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
         if 'P_BUS' in self.obs_values:
@@ -120,6 +199,17 @@ class SmartGridEnv(gym.Env):
         return spaces.Tuple(tuple(obs_space))
 
     def _get_dev_specs(self):
+        """
+        Extract the operating constraints of loads and VRE devices.
+
+        Returns
+        -------
+        load, power_plant, solar : dict of {int : float}
+            A dictionary of {key : value}, where the key is the device unique ID
+            and the value the maximum real power injection of the corresponding
+            device (negative for loads).
+        """
+
         load, power_plant, wind, solar = {}, {}, {}, {}
         for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
             p_max = self.network_specs['PMAX_DEV'][idx]
@@ -136,17 +226,63 @@ class SmartGridEnv(gym.Env):
         return load, power_plant, wind, solar
 
     def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
+        """
+
+        Parameters
+        ----------
+        wind_pmax
+        solar_pmax
+        delta_t
+        np_random
+
+        Returns
+        -------
+
+        """
         raise NotImplementedError
 
     def init_load(self, load_pmax, delta_t, np_random):
+        """
+
+        Parameters
+        ----------
+        load_pmax
+        delta_t
+        np_random
+
+        Returns
+        -------
+
+        """
         raise NotImplementedError
 
     def step(self, action):
+        """
+        Take a control action and transition from a state s_t to a state s_{t+1}.
+
+        Parameters
+        ----------
+        action : Tuple of array_like
+            The action taken by the agent.
+
+        Returns
+        -------
+        state_values : Tuple of array_like
+            The observation corresponding to the new state s_{t+1}.
+        reward : float
+            The rewar associated with the transition.
+        done : bool
+            True if the episode is over, False otherwise.
+        info : dict
+            A dictionary of further information.
+        """
+
+        if self.time >= self.end_time:
+            raise gym.error.ResetNeeded('The episode is already over.')
 
         # Check if the action is in the available action space.
         assert self.action_space.contains(action), "%r (%s) invalid" \
                                                    % (action, type(action))
-        self._increment_t()
 
         # Get the output of the stochastic processes (vre generation, loads).
         P_loads = self.loads.next(self.time)
@@ -160,7 +296,8 @@ class SmartGridEnv(gym.Env):
         # Create a tuple of observations.
         self.obs = self._get_observations()
 
-        # End of episode if maximum number of timesteps has been reached.
+        # End of episode if maximum number of time steps has been reached.
+        self._increment_t()
         if self.time >= self.end_time:
             self.done = True
 
@@ -170,10 +307,21 @@ class SmartGridEnv(gym.Env):
         return self.obs, reward, self.done, info
 
     def _increment_t(self):
+        """ Increment the time. """
         self.time += self.timestep_length
         self.time = self.time.replace(year=self.year)
 
     def _get_observations(self):
+        """
+        Select the observations available to the agent from the current state.
+
+        Returns
+        -------
+        state_values : list of list of float
+            The observations available to the agent, as specified by
+            `self.obs_values`.
+        """
+
         if self.state:
             obs = [list(self.state[ob]) for ob in self.obs_values]
         else:
@@ -181,76 +329,158 @@ class SmartGridEnv(gym.Env):
         return obs
 
     def seed(self, seed=None):
+        """ Seed the random number generator. """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def reset(self):
+        """
+        Reset the environment.
+
+        Returns
+        -------
+        state_values : list of list of float
+            The observations available to the agent, as specified by
+            `self.obs_values`.
+        """
+
         # Select random date.
         self.time = gym_smartgrid.utils.random_date(self.np_random, self.year)
         self.end_time = self.time + self.episode_max_length
 
-        self.total_reward = 0.
         self.done = False
         self.state = None
         self.render_mode = None
         self.simulator.reset()
         obs = self._get_observations()
 
+        # Take a random first action to initialize the state of the simulator.
+        self.step(self.action_space.sample())
+        self.total_reward = 0.
+
         return obs
 
     def render(self, mode='human', sleep_time=0.1):
+        """
+        Render the current state of the environment.
+
+        Parameters
+        ----------
+        mode : {'human', 'save'}, optional
+            The mode of rendering. If 'human', the environment is rendered while
+            the agent interacts with it. If 'save', the state history is saved
+            for later visualization.
+        sleep_time : float, optional
+            The sleeping time between two visualization updates.
+
+        Raises
+        ------
+        NotImplementedError
+            If a non-valid mode is specified.
+
+        See Also
+        --------
+        replay()
+        """
+
         if self.render_mode is None:
-            if mode == 'human':
+
+            if mode in ['human', 'replay']:
                 self.sleep_time = sleep_time
             elif mode == 'save':
                 self.render_history = None
             else:
                 raise NotImplementedError
+
             self.render_mode = mode
-            network_specs = self.simulator.specs()
-            self._init_render(network_specs)
+            self._init_render(self.network_specs)
+
         else:
-            self._update_render(self.time, self._get_observations(),
+            state_values = [self.state[s] for s in RENDERED_STATE_VALUES]
+            self._update_render(self.time, state_values,
                                 list(self.P_gen_potential))
 
     def _init_render(self, network_specs):
-        if self.render_mode in ['human', 'replay']:
+        """
+        Initialize the rendering of the environment state.
 
-            if self.svg_data is None:
-                raise ValueError('svg data needs to be specified when '
-                                 'initializing an instance of the environment '
-                                 'for the rendering to be available.')
+        Parameters
+        ----------
+        network_specs : dict of {str : list}
+            The operating characteristics of the electricity distribution network.
+
+        Raises
+        ------
+        NotImplementedError
+            If the rendering mode is non-valid.
+        """
+
+        if self.render_mode in ['human', 'replay']:
             write_html(self.svg_data)
             self.http_server, self.ws_server = rendering.start(
                 *network_specs)
+
         elif self.render_mode == 'save':
             s = pd.Series({'specs': network_specs})
             self.render_history = pd.DataFrame([s])
+
         else:
             raise NotImplementedError
 
-    def _update_render(self, cur_time, obs, P_potential):
+    def _update_render(self, cur_time, state_values, P_potential):
+        """
+        Update the rendering of the environment state.
+
+        Parameters
+        ----------
+        cur_time : datetime.datetime
+            The time corresponding to the current time step.
+        state_values : list of list of float
+            The state values needed for rendering.
+        P_potential : list of float
+            The potential generation of each VRE before curtailment (MW).
+
+        Raises
+        ------
+        NotImplementedError
+            If the rendering mode is non-valid.
+        """
+
         if self.render_mode in ['human', 'replay']:
             rendering.update(self.ws_server.address,
                              cur_time,
-                             obs[0],
-                             obs[2],
-                             obs[3],
-                             obs[4],
+                             state_values[0],
+                             state_values[2],
+                             state_values[3],
+                             state_values[4],
                              P_potential)
             time.sleep(self.sleep_time)
 
         elif self.render_mode == 'save':
             d = {'time': self.time,
-                 'obs': obs,
+                 'state_values': state_values,
                  'potential': P_potential}
             s = pd.Series(d)
             self.render_history = self.render_history.append(s,
                                                              ignore_index=True)
+
         else:
             raise NotImplementedError
 
     def replay(self, path, sleep_time=0.1):
+        """
+
+
+        Parameters
+        ----------
+        path
+        sleep_time
+
+        Returns
+        -------
+
+        """
+
         self.reset()
 
         self.render_mode = 'replay'

@@ -13,3 +13,6 @@ BRANCH_H = dict(zip(headers_branch, range(len(headers_branch))))
 GRID_SPECS = ['PMIN_BUS', 'PMAX_BUS', 'QMIN_BUS', 'QMAX_BUS', 'VMIN_BUS',
               'VMAX_BUS', 'PMIN_DEV', 'PMAX_DEV', 'QMIN_DEV', 'QMAX_DEV',
               'DEV_TYPE', 'IMAX_BR', 'SOC_MIN', 'SOC_MAX']
+
+### Rendered values ###
+RENDERED_STATE_VALUES = ['P_BUS', 'I_BR', 'SOC', 'P_BR']
