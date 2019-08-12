@@ -19,29 +19,58 @@ from gym_smartgrid.constants import RENDERED_STATE_VALUES
 
 class SmartGridEnv(gym.Env):
     """
+    An environment simulating an electricity distribution network.
+
+    This environment was designed to train Reinforcement Learning agents to
+    perform well in Active Network Management (ANM) tasks in electricity
+    distribution networks, where Variable Renewable Energy (VRE) curtailment is
+    possible and distributed storage available.
 
     Attributes
     ----------
     case : dict of {str : numpy.ndarray}
+        The input case file representing the electricity network.
     svg_data : dict of {str : str}
+        A dictionary with keys {'network', 'labels'} and values storing the
+        paths to the corresponding files needed for the environment rendering.
     delta_t : int
+        The time interval between two consecutive time steps (minutes).
     timestep_length : datetime.timedelta
+        The equivalent of `delta_t`.
     year : int
+        The year on which to base the time process.
     obs_values : list of str
+        The values to include in the observation space.
     simulator : Simulator
+        The electricity distribution network simulator.
     network_specs : dict of {str : array_like}
+        The operating characteristics of the electricity network.
     action_space : gym.spaces.Tuple
+        The action space available to the agent interacting with the environment.
     observation_space : gym.spaces.Tuple
+        The observation space available to the agent interacting with the
+        environment.
     state : dict of {str : array_like}
+        The current values of the state variables of the environment.
     total_reward : float
+        The total reward accumulated so far.
     obs : list of list of float
+        The current values of the state variables included in the observation
+        space.
     time : datetime.datetime
+        The current time.
     end_time : datetime.datetime
+        The end time of the episode.
     done : bool
+        True if the episode is over, False otherwise.
     render_mode : str
+        The mode of the environment visualization.
     np_random : array_like
+        The random seed.
     render_history : pandas.DataFrame
+        The history of past states, used for later visualization.
     sleep_time : float
+        The sleeping time between two visualization updates.
 
     generators
     loads
@@ -50,20 +79,20 @@ class SmartGridEnv(gym.Env):
     -------
     init_vre()
     init_load()
+
     reset()
+        Reset the environment.
     step(action)
+        Take a control action and compute the associated reward.
     render(mode='human', sleep_time=0.1)
+        Update the environment' state rendering.
     replay(path, sleep_time=0.1)
+        Render a previously stored state history.
     close(path=None)
-
-    Notes
-    -----
-
-
+        Stop rendering.
     """
 
-
-    metadata = {'render.modes': ['human']}
+    metadata = {'render.modes': ['human', 'save']}
 
     def __init__(self, folder, obs_values, delta_t=15, seed=None):
         """
@@ -469,20 +498,17 @@ class SmartGridEnv(gym.Env):
 
     def replay(self, path, sleep_time=0.1):
         """
-
+        Render a state history previously saved.
 
         Parameters
         ----------
-        path
-        sleep_time
-
-        Returns
-        -------
-
+        path : str
+            The path to the saved history.
+        sleep_time : float, optional
+            The sleeping time between two visualization updates.
         """
 
         self.reset()
-
         self.render_mode = 'replay'
         self.sleep_time = sleep_time
 
@@ -497,10 +523,32 @@ class SmartGridEnv(gym.Env):
         self.close()
 
     def _unpack_history(self, history):
-        ns = ast.literal_eval(history.get_network_specs[0])
+        """
+        Unpack a previously stored history of state variables.
 
-        obs = history.obs[1:].values
-        obs = [ast.literal_eval(o) for o in obs]
+        Parameters
+        ----------
+        history : pandas.DataFrame
+            The history of states, with fields {'specs', 'time', 'state_values',
+            'potential'}.
+
+        Returns
+        -------
+        ns : dict of {str : list}
+            The operating characteristics of the electricity distribution network.
+        state_values : list of list of float
+            The state values needed for rendering.
+        p_potential : list of float
+            The potential generation of each VRE before curtailment (MW).
+        times : list of datetime.datetime
+            The times corresponding to each time step.
+
+        """
+
+        ns = ast.literal_eval(history.specs[0])
+
+        state_values = history.state_values[1:].values
+        state_values = [ast.literal_eval(o) for o in state_values]
 
         p_potential = history.potential[1:].values
         p_potential = [ast.literal_eval(p) for p in p_potential]
@@ -508,12 +556,29 @@ class SmartGridEnv(gym.Env):
         times = history.time[1:].values
         times = [dt.datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in times]
 
-        return ns, obs, p_potential, times
+        return ns, state_values, p_potential, times
 
     def close(self, path=None):
+        """
+        Close the rendering.
+
+        Parameters
+        ----------
+        path : str, optional
+            The path to the file to store the state history, only used if
+            `render_mode` is 'save'.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The state history.
+        """
+
         to_return = None
+
         if self.render_mode in ['human', 'replay']:
             rendering.close(self.http_server, self.ws_server)
+
         if self.render_mode == 'save':
             if path is None:
                 raise ValueError('No path specified to save the history.')

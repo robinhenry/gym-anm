@@ -12,6 +12,8 @@ class Simulator(object):
 
     Attributes
     ----------
+    rng : numpy.random.RandomState
+        The random  seed.
     delta_t : int
         The amount of time between two time steps, in minutes.
     lamb : int
