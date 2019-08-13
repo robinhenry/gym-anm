@@ -11,15 +11,103 @@ from importlib.machinery import SourceFileLoader
 
 import gym_smartgrid.utils
 from gym_smartgrid.simulator import Simulator
-from gym_smartgrid.rendering import rendering
-from gym_smartgrid.envs.utils import write_html
+from gym_smartgrid.rendering.py import rendering
+from gym_smartgrid.envs.utils import write_html, sample_action
 from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
+from gym_smartgrid.constants import RENDERED_STATE_VALUES, RENDERED_NETWORK_SPECS
 
 
 class SmartGridEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
+    """
+    An environment simulating an electricity distribution network.
 
-    def __init__(self, folder):
+    This environment was designed to train Reinforcement Learning agents to
+    perform well in Active Network Management (ANM) tasks in electricity
+    distribution networks, where Variable Renewable Energy (VRE) curtailment is
+    possible and distributed storage available.
+
+    Attributes
+    ----------
+    case : dict of {str : numpy.ndarray}
+        The input case file representing the electricity network.
+    svg_data : dict of {str : str}
+        A dictionary with keys {'network', 'labels'} and values storing the
+        paths to the corresponding files needed for the environment rendering.
+    delta_t : int
+        The time interval between two consecutive time steps (minutes).
+    timestep_length : datetime.timedelta
+        The equivalent of `time_factor`.
+    year : int
+        The year on which to base the time process.
+    obs_values : list of str
+        The values to include in the observation space.
+    simulator : Simulator
+        The electricity distribution network simulator.
+    network_specs : dict of {str : array_like}
+        The operating characteristics of the electricity network.
+    action_space : gym.spaces.Tuple
+        The action space available to the agent interacting with the environment.
+    observation_space : gym.spaces.Tuple
+        The observation space available to the agent interacting with the
+        environment.
+    state : dict of {str : array_like}
+        The current values of the state variables of the environment.
+    total_reward : float
+        The total reward accumulated so far.
+    obs : list of list of float
+        The current values of the state variables included in the observation
+        space.
+    time : datetime.datetime
+        The current time.
+    end_time : datetime.datetime
+        The end time of the episode.
+    done : bool
+        True if the episode is over, False otherwise.
+    render_mode : str
+        The mode of the environment visualization.
+    np_random : array_like
+        The random seed.
+    render_history : pandas.DataFrame
+        The history of past states, used for later visualization.
+    sleep_time : float
+        The sleeping time between two visualization updates.
+
+    generators
+    loads
+
+    Methods
+    -------
+    init_vre()
+    init_load()
+
+    reset()
+        Reset the environment.
+    step(action)
+        Take a control action and compute the associated reward.
+    render(mode='human', sleep_time=0.1)
+        Update the environment' state rendering.
+    replay(path, sleep_time=0.1)
+        Render a previously stored state history.
+    close(path=None)
+        Stop rendering.
+    """
+
+    metadata = {'render.modes': ['human', 'save']}
+
+    def __init__(self, folder, obs_values, delta_t=15, seed=None):
+        """
+        Parameters
+        ----------
+        folder : str
+            The absolute path to the folder providing the files to initialize a
+            specific environment.
+        obs_values : list of str
+            The values to include in the observation space.
+        delta_t : int, optional
+            The time interval between two consecutive time steps (minutes).
+        seed : int, optional
+            A random seed.
+        """
 
         # Load case.
         path_to_case = os.path.join(folder, ENV_FILES['case'])
@@ -27,186 +115,402 @@ class SmartGridEnv(gym.Env):
 
         # Store paths to files needed for rendering.
         rel_path = os.path.relpath(folder, RENDERING_FOLDER)
-
         self.svg_data = {'network': os.path.join(rel_path, ENV_FILES['network'])}
         self.svg_data['labels'] = os.path.join(rel_path, ENV_FILES['svgLabels'])
 
         # Set random seed.
-        self.seed()
+        self.seed(seed)
 
-        self.timestep_length = dt.timedelta(minutes=15)
+        # Time variables.
+        self.delta_t = delta_t
+        self.timestep_length = dt.timedelta(minutes=delta_t)
         self.episode_max_length = dt.timedelta(days=3 * 365)
         self.year = 2019
 
+        self.obs_values = obs_values
+
         # Initialize AC power grid simulator.
-        self.simulator = Simulator(self.case, self.np_random)
+        self.simulator = Simulator(self.case, delta_t=self.delta_t,
+                                   rng=self.np_random)
+        self.network_specs = self.simulator.specs
 
-        # Initialize action space for each action type.
-        P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
+        # Build action and observation spaces.
+        self.action_space = self._build_action_space()
+        self.observation_space = self._build_obs_space()
 
-        space_curtailment = spaces.Box(low=P_curt_bounds[1, :],
-                                       high=P_curt_bounds[0, :],
-                                       dtype=np.float32)
-
-        space_alpha = spaces.Box(low=alpha_bounds[1, :],
-                                 high=alpha_bounds[0, :],
-                                 dtype=np.float32)
-
-        space_q = spaces.Box(low=q_bounds[1, :], high=q_bounds[0, :],
-                             dtype=np.float32)
-
-        # Initialize the global action space to be the product of 3 subspaces.
-        self.action_space = spaces.Tuple((space_curtailment, space_alpha,
-                                          space_q))
-
-        # Initialize observation space made of:
-        # - P, Q injection at each bus (2 * N),
-        # - I magnitude in each transmission line,
-        # - SoC at each storage unit (N_storage).
-        p_obs = spaces.Box(low=-np.inf, high=np.inf,
-                           shape=(self.simulator.N_bus,),
-                           dtype=np.float32)
-        q_obs = p_obs
-
-        i_obs = spaces.Box(low=0., high=np.inf, shape=(self.simulator.N_branch,),
-                           dtype=np.float32)
-
-        soc_obs = spaces.Box(low=np.zeros(shape=(self.simulator.N_storage,)),
-                             high=self.simulator.max_soc, dtype=np.float32)
-
-        self.observation_space = spaces.Tuple((p_obs, q_obs, i_obs, soc_obs))
-
-        # Initialize distributed generators (stochastic processes).
-        wind_pmax, solar_pmax, load_pmax = self.simulator.get_vre_specs()
-
-        self.generators = self.init_vre(wind_pmax, solar_pmax,
-                                        self.timestep_length,
-                                        np_random=self.np_random)
-
-        # Initialize load stochastic processes.
-        self.loads = self.init_load(load_pmax, self.timestep_length,
+        # Initialize stochastic processes.
+        dev_specs = self._get_dev_specs()
+        self.generators = self.init_vre(dev_specs[2], dev_specs[3],
+                                        self.timestep_length, self.np_random)
+        self.loads = self.init_load(dev_specs[0], self.timestep_length,
                                     self.np_random)
 
+    def _build_action_space(self):
+        """
+        Build the available action space.
+
+        Returns
+        -------
+        gym.spaces.Tuple
+            The action space of the environment.
+        """
+
+        P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
+
+        space_curtailment = spaces.Box(low=P_curt_bounds[:, 1],
+                                       high=P_curt_bounds[:, 0],
+                                       dtype=np.float32)
+
+        space_alpha = spaces.Box(low=alpha_bounds[:, 1],
+                                 high=alpha_bounds[:, 0],
+                                 dtype=np.float32)
+
+        space_q = spaces.Box(low=q_bounds[:, 1], high=q_bounds[:, 0],
+                             dtype=np.float32)
+
+        return spaces.Tuple((space_curtailment, space_alpha, space_q))
+
+    def _build_obs_space(self):
+        """
+        Build the observation space.
+
+        Returns
+        -------
+        gym.spaces.Tuple
+            The observation space.
+        """
+
+        obs_space = []
+        network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
+        if 'P_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['PMIN_BUS'],
+                               high=network_specs['PMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'Q_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['QMIN_BUS'],
+                               high=network_specs['QMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'V_BUS' in self.obs_values:
+            space = spaces.Box(low=network_specs['VMIN_BUS'],
+                               high=network_specs['VMAX_BUS'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'P_DEV' in self.obs_values:
+            space = spaces.Box(low=network_specs['PMIN_DEV'],
+                               high=network_specs['PMAX_DEV'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'Q_DEV' in self.obs_values:
+            space = spaces.Box(low=network_specs['QMIN_DEV'],
+                               high=network_specs['QMAX_DEV'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'I_BR' in self.obs_values:
+            shape = network_specs['IMAX_BR'].shape
+            space = spaces.Box(low=np.zeros(shape=shape),
+                               high=network_specs['IMAX_BR'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        if 'SOC' in self.obs_values:
+            space = spaces.Box(low=network_specs['SOC_MIN'],
+                               high=network_specs['SOC_MAX'],
+                               dtype=np.float32)
+            obs_space.append(space)
+
+        return spaces.Tuple(tuple(obs_space))
+
+    def _get_dev_specs(self):
+        """
+        Extract the operating constraints of loads and VRE devices.
+
+        Returns
+        -------
+        load, power_plant, solar : dict of {int : float}
+            A dictionary of {key : value}, where the key is the device unique ID
+            and the value the maximum real power injection of the corresponding
+            device (negative for loads).
+        """
+
+        load, power_plant, wind, solar = {}, {}, {}, {}
+        for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
+            p_max = self.network_specs['PMAX_DEV'][idx]
+            p_min = self.network_specs['PMIN_DEV'][idx]
+            if dev_type == -1:
+                load[idx] = p_min
+            elif dev_type == 1:
+                power_plant[idx] = p_max
+            elif dev_type == 2:
+                wind[idx] = p_max
+            elif dev_type == 3:
+                solar[idx] = p_max
+
+        return load, power_plant, wind, solar
+
     def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
+        """
+
+        Parameters
+        ----------
+        wind_pmax
+        solar_pmax
+        delta_t
+        np_random
+
+        Returns
+        -------
+
+        """
         raise NotImplementedError
 
     def init_load(self, load_pmax, delta_t, np_random):
+        """
+
+        Parameters
+        ----------
+        load_pmax
+        delta_t
+        np_random
+
+        Returns
+        -------
+
+        """
         raise NotImplementedError
 
     def step(self, action):
+        """
+        Take a control action and transition from a state s_t to a state s_{t+1}.
+
+        Parameters
+        ----------
+        action : Tuple of array_like
+            The action taken by the agent.
+
+        Returns
+        -------
+        state_values : Tuple of array_like
+            The observation corresponding to the new state s_{t+1}.
+        reward : float
+            The rewar associated with the transition.
+        done : bool
+            True if the episode is over, False otherwise.
+        info : dict
+            A dictionary of further information.
+        """
+
+        if self.time >= self.end_time:
+            raise gym.error.ResetNeeded('The episode is already over.')
 
         # Check if the action is in the available action space.
         assert self.action_space.contains(action), "%r (%s) invalid" \
                                                    % (action, type(action))
 
-        self._increment_t()
-
         # Get the output of the stochastic processes (vre generation, loads).
         P_loads = self.loads.next(self.time)
-        P_gen_potential = self.generators.next(self.time)
-        self.P_gen_potential = P_gen_potential
+        self.P_gen_potential = self.generators.next(self.time)
 
         # Simulate a transition and compute the reward.
-        reward = self.simulator.transition(P_loads, P_gen_potential, *action)
+        reward = self.simulator.transition(P_loads, self.P_gen_potential, *action)
+        self.state = self.simulator.state
         self.total_reward += reward
 
-        # Create a (4,) tuple of observations.
-        obs = self._get_obs()
+        # Create a tuple of observations.
+        self.obs = self._get_observations()
 
-        # End of episode if maximum number of timesteps has been reached.
+        # End of episode if maximum number of time steps has been reached.
+        self._increment_t()
         if self.time >= self.end_time:
             self.done = True
 
         # Information returned for debugging.
         info = None
 
-        return obs, reward, self.done, info
+        return self.obs, reward, self.done, info
 
     def _increment_t(self):
+        """ Increment the time. """
         self.time += self.timestep_length
         self.time = self.time.replace(year=self.year)
 
-    def _get_obs(self):
-        # Create a (4,) tuple of observations.
-        obs = list(self.simulator.P_device), \
-              list(self.simulator.Q_device), \
-              list(self.simulator.I_br_magn), \
-              list(self.simulator.SoC), \
-              list(self.simulator.P_br)
+    def _get_observations(self):
+        """
+        Select the observations available to the agent from the current state.
+
+        Returns
+        -------
+        state_values : list of list of float
+            The observations available to the agent, as specified by
+            `self.obs_values`.
+        """
+
+        if self.state:
+            obs = [list(self.state[ob]) for ob in self.obs_values]
+        else:
+            obs = None
         return obs
 
     def seed(self, seed=None):
+        """ Seed the random number generator. """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def reset(self):
+        """
+        Reset the environment.
+
+        Returns
+        -------
+        state_values : list of list of float
+            The observations available to the agent, as specified by
+            `self.obs_values`.
+        """
+
         # Select random date.
         self.time = gym_smartgrid.utils.random_date(self.np_random, self.year)
         self.end_time = self.time + self.episode_max_length
 
-        self.total_reward = 0.
         self.done = False
+        self.total_reward = 0.
+        self.state = None
         self.render_mode = None
         self.simulator.reset()
-        obs = self._get_obs()
+        obs = self._get_observations()
+
+        # Take a random first action to initialize the state of the simulator.
+        self.step(sample_action(self.np_random, self.action_space))
+        self.total_reward = 0.
 
         return obs
 
     def render(self, mode='human', sleep_time=0.1):
+        """
+        Render the current state of the environment.
+
+        Parameters
+        ----------
+        mode : {'human', 'save'}, optional
+            The mode of rendering. If 'human', the environment is rendered while
+            the agent interacts with it. If 'save', the state history is saved
+            for later visualization.
+        sleep_time : float, optional
+            The sleeping time between two visualization updates.
+
+        Raises
+        ------
+        NotImplementedError
+            If a non-valid mode is specified.
+
+        See Also
+        --------
+        replay()
+        """
+
         if self.render_mode is None:
-            if mode == 'human':
+
+            if mode in ['human', 'replay']:
                 self.sleep_time = sleep_time
             elif mode == 'save':
                 self.render_history = None
             else:
                 raise NotImplementedError
+
             self.render_mode = mode
-            network_specs = self.simulator.get_network_specs()
-            self._init_render(network_specs)
+            specs = [list(self.network_specs[s]) for s in RENDERED_NETWORK_SPECS]
+            self._init_render(specs)
+
+            # Render the initial state.
+            self.render(mode=mode, sleep_time=sleep_time)
+
         else:
-            self._update_render(self.time, self._get_obs(),
+            state_values = [list(self.state[s]) for s in RENDERED_STATE_VALUES]
+            self._update_render(self.time, state_values,
                                 list(self.P_gen_potential))
 
     def _init_render(self, network_specs):
-        if self.render_mode in ['human', 'replay']:
+        """
+        Initialize the rendering of the environment state.
 
-            if self.svg_data is None:
-                raise ValueError('svg data needs to be specified when '
-                                 'initializing an instance of the environment '
-                                 'for the rendering to be available.')
+        Parameters
+        ----------
+        network_specs : dict of {str : list}
+            The operating characteristics of the electricity distribution network.
+
+        Raises
+        ------
+        NotImplementedError
+            If the rendering mode is non-valid.
+        """
+
+        if self.render_mode in ['human', 'replay']:
             write_html(self.svg_data)
             self.http_server, self.ws_server = rendering.start(
                 *network_specs)
+
         elif self.render_mode == 'save':
-            s = pd.Series({'network_specs': network_specs})
+            s = pd.Series({'specs': network_specs})
             self.render_history = pd.DataFrame([s])
+
         else:
             raise NotImplementedError
 
-    def _update_render(self, cur_time, obs, P_potential):
+    def _update_render(self, cur_time, state_values, P_potential):
+        """
+        Update the rendering of the environment state.
+
+        Parameters
+        ----------
+        cur_time : datetime.datetime
+            The time corresponding to the current time step.
+        state_values : list of list of float
+            The state values needed for rendering.
+        P_potential : list of float
+            The potential generation of each VRE before curtailment (MW).
+
+        Raises
+        ------
+        NotImplementedError
+            If the rendering mode is non-valid.
+        """
+
         if self.render_mode in ['human', 'replay']:
             rendering.update(self.ws_server.address,
                              cur_time,
-                             obs[0],
-                             obs[2],
-                             obs[3],
-                             obs[4],
+                             *state_values,
                              P_potential)
             time.sleep(self.sleep_time)
 
         elif self.render_mode == 'save':
             d = {'time': self.time,
-                 'obs': obs,
+                 'state_values': state_values,
                  'potential': P_potential}
             s = pd.Series(d)
             self.render_history = self.render_history.append(s,
                                                              ignore_index=True)
+
         else:
             raise NotImplementedError
 
     def replay(self, path, sleep_time=0.1):
-        self.reset()
+        """
+        Render a state history previously saved.
 
+        Parameters
+        ----------
+        path : str
+            The path to the saved history.
+        sleep_time : float, optional
+            The sleeping time between two visualization updates.
+        """
+
+        self.reset()
         self.render_mode = 'replay'
         self.sleep_time = sleep_time
 
@@ -221,10 +525,32 @@ class SmartGridEnv(gym.Env):
         self.close()
 
     def _unpack_history(self, history):
-        ns = ast.literal_eval(history.network_specs[0])
+        """
+        Unpack a previously stored history of state variables.
 
-        obs = history.obs[1:].values
-        obs = [ast.literal_eval(o) for o in obs]
+        Parameters
+        ----------
+        history : pandas.DataFrame
+            The history of states, with fields {'specs', 'time', 'state_values',
+            'potential'}.
+
+        Returns
+        -------
+        ns : dict of {str : list}
+            The operating characteristics of the electricity distribution network.
+        state_values : list of list of float
+            The state values needed for rendering.
+        p_potential : list of float
+            The potential generation of each VRE before curtailment (MW).
+        times : list of datetime.datetime
+            The times corresponding to each time step.
+
+        """
+
+        ns = ast.literal_eval(history.specs[0])
+
+        state_values = history.state_values[1:].values
+        state_values = [ast.literal_eval(o) for o in state_values]
 
         p_potential = history.potential[1:].values
         p_potential = [ast.literal_eval(p) for p in p_potential]
@@ -232,12 +558,29 @@ class SmartGridEnv(gym.Env):
         times = history.time[1:].values
         times = [dt.datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in times]
 
-        return ns, obs, p_potential, times
+        return ns, state_values, p_potential, times
 
     def close(self, path=None):
+        """
+        Close the rendering.
+
+        Parameters
+        ----------
+        path : str, optional
+            The path to the file to store the state history, only used if
+            `render_mode` is 'save'.
+
+        Returns
+        -------
+        pandas.DataFrame
+            The state history.
+        """
+
         to_return = None
+
         if self.render_mode in ['human', 'replay']:
             rendering.close(self.http_server, self.ws_server)
+
         if self.render_mode == 'save':
             if path is None:
                 raise ValueError('No path specified to save the history.')

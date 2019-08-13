@@ -6,10 +6,19 @@ from .utils import init_vre as i_vre
 class SmartGridEnv6(SmartGridEnv):
     def __init__(self):
 
+        # Random seed.
+        seed = 2019
+
         # Folder to new environment (== this folder).
         path_to_folder = os.path.dirname(os.path.realpath(__file__))
 
-        super().__init__(path_to_folder)
+        # Values to include in the observation space.
+        obs_values = ['P_BUS', 'Q_BUS', 'IMAGN_BR', 'SOC']
+
+        # Time interval between two time steps.
+        delta_t = 15
+
+        super().__init__(path_to_folder, obs_values, delta_t, seed)
 
     def init_load(self, load_pmax, delta_t, np_random):
         return i_load(load_pmax, delta_t, np_random)

@@ -6,7 +6,7 @@ import os
 from scipy.stats import norm
 
 
-def init_vre(wind, solar, delta_t, noise_factor=0.1, np_random=None):
+def init_vre(wind, solar, delta_t, np_random, noise_factor=0.1,):
     """
     Return generator objects to model wind and solar generation.
 
@@ -93,14 +93,14 @@ class LoadSet(object):
 
         # Create N_load generator objects to model passive loads.
         self.loads = []
-        for factor in factors:
+        for _, factor in sorted(factors.items()):
             self.loads.append(LoadGenerator(factor))
 
     def next(self, cur_time):
 
         # Get the index of the timestep within a single day.
         minutes = dt.timedelta(minutes=cur_time.hour * 60 + cur_time.minute)
-        t_intraday = int(minutes / self.delta_t) - 1
+        t_intraday = int(minutes / self.delta_t)
 
         if not t_intraday:
             for load in self.loads:

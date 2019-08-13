@@ -2,14 +2,51 @@ import os
 from gym_smartgrid import RENDERING_FOLDER, WEB_FILES
 
 
+def sample_action(np_random, action_space):
+    """
+    Sample a random action from the action space.
+
+    Parameters
+    ----------
+    np_random : numpy.random.RandomState
+        The random seed to use. This should be the one used by the environment.
+    action_space : gym.spaces.Tuple
+        The action space of the environment.
+
+    Returns
+    -------
+    gym.spaces.Tuple
+        An action randomly selected from the action space.
+    """
+
+    actions = []
+    for space in action_space:
+        a = np_random.uniform(space.low, space.high, space.shape)
+        actions.append(a)
+
+    return tuple(actions)
+
+
 def write_html(svg_data):
+    """
+    Update the index.html file used for rendering the environment state.
+
+    Parameters
+    ----------
+    svg_data : dict of {str : str}
+        The paths to the SVG data needed for the visualization, with keys
+        {'labels', 'network'}.
+    """
 
     s = """<!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/init.js"></script>
+    <script src="js/devices.js"></script>
+    <script src="js/graph.js"></script>
     <script src="{0}"></script>
-    <script src="dynamicVisualization.js"></script>
+    <script src="js/calendar.js"></script>
     <title>SmartGrid-gym</title>
 </head>
 
@@ -23,7 +60,7 @@ def write_html(svg_data):
     <div>
         <canvas id="clock" width="100" height="100"></canvas>
     </div>
-    <script src="clock.js"></script>
+    <script src="js/clock.js"></script>
 
     <object id="svg-network" data="{1}"
             type="image/svg+xml"></object></body>
