@@ -21,6 +21,8 @@ class Simulator(object):
         A penalty factor associated with violating operating constraints.
     baseMVA : int
         The base power of the system (MVA).
+    basekV : float
+        The base voltage of the zone, assuming a single zone (kV).
     buses : dict of {int : `Bus`}
         The buses of the grid, where for each {key: value} pair, the key is a
         unique bus ID.
@@ -106,6 +108,7 @@ class Simulator(object):
         """
 
         self.baseMVA = case['baseMVA']
+        self.basekV = case['basekV']
 
         self.buses = []
         for bus_id, bus in enumerate(case['bus']):

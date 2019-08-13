@@ -2,6 +2,10 @@ import numpy as np
 
 ##### CASE FILE DESCRIPTION #####
 
+### Metadata ###
+# baseMVA: base power of the system (MVA).
+# basekV: base voltage of the network, assuming single zone (kV).
+
 ### 1. Bus data:
 # BUS_I: bus number (0-indexing).
 # BUS_TYPE: bus type (1 = PQ, 2 = PV, 3 = slack).
@@ -48,6 +52,7 @@ import numpy as np
 network = {"version": "ANM"}
 
 network["baseMVA"] = 100.0
+network["basekV"] = 15.0
 
 network["bus"] = np.array([
     [0, 3, 0, 0, 1.04, 1.04],
@@ -69,9 +74,9 @@ network["device"] = np.array([
 ])
 
 network["branch"] = np.array([
-    [0, 1, 0.035, 0.02, 0., 100, 0, 0, 1, -360.0, 360.0],
-    [1, 2,   0.5,  0.4, 0.,  50, 0, 0, 1, -360.0, 360.0],
-    [1, 3,   0.5,  0.4, 0.,  20, 0, 0, 1, -360.0, 360.0],
-    [2, 4,   0.5,  0.4, 0.,  50, 0, 0, 1, -360.0, 360.0],
-    [2, 5,   0.5,  0.4, 0.,  20, 0, 0, 1, -360.0, 360.0]
+    [0, 1, None, None, 0., None, None, None, 1, -360.0, 360.0],   # HV/MV transformer
+    [1, 2, 0.5, 0.5, 0.,  None, 0, 0, 1, -360.0, 360.0],          # low current rating
+    [1, 3, 0.5, 0.5, 0., 100., 0, 0, 1, -360.0, 360.0],           # high current rating, average resistance
+    [2, 4, 0.5, 0.5, 0., 100., 0, 0, 1, -360.0, 360.0],           # high current rating, average resistance
+    [2, 5, 1.2479, 1.2479, 0., None, 0, 0, 1, -360.0, 360.0]      # high resistance
 ])

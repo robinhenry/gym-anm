@@ -9,6 +9,8 @@ SIMULATOR:
 RENDERING:
 - add transformer instead of line 0 -> 1
 - remove 'client asked to close connection' print statements
+- divide webpage into 2 horizontal sections: 1 for the input graph, 1 for the
+    rest (e.g. clock, calendar, color key, reward, etc.)
 
 DOCUMENTING
 - check if "array_like" can be used (or what to use when list or array)
