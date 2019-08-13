@@ -11,10 +11,10 @@ from importlib.machinery import SourceFileLoader
 
 import gym_smartgrid.utils
 from gym_smartgrid.simulator import Simulator
-from gym_smartgrid.rendering import rendering
-from gym_smartgrid.envs.utils import write_html
+from gym_smartgrid.rendering.py import rendering
+from gym_smartgrid.envs.utils import write_html, sample_action
 from gym_smartgrid import RENDERING_FOLDER, ENV_FILES
-from gym_smartgrid.constants import RENDERED_STATE_VALUES
+from gym_smartgrid.constants import RENDERED_STATE_VALUES, RENDERED_NETWORK_SPECS
 
 
 class SmartGridEnv(gym.Env):
@@ -36,7 +36,7 @@ class SmartGridEnv(gym.Env):
     delta_t : int
         The time interval between two consecutive time steps (minutes).
     timestep_length : datetime.timedelta
-        The equivalent of `delta_t`.
+        The equivalent of `time_factor`.
     year : int
         The year on which to base the time process.
     obs_values : list of str
@@ -378,13 +378,14 @@ class SmartGridEnv(gym.Env):
         self.end_time = self.time + self.episode_max_length
 
         self.done = False
+        self.total_reward = 0.
         self.state = None
         self.render_mode = None
         self.simulator.reset()
         obs = self._get_observations()
 
         # Take a random first action to initialize the state of the simulator.
-        self.step(self.action_space.sample())
+        self.step(sample_action(self.np_random, self.action_space))
         self.total_reward = 0.
 
         return obs
@@ -422,10 +423,14 @@ class SmartGridEnv(gym.Env):
                 raise NotImplementedError
 
             self.render_mode = mode
-            self._init_render(self.network_specs)
+            specs = [list(self.network_specs[s]) for s in RENDERED_NETWORK_SPECS]
+            self._init_render(specs)
+
+            # Render the initial state.
+            self.render(mode=mode, sleep_time=sleep_time)
 
         else:
-            state_values = [self.state[s] for s in RENDERED_STATE_VALUES]
+            state_values = [list(self.state[s]) for s in RENDERED_STATE_VALUES]
             self._update_render(self.time, state_values,
                                 list(self.P_gen_potential))
 
@@ -478,10 +483,7 @@ class SmartGridEnv(gym.Env):
         if self.render_mode in ['human', 'replay']:
             rendering.update(self.ws_server.address,
                              cur_time,
-                             state_values[0],
-                             state_values[2],
-                             state_values[3],
-                             state_values[4],
+                             *state_values,
                              P_potential)
             time.sleep(self.sleep_time)
 

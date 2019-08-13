@@ -1,7 +1,6 @@
 REFACTORING:
 - make env6/utils into functions reusable by others.
 
-
 SIMULATOR:
 - implement check that final (P, Q) of storage is a valid injection point
 - un-comment check_casefile() and fix its bugs
@@ -9,6 +8,7 @@ SIMULATOR:
 
 RENDERING:
 - add transformer instead of line 0 -> 1
+- remove 'client asked to close connection' print statements
 
 DOCUMENTING
 - check if "array_like" can be used (or what to use when list or array)
@@ -18,8 +18,7 @@ DOCUMENTING
 - how to reuse parent's attributes in docstring
 
 
-
 OBJECTIVES:
-- Monday: comment whole project + refactor visualization
+
 - Friday: finish documentation, tests, and scenario generation
 - 2 weeks after: writing paper + documentation

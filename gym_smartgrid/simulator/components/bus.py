@@ -42,7 +42,7 @@ class Bus(object):
 
         if self.type == 3:
             self.is_slack = True
-            self.v_slack = self.v_max
+            self._v_slack = self.v_max
         else:
             self.is_slack = False
 
@@ -53,3 +53,21 @@ class Bus(object):
         self.p_max = None
         self.q_min = None
         self.q_max = None
+
+    @property
+    def v_slack(self):
+        """
+        Raises
+        ------
+        AttributeError
+            If the bus is not the slack bus.
+        """
+        if self.is_slack:
+            return self._v_slack
+        else:
+            raise AttributeError(f'The bus with ID {self.id} is not the slack '
+                                 f'bus.')
+
+    @v_slack.setter
+    def v_slack(self, value):
+        self._v_slack = value

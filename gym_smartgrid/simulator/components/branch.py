@@ -37,12 +37,14 @@ class TransmissionLine(object):
             The complex tap of the transformer.
     """
 
-    def __init__(self, br_case):
+    def __init__(self, br_case, baseMVA):
         """
         Parameters
         ----------
-            br_case : array_like
-        The corresponding branch row in the case file describing the network.
+        br_case : array_like
+            The corresponding branch row in the case file describing the network.
+        baseMVA : int
+            The base power of the system (MVA).
         """
 
         # Import values from case file.
@@ -51,7 +53,7 @@ class TransmissionLine(object):
         self.r = br_case[BRANCH_H['BR_R']]
         self.x = br_case[BRANCH_H['BR_X']]
         self.b = br_case[BRANCH_H['BR_B']]
-        self.i_max = br_case[BRANCH_H['RATE_A']]
+        self.i_max = br_case[BRANCH_H['RATE_A']] / baseMVA
         self.tap_magn = br_case[BRANCH_H['TAP']]
         self.shift = br_case[BRANCH_H['SHIFT']]
         self.ang_min = br_case[BRANCH_H['ANGMIN']]

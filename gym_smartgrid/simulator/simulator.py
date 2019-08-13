@@ -14,8 +14,9 @@ class Simulator(object):
     ----------
     rng : numpy.random.RandomState
         The random  seed.
-    delta_t : int
-        The amount of time between two time steps, in minutes.
+    time_factor : float
+        The fraction of an hour corresponding to the time interval between two
+        consecutive time steps, e.g. 0.25 means an interval of 15 minutes.
     lamb : int
         A penalty factor associated with violating operating constraints.
     baseMVA : int
@@ -73,7 +74,7 @@ class Simulator(object):
         # Check the correctness of the input case file.
         #utils.check_casefile(case)
 
-        self.delta_t = delta_t / 60.
+        self.time_factor = delta_t / 60.
         self.lamb = lamb
 
         # Initialize random generator.
@@ -108,29 +109,25 @@ class Simulator(object):
 
         self.buses = []
         for bus_id, bus in enumerate(case['bus']):
-            if not bus_id:
-                self.buses.append(Bus(bus, is_slack=True))
-            else:
-                self.buses.append(Bus(bus))
+            self.buses.append(Bus(bus))
 
         self.branches = []
         for br in case['branch']:
             if br[BRANCH_H['BR_STATUS']]:
-                self.branches.append(TransmissionLine(br))
+                self.branches.append(TransmissionLine(br, self.baseMVA))
 
         self.loads, self.gens, self.storages = {}, {}, {}
         dev_idx, load_idx, gen_idx, su_idx = 0, 0, 0, 0
         for dev in case['device']:
             if dev[DEV_H['DEV_STATUS']]:
-                dev_type = dev[DEV_H['DEV_TYPE']]
+                dev_type = int(dev[DEV_H['DEV_TYPE']])
 
                 if dev_type == -1:
                     self.loads[dev_idx] = Load(dev_idx, load_idx, dev)
                     load_idx += 1
 
                 elif dev_type == 0:
-                    self.slack_dev = PowerPlant(dev_idx, gen_idx, dev, True)
-                    gen_idx += 1
+                    self.slack_dev = PowerPlant(dev_idx, 0, dev)
 
                 elif dev_type == 1:
                     self.gens[dev_idx] = PowerPlant(dev_idx, gen_idx, dev)
@@ -350,6 +347,10 @@ class Simulator(object):
         for gen in self.gens.values():
             gen.compute_pq(P_curt[gen.type_id - 1])
 
+        # Initialize (P, Q) injection point of slack device to 0.
+        self.slack_dev.p = 0.
+        self.slack_dev.q = 0.
+
         ### Manage storage units. ###
         SOC = self._manage_storage(desired_alpha, Q_storage)
 
@@ -362,6 +363,7 @@ class Simulator(object):
 
         # 3. Compute I in each branch (p.u.)
         I_br = self._get_branch_currents()
+        I_br_magn = [np.absolute(i) for i in I_br]
 
         # 4. Compute P (MW) and Q (MVar) power flows in each branch.
         P_br, Q_br = self._compute_branch_PQ()
@@ -377,7 +379,7 @@ class Simulator(object):
         ### Store all state variables in a dictionary. ###
         self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_BUS': V_bus,
                       'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC,
-                      'P_BR': P_br, 'Q_BR': Q_br, 'I_BR': I_br}
+                      'P_BR': P_br, 'Q_BR': Q_br, 'IMAGN_BR': I_br_magn}
 
         ### Compute the total reward associated with the transition. ###
         reward = self._get_reward(P_bus, P_potential, P_curt)
@@ -403,7 +405,7 @@ class Simulator(object):
 
         SOC = [0.] * self.N_storage
         for su in self.storages.values():
-            su.manage(desired_alpha[su.type_id], self.delta_t,
+            su.manage(desired_alpha[su.type_id], self.time_factor,
                       Q_storage_setpoints[su.type_id])
             SOC[su.type_id] = su.soc
 
@@ -416,8 +418,9 @@ class Simulator(object):
 
         P_bus = [0] * self.N_bus
         Q_bus = [0] * self.N_bus
-        devs = list(self.gens.values()) + list(self.loads.values()) + \
-                   list(self.storages.values())
+
+        devs = [self.slack_dev] + list(self.gens.values()) \
+               + list(self.loads.values()) + list(self.storages.values())
         for dev in devs:
             P_bus[dev.bus_id] += dev.p
             Q_bus[dev.bus_id] += dev.q
@@ -474,12 +477,12 @@ class Simulator(object):
 
         # Retrieve the real and reactive power injections at the slack bus (=
         # slack device).
-        self.slack_dev.p = np.real(s_slack)
-        self.slack_dev.q = np.imag(s_slack)
+        self.slack_dev.p = np.real(s_slack) * self.baseMVA
+        self.slack_dev.q = np.imag(s_slack) * self.baseMVA
 
         # Form the nodal P and Q vectors and convert from p.u. to MW and MVAr.
-        P = np.hstack((self.slack_dev.p, P_bus_pu)) * self.baseMVA
-        Q = np.hstack((self.slack_dev.q, Q_bus_pu)) * self.baseMVA
+        P = np.hstack((self.slack_dev.p, P_bus_pu * self.baseMVA))
+        Q = np.hstack((self.slack_dev.q, Q_bus_pu * self.baseMVA))
 
         for idx, bus in enumerate(self.buses):
             bus.v = V[idx]
@@ -544,7 +547,7 @@ class Simulator(object):
 
         Returns
         -------
-        1D numpy.ndarray
+        numpy.ndarray
             The complex current in each transmission line (p.u.).
         """
 
@@ -599,7 +602,7 @@ class Simulator(object):
 
         P_br, Q_br = [], []
         for branch in self.branches:
-            s = self.buses[branch.f_bus].v * np.conj(branch.i)
+            s = self.buses[branch.f_bus].v * np.conj(branch.i) * self.baseMVA
             branch.p = np.real(s)
             branch.q = np.imag(s)
 
@@ -634,12 +637,12 @@ class Simulator(object):
 
         # Compute the total energy loss over the network. This includes
         # transmission losses, as well as energy sent to storage units.
-        energy_loss = np.sum(P_bus) * self.delta_t
+        energy_loss = np.sum(P_bus) * self.time_factor
 
         # Compute energy loss due to curtailment. This is the difference
         # between the potential energy production, and the actual production.
         if P_curt.size:
-            curt_loss = np.sum(np.max(P_potential - P_curt)) * self.delta_t
+            curt_loss = np.sum(np.max(P_potential - P_curt)) * self.time_factor
         else:
             curt_loss = 0.
 

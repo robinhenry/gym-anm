@@ -100,7 +100,7 @@ class LoadSet(object):
 
         # Get the index of the timestep within a single day.
         minutes = dt.timedelta(minutes=cur_time.hour * 60 + cur_time.minute)
-        t_intraday = int(minutes / self.delta_t) - 1
+        t_intraday = int(minutes / self.delta_t)
 
         if not t_intraday:
             for load in self.loads:

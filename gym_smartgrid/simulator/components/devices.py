@@ -34,6 +34,8 @@ class Device(object):
     lead_slope, lead_off : float
         The sole and offset of the leading line constraining the (P, Q) region of
         operation of the device.
+    is_slack : bool
+        True if the device is connected to the slack bus, False otherwise.
     p, q : float
         The current real (MW) and reactive (MVAr) power injection from the device.
     soc : float
@@ -68,19 +70,24 @@ class Device(object):
         self.p_max = dev_case[DEV_H['PMAX']]
         self.p_min = dev_case[DEV_H['PMIN']]
 
-        soc_max = dev_case[DEV_H['SOC_MAX']]
-        self.soc_max = soc_max if soc_max else None
+        if self.type == 4:
+            self.soc_min = 0.
+            self.soc_max = dev_case[DEV_H['SOC_MAX']]
+            self.eff = dev_case[DEV_H['EFF']]
+        else:
+            self.soc_min, self.soc_max = None, None
+            self.eff = None
 
-        eff = dev_case[DEV_H['EFF']]
-        self.eff = eff if eff else None
-
+        if not self.dev_id:
+            self.is_slack = True
+        else:
+            self.is_slack = False
 
         self._compute_lag_lead_limits(dev_case)
 
         self.p = None
         self.q = None
         self.soc = None
-        self.soc_min = 0.
 
     def _compute_lag_lead_limits(self, dev_case):
         dQ_min = dev_case[DEV_H["QC2MIN"]] - dev_case[DEV_H["QC1MIN"]]
@@ -143,7 +150,7 @@ class Generator(Device):
     A generator connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case, is_slack):
+    def __init__(self, dev_id, gen_id, dev_case):
         """
         Parameters
         ----------
@@ -153,13 +160,10 @@ class Generator(Device):
             The unique generator ID.
         dev_case : array_like
             The corresponding device row in the case file describing the network.
-        is_slack : bool
-            True if connected to the slack bus, False otherwise.
         """
 
         super().__init__(dev_id, gen_id, dev_case)
-        self.is_slack = is_slack
-        """bool : True if connected to the slack bus, False otherwise."""
+
 
     def compute_pq(self, p_init, q_init=None):
         # docstring inherited
@@ -191,10 +195,10 @@ class PowerPlant(Generator):
     A non-renewable energy source connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case, is_slack=False):
+    def __init__(self, dev_id, gen_id, dev_case):
         # docstring inherited
 
-        super().__init__(dev_id, gen_id, dev_case, is_slack)
+        super().__init__(dev_id, gen_id, dev_case)
 
 
 class VRE(Generator):
@@ -202,10 +206,10 @@ class VRE(Generator):
     A renewable energy source connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case, is_slack=False):
+    def __init__(self, dev_id, gen_id, dev_case):
         # docstring inherited
 
-        super().__init__(dev_id, gen_id, dev_case, is_slack)
+        super().__init__(dev_id, gen_id, dev_case)
 
 
 class Storage(Device):
@@ -235,7 +239,7 @@ class Storage(Device):
         ----------
         desired_alpha : float
             The desired charging rate (MW).
-        delta_t : int
+        delta_t : float
             The fraction of an hour representing a single timestep, e.g. 0.25 for
             a timestep of 15 minutes.
         q_setpoint : float
