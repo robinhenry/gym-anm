@@ -21,8 +21,6 @@ class Simulator(object):
         A penalty factor associated with violating operating constraints.
     baseMVA : int
         The base power of the system (MVA).
-    basekV : float
-        The base voltage of the zone, assuming a single zone (kV).
     buses : dict of {int : `Bus`}
         The buses of the grid, where for each {key: value} pair, the key is a
         unique bus ID.
@@ -108,7 +106,6 @@ class Simulator(object):
         """
 
         self.baseMVA = case['baseMVA']
-        self.basekV = case['basekV']
 
         self.buses = []
         for bus_id, bus in enumerate(case['bus']):
@@ -160,12 +157,12 @@ class Simulator(object):
         for br in self.branches:
 
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
-            Y_bus[br.f_bus, br.t_bus] = - np.conjugate(br.tap) * br.series
-            Y_bus[br.t_bus, br.f_bus] = - br.tap * br.series
+            Y_bus[br.f_bus, br.t_bus] = - (br.series / np.conjugate(br.tap))
+            Y_bus[br.t_bus, br.f_bus] = - (br.series / br.tap)
 
             # Increment diagonal element of the admittance matrix Y_bus.
             Y_bus[br.f_bus, br.f_bus] += (br.series + br.shunt) \
-                                         * np.absolute(br.tap) ** 2
+                                         / (np.absolute(br.tap) ** 2)
             Y_bus[br.t_bus, br.t_bus] += br.series + br.shunt
 
         return Y_bus
@@ -371,7 +368,7 @@ class Simulator(object):
         # 4. Compute P (MW) and Q (MVar) power flows in each branch.
         P_br, Q_br = self._compute_branch_PQ()
 
-        # 5. Compute (P, Q) injection of each device.
+        # 5. Get (P, Q) injection of each device.
         P_dev = [self.slack_dev.p] + [0.] * (self.N_device - 1)
         Q_dev = [self.slack_dev.q] + [0.] * (self.N_device - 1)
         for dev in list(self.gens.values()) + list(self.loads.values()) + \
@@ -556,8 +553,8 @@ class Simulator(object):
 
         I_br = []
         for branch in self.branches:
-            i_ij = self._get_current_from_voltage(branch)
-            i_ji = self._get_current_from_voltage(branch)
+            i_ij = self._get_current_from_voltage(branch, direction=True)
+            i_ji = self._get_current_from_voltage(branch, direction=False)
 
             if np.abs(i_ij) >= np.abs(i_ji):
                 branch.i = i_ij
@@ -568,7 +565,7 @@ class Simulator(object):
 
         return np.array(I_br)
 
-    def _get_current_from_voltage(self, branch):
+    def _get_current_from_voltage(self, branch, direction=True):
         """
         Compute the complex current injection on a transmission line.
 
@@ -576,20 +573,29 @@ class Simulator(object):
         ----------
         branch : `TransmissionLine`
             The transmission line in which to compute the current injection.
+        direction : bool, optional
+            True to compute the current injected into the branch from the
+            `branch.f_bus` node; False to compute the injection from the
+            `branch.t_bus` node.
 
         Returns
         -------
         complex
-            The complex current injection on the branch at bus `branch.f_bus`
-            (p.u.).
+            The complex current injection into the transmission line (p.u.).
         """
-        v_i = self.buses[branch.f_bus].v
-        v_j = self.buses[branch.t_bus].v
+        v_f = self.buses[branch.f_bus].v
+        v_t = self.buses[branch.t_bus].v
 
-        current = np.absolute(branch.tap) ** 2 * (branch.series + branch.shunt) \
-                  * v_i - np.conjugate(branch.tap) * branch.series * v_j
+        if direction:
+            i_1 = (1. / (np.absolute(branch.tap) ** 2)) \
+                  * (branch.series + branch.shunt) * v_f
+            i_2 = - (1. / np.conjugate(branch.tap)) * branch.series * v_t
 
-        return current
+        else:
+            i_1 = (branch.series + branch.shunt) * v_t
+            i_2 = - (1. / branch.tap) * branch.series * v_f
+
+        return i_1 + i_2
 
     def _compute_branch_PQ(self):
         """

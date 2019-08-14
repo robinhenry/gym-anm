@@ -37,6 +37,7 @@ class Bus(object):
 
         self.id = int(bus_case[BUS_H['BUS_I']])
         self.type = int(bus_case[BUS_H['BUS_TYPE']])
+        self.baseKV = bus_case[BUS_H['BASE_KV']]
         self.v_max = bus_case[BUS_H['VMAX']]
         self.v_min = bus_case[BUS_H['VMIN']]
 

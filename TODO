@@ -4,7 +4,6 @@ REFACTORING:
 SIMULATOR:
 - implement check that final (P, Q) of storage is a valid injection point
 - un-comment check_casefile() and fix its bugs
-- remove bus.v_slack and use more generally bus.v_max (or v_min)
 
 RENDERING:
 - add transformer instead of line 0 -> 1
@@ -21,6 +20,11 @@ DOCUMENTING
 
 
 OBJECTIVES:
-
 - Friday: finish documentation, tests, and scenario generation
 - 2 weeks after: writing paper + documentation
+
+
+QUESTIONS
+- what values for HV zone?
+- branch: r, x, b, tap, shift, rate ?
+-
