@@ -52,18 +52,32 @@ def write_html(svg_data):
 
 <body onload="init();">
 
-    <time datetime="2014-09-20" class="icon">
-        <strong id="month"></strong>
-        <span id="day"></span>
-    </time>
-
-    <div>
-        <canvas id="clock" width="100" height="100"></canvas>
-    </div>
-    <script src="js/clock.js"></script>
+    <header></header>
 
     <object id="svg-network" data="{1}"
-            type="image/svg+xml"></object></body>
+            type="image/svg+xml" class="network">
+    </object>
+
+    <aside>
+        <div class="calendar">
+            <time datetime="2014-09-20" class="icon">
+                <strong id="month"></strong>
+                <span id="day"></span>
+            </time>
+        </div>
+        
+        <div class="clock">
+            <canvas id="clock" width="100" height="100"></canvas>
+        </div>
+    </aside>
+    
+    <div class="legend">
+        <p> hello </p>
+    </div>
+    
+    <script src="js/clock.js"></script>
+
+</body>
 </html>
 
     """.format(svg_data['labels'], svg_data['network'])

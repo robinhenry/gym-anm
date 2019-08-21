@@ -45,7 +45,7 @@ def _load_demand_curves():
     curves_per_month = []
     for i in range(12):
         current_file = os.path.dirname(__file__)
-        filename = os.path.join(current_file,
+        filename = os.path.join(current_file, 'scenarios',
                                 'data_demand_curves',
                                'curves_' +  str(i) + '.csv')
         curves = np.loadtxt(filename, delimiter=',')

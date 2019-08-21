@@ -192,11 +192,24 @@ class Simulator(object):
             bus.q_min = Q_min[idx]
             bus.q_max = Q_max[idx]
 
-    def reset(self):
-        """ Reset the simulator. """
+    def reset(self, init_soc=None):
+        """
+        Reset the simulator.
+
+        Parameters
+        ----------
+        init_soc : list of float, optional
+            The initial state of charge of each storage unit.
+        """
+
         self.state = None
+
+        # Reset the initial state of charge of each storage unit.
         for su in self.storages.values():
-            su.soc = su.soc_max / 2.
+            if init_soc[su.type_id] is None:
+                su.soc = self.rng.random() * (su.soc_max - su.soc_min) + su.soc_min
+            else:
+                su.soc = init_soc[su.type_id]
 
     def get_network_specs(self):
         """
@@ -204,7 +217,7 @@ class Simulator(object):
 
         Returns
         -------
-        specs: dict of {str: list}
+        specs : dict of {str: list}
             A description of the operating range of the network. These values
             can be used to define an observation space.
         """
@@ -345,7 +358,7 @@ class Simulator(object):
         # 2. Compute the (P, Q) injection point of each generator
         # (except slack bus).
         for gen in self.gens.values():
-            gen.compute_pq(P_curt[gen.type_id - 1])
+            gen.compute_pq(P_curt[gen.type_id])
 
         # Initialize (P, Q) injection point of slack device to 0.
         self.slack_dev.p = 0.

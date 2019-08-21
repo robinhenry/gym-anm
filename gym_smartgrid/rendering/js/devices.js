@@ -33,16 +33,19 @@ class PowerInjection {
     this.loadRectColor = svgParams.colors.loadRectColor;
     this.pTextDecN = svgParams.pTextDecN;
     this.pUnits = svgParams.pUnits;
-    this.potentialColor = svgParams.potentialColor;
+    this.potentialColor = svgParams.colors.potGenRect;
 
     // Change the minimum and maximum power injection ticks.
     svgNetwork.getElementById(this.pMinTick).innerHTML = this.pMin;
     svgNetwork.getElementById(this.pMaxTick).innerHTML = this.pMax;
 
-    // Change the color of the potential P injection, only if the device is a
-    // curtailed VRE generator.
+    // If the device is a curtailed VRE generator.
     if (this.isVRE) {
+      // Change the color of the potential P injection,
       svgNetwork.getElementById(this.pPotentialRect).style.fill = this.potentialColor;
+      console.log(this.potentialColor);
+      // Get the original y-position of the potential P bar.
+      this.pPotentialY = parseFloat(svgNetwork.getElementById(this.pPotentialRect).getAttribute("y"));
     }
 
     // Initialize the arrow indicating the direction of power flow.
@@ -79,11 +82,20 @@ class PowerInjection {
     svgNetwork.getElementById(this.pInjText).innerHTML =
         curValue.toFixed(this.pTextDecN) + ' ' + this.pUnits;
 
-    // Update the height and color of the potential generation bar.
+    // Update the height, position and color of the potential generation bar.
     if (this.isVRE) {
-      let potBarHeight = this.rectMaxHeight * (Math.abs(potential) - this.pMin)
-        / (this.pMax - this.pMin);
+      let potBarHeight;
+      let deltaY;
+      if (potential > curValue) {
+        potBarHeight = this.rectMaxHeight * (Math.abs(potential) - this.pMin)
+            / (this.pMax - this.pMin) - barHeight;
+        deltaY = barHeight;
+      } else {
+        potBarHeight = 0;
+        deltaY = 0;
+      }
       svgNetwork.getElementById(this.pPotentialRect).setAttribute('height', potBarHeight);
+      svgNetwork.getElementById(this.pPotentialRect).setAttribute('y', deltaY + this.pPotentialY);
     }
 
     // Update the direction of the power flow arrow.

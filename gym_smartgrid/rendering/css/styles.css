@@ -1,15 +1,36 @@
 object {
-  margin-top: -6%;
+  width: 80%;
+  height: 80%;
+  float: left;
+}
+
+aside {
+  float: right;
+  width: 18%;
+}
+
+.legend {
+  float: right;
+  width: 10%;
+}
+
+.calendar {
+  width: 50%;
+  float: left;
+  margin-top: 5%;
+}
+
+.clock {
+  width: 50%;
+  float: right;
+  margin-top: -2%;
 }
 
 time.icon {
-  margin-bottom: -3em;
-  margin-left: 85%;
   font-size: 1em; /* change icon size */
   display: block;
   position: relative;
-  width: 6em;
-  height: 4em;
+  width: 80%;
   background-color: #fff;
   box-shadow: 0 1px 0 #bdbdbd, 0 2px 0 #fff, 0 3px 0 #bdbdbd, 0 4px 0 #fff, 0 5px 0 #bdbdbd, 0 0 0 1px #bdbdbd;
   overflow: hidden;
@@ -43,6 +64,4 @@ time.icon span {
 }
 
 canvas {
-  margin-left: 92%;
-  margin-top: -2%;
 }

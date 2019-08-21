@@ -61,6 +61,8 @@ class SmartGridEnv(gym.Env):
         The current time.
     end_time : datetime.datetime
         The end time of the episode.
+    init_soc : list of float
+        The initial state of charge of each storage unit.
     done : bool
         True if the episode is over, False otherwise.
     render_mode : str
@@ -314,8 +316,8 @@ class SmartGridEnv(gym.Env):
                                                    % (action, type(action))
 
         # Get the output of the stochastic processes (vre generation, loads).
-        P_loads = self.loads.next(self.time)
-        self.P_gen_potential = self.generators.next(self.time)
+        P_loads = [next(load) for load in self.loads]
+        self.P_gen_potential = [next(gen) for gen in self.generators]
 
         # Simulate a transition and compute the reward.
         reward = self.simulator.transition(P_loads, self.P_gen_potential, *action)
@@ -381,7 +383,10 @@ class SmartGridEnv(gym.Env):
         self.total_reward = 0.
         self.state = None
         self.render_mode = None
-        self.simulator.reset()
+
+        soc_start = self.init_soc(self.network_specs['SOC_MAX'])
+        self.simulator.reset(soc_start)
+
         obs = self._get_observations()
 
         # Take a random first action to initialize the state of the simulator.
@@ -389,6 +394,23 @@ class SmartGridEnv(gym.Env):
         self.total_reward = 0.
 
         return obs
+
+    def init_soc(self, soc_max=None):
+        """
+        Get the initial state of charge for each storage unit.
+
+        Parameters
+        ----------
+        soc_max : list of float
+            The maximum state of charge of each storage unit.
+
+        Returns
+        -------
+        list of float
+            The initial state of charge of each storage unit.
+        """
+
+        raise NotImplementedError
 
     def render(self, mode='human', sleep_time=0.1):
         """
