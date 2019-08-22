@@ -140,13 +140,6 @@ class SmartGridEnv(gym.Env):
         self.action_space = self._build_action_space()
         self.observation_space = self._build_obs_space()
 
-        # Initialize stochastic processes.
-        dev_specs = self._get_dev_specs()
-        self.generators = self.init_vre(dev_specs[2], dev_specs[3],
-                                        self.timestep_length, self.np_random)
-        self.loads = self.init_load(dev_specs[0], self.timestep_length,
-                                    self.np_random)
-
     def _build_action_space(self):
         """
         Build the available action space.
@@ -385,6 +378,15 @@ class SmartGridEnv(gym.Env):
         self.total_reward = 0.
         self.state = None
         self.render_mode = None
+
+        # Initialize stochastic processes.
+        dev_specs = self._get_dev_specs()
+        self.generators = self.init_vre(dev_specs[2], dev_specs[3],
+                                        self.time, self.timestep_length,
+                                        self.np_random)
+        self.loads = self.init_load(dev_specs[0], self.time,
+                                    self.timestep_length,
+                                    self.np_random)
 
         soc_start = self.init_soc(self.network_specs['SOC_MAX'])
         self.simulator.reset(soc_start)

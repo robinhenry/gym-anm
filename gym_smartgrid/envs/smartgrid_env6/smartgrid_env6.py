@@ -47,9 +47,22 @@ class SmartGridEnv6Hard(SmartGridEnv6):
         super().__init__()
 
     def init_load(self, load_pmax, init_date, delta_t, np_random):
-        folder = os.path.join(self.__file__, 'scenarios')
+        folder_house = os.path.join(os.path.dirname(__file__), 'scenarios',
+                                    'data_demand_curves', 'house')
+        folder_factory = os.path.join(os.path.dirname(__file__), 'scenarios',
+                                    'data_demand_curves', 'factory')
         loads = []
-        for _, p_max in sorted(load_pmax.items()):
+
+        for dev_idx, p_max in sorted(load_pmax.items()):
+
+            # Assign the folder corresponding to the kind of load.
+            if dev_idx in [1, 5]:
+                folder = folder_house
+            elif dev_idx in [3]:
+                folder = folder_factory
+            else:
+                raise ValueError('The device ID does not match.')
+
             new_load = LoadGenerator(folder, init_date, delta_t, np_random,
                                      p_max)
             loads.append(new_load)
@@ -57,7 +70,7 @@ class SmartGridEnv6Hard(SmartGridEnv6):
         return loads
 
     def init_vre(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
-        vres = [None] * (len(wind_pmax) + len(solar_pmax))
+        vres = {}
 
         for dev_id, p_max in sorted(wind_pmax.items()):
             vres[dev_id] = WindGenerator(init_date, delta_t, np_random, p_max)
@@ -65,7 +78,12 @@ class SmartGridEnv6Hard(SmartGridEnv6):
         for dev_id, p_max in sorted(solar_pmax.items()):
             vres[dev_id] = SolarGenerator(init_date, delta_t, np_random, p_max)
 
-        return vres
+        # Transform the dictionary into a list, ordered by device index.
+        vres_lst = []
+        for dev_id in sorted(vres.keys()):
+            vres_lst.append(vres[dev_id])
+
+        return vres_lst
 
     def init_soc(self, soc_max=None):
         return None

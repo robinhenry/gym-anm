@@ -1,20 +1,20 @@
 import numpy as np
 from calendar import isleap
+import datetime as dt
 from scipy.stats import norm
 
 
 class SolarGenerator(object):
+
     def __init__(self, init_date, delta_t, np_random, p_max=1.):
         self.np_random = np_random
         self.p_max = p_max
         self.delta_t = delta_t
         self.date = init_date
 
-        self.bell_noise_factor = 0.1
+        self.bell_noise_factor = 0.05
         self.scale = 0.005
         self.prev_p = 0.
-        self.T = None
-        self.h = None
         self.prev_base = None
         self.prev_day = None
 
@@ -22,7 +22,6 @@ class SolarGenerator(object):
         return self
 
     def __next__(self):
-
         if self.prev_base is None:
             self._next_base()
 
@@ -31,7 +30,7 @@ class SolarGenerator(object):
         self.prev_p += noise
 
         # Clip production to 0 before sunrise and after sunset.
-        if self.h < self.sunrise or self.h > self.sunset:
+        if self.date.hour < self.sunrise or self.date.hour > self.sunset:
             self.prev_p = 0.
 
         # Make sure that P stays within [0, 1].
@@ -47,12 +46,6 @@ class SolarGenerator(object):
         return self.prev_p * self.p_max
 
     def next(self):
-        if self.date.minute % self.delta_t:
-            raise ValueError('The time should be a multiple of 15 minutes.')
-
-        self.T = 365 + isleap(self.date.year)
-        self.h = (self.date.hour + self.date.minute / 60.) % 24.
-
         return self.__next__()
 
     def _next_base(self):
@@ -63,9 +56,11 @@ class SolarGenerator(object):
         """
         Compute the sunset and sunrise hour, based on the date of the year.
         """
+        T = 365 + isleap(self.date.year)
+        h = (self.date.hour + self.date.minute / 60.) % 24.
 
-        self.sunset = 1.5 * np.sin(self.h * 2 * np.pi / self.T) + 18.5
-        self.sunrise = 1.5 * np.sin(self.h * 2 * np.pi / self.T) + 5.5
+        self.sunset = 1.5 * np.sin(h * 2 * np.pi / T) + 18.5
+        self.sunrise = 1.5 * np.sin(h * 2 * np.pi / T) + 5.5
 
     def _bell_curve(self):
         """
@@ -104,10 +99,14 @@ class SolarGenerator(object):
         """
 
         # Shift hour to be centered on December, 22nd (Winter Solstice).
-        h = self.date.hour + 240
+        since_1st_jan = (self.date - dt.datetime(self.date.year, 1, 1))
+        delta_hour = since_1st_jan.days * 24 + since_1st_jan.seconds // 3600
 
-        return 0.25 * np.sin(h * 2 * np.pi / self.T - np.pi / 2) + 0.75
+        h = delta_hour + 240
+        T = 24 * (365 + isleap(self.date.year))
 
+        r = 0.25 * np.sin(h * 2 * np.pi / T - np.pi / 2) + 0.75
+        return r
 
 # if __name__ == '__main__':
     # import matplotlib.pyplot as plt

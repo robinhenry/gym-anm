@@ -2,8 +2,11 @@ import os
 import pandas as pd
 from calendar import monthrange
 
+from gym_smartgrid.utils import dt_to_minutes
+
 
 class LoadGenerator(object):
+
     def __init__(self, folder, init_date, delta_t, np_random, p_max=1.):
         self.folder = folder
         self.np_random = np_random
@@ -33,7 +36,9 @@ class LoadGenerator(object):
         if self.prev_p is None:
             self.prev_p = self.day_curve[0]
 
-        t = int((self.date.hour * 60 + self.date.minute) / self.delta_t)
+        delta_min = dt_to_minutes(self.delta_t)
+
+        t = int((self.date.hour * 60 + self.date.minute) / delta_min)
         diff = self.day_curve[t - 1] - self.prev_p
         noise = self.np_random.normal(loc=diff, scale=self.scale)
 
@@ -45,9 +50,6 @@ class LoadGenerator(object):
         return self.prev_p * self.p_max
 
     def next(self):
-        if self.date.minute % self.delta_t:
-            raise ValueError('The time should be a multiple of delta_t.')
-
         return self.__next__()
 
     def _load_month_curves(self):
