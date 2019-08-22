@@ -1,16 +1,17 @@
 import os
-import numpy as np
 import pandas as pd
 from calendar import monthrange
-import datetime as dt
 
 
 class LoadGenerator(object):
-    def __init__(self, folder, np_random, p_max=1.):
+    def __init__(self, folder, init_date, delta_t, np_random, p_max=1.):
         self.folder = folder
         self.np_random = np_random
         self.p_max = p_max
-        self.delta_t = 15
+        self.delta_t = delta_t
+        self.date = init_date
+
+        self.scale = 0.005
         self.prev_month = None
         self.prev_day = None
         self.prev_p = None
@@ -38,14 +39,15 @@ class LoadGenerator(object):
 
         self.prev_p += noise
 
+        # Increment the current time.
+        self.date += self.delta_t
+
         return self.prev_p * self.p_max
 
-    def next(self, date, scale=0.005):
-        if date.minute % self.delta_t:
-            raise ValueError('The time should be a multiple of 15 minutes.')
+    def next(self):
+        if self.date.minute % self.delta_t:
+            raise ValueError('The time should be a multiple of delta_t.')
 
-        self.date = date
-        self.scale = scale
         return self.__next__()
 
     def _load_month_curves(self):
@@ -60,22 +62,22 @@ class LoadGenerator(object):
         self.prev_day = self.date.day
 
 
-if __name__ == '__main__':
-    folder = 'data_demand_curves'
-    rng = np.random.RandomState(2019)
-
-    p_max = 10
-    load_generator = LoadGenerator(folder, rng, p_max)
-
-    curve = []
-    date = dt.datetime(2019, 1, 1)
-    for i in range(24 * 4 * 7):
-        curve.append(load_generator.next(date, 0.007))
-        date += dt.timedelta(minutes=15)
-
-    import matplotlib.pyplot as plt
-    plt.plot(curve)
-    plt.show()
-    plt.xlabel('Timestep (15 min)')
-    plt.ylabel('Consumption factor in [0, 1]')
-    plt.title('Generated load curve over a week')
+# if __name__ == '__main__':
+#     folder = 'data_demand_curves'
+#     rng = np.random.RandomState(2019)
+#
+#     p_max = 10
+#     load_generator = LoadGenerator(folder, rng, p_max)
+#
+#     curve = []
+#     date = dt.datetime(2019, 1, 1)
+#     for i in range(24 * 4 * 7):
+#         curve.append(load_generator.next(date, 0.007))
+#         date += dt.timedelta(minutes=15)
+#
+#     import matplotlib.pyplot as plt
+#     plt.plot(curve)
+#     plt.xlabel('Timestep (15 min)')
+#     plt.ylabel('Consumption factor in [0, 1]')
+#     plt.title('Generated load curve over a week')
+#     plt.show()

@@ -256,7 +256,7 @@ class SmartGridEnv(gym.Env):
 
         return load, power_plant, wind, solar
 
-    def init_vre(self, wind_pmax, solar_pmax, delta_t, np_random):
+    def init_vre(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
         """
 
         Parameters
@@ -270,9 +270,10 @@ class SmartGridEnv(gym.Env):
         -------
 
         """
-        raise NotImplementedError
+        raise NotImplementedError('The function init_vre() should be implemented'
+                                  ' by the subclass.')
 
-    def init_load(self, load_pmax, delta_t, np_random):
+    def init_load(self, load_pmax, init_date, delta_t, np_random):
         """
 
         Parameters
@@ -285,7 +286,8 @@ class SmartGridEnv(gym.Env):
         -------
 
         """
-        raise NotImplementedError
+        raise NotImplementedError('The function init_load() should be implemented'
+                                  ' by the subclass.')
 
     def step(self, action):
         """
@@ -410,7 +412,8 @@ class SmartGridEnv(gym.Env):
             The initial state of charge of each storage unit.
         """
 
-        raise NotImplementedError
+        raise NotImplementedError('The function init_soc() should be implemented'
+                                  ' by the subclass.')
 
     def render(self, mode='human', sleep_time=0.1):
         """

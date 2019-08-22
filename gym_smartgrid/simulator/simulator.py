@@ -204,6 +204,9 @@ class Simulator(object):
 
         self.state = None
 
+        if init_soc is None:
+            init_soc = [None] * self.N_storage
+
         # Reset the initial state of charge of each storage unit.
         for su in self.storages.values():
             if init_soc[su.type_id] is None:

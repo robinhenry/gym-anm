@@ -1,12 +1,17 @@
 import numpy as np
 from calendar import isleap
 
-class WindGenerator():
-    def __init__(self, np_random, p_max):
+
+class WindGenerator(object):
+    def __init__(self, init_date, delta_t, np_random, p_max=1.):
         self.np_random = np_random
         self.p_max = p_max
-        self.delta_t = 15
+        self.date = init_date
+        self.delta_t = delta_t
+
+        self.T = None
         self.p = 0.
+        self.noise_factor = 0.005
 
     def __iter__(self):
         return self
@@ -25,18 +30,18 @@ class WindGenerator():
         # Save next real power generation.
         self.p_injection = self.p * self.p_max
 
+        # Increment the date.
+        self.date += self.delta_t
+
         return self.p_injection
 
-    def next(self, date, noise_factor):
-        if date.minute % self.delta_t:
+    def next(self):
+        if self.date.minute % self.delta_t:
             raise ValueError('The time should be a multiple of 15 minutes.')
 
-        self.date = date
-        self.noise_factor = noise_factor
         self.T = 365 + isleap(self.date.year)
 
         return self.__next__()
-
 
     def _yearly_pattern(self):
         """
@@ -48,7 +53,6 @@ class WindGenerator():
         1st. The sinusoid is designed to return its minimum value on the
         Summer Solstice and its maximum value on the Winter one.
 
-        :param hour: the number of hours passed January, 1st at 12:00 a.m.
         :return: a wind generation scaling factor in [0, 1].
         """
 
@@ -57,23 +61,23 @@ class WindGenerator():
 
         return 0.15 * np.cos(h * 2 * np.pi / self.T) + 0.45
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import datetime as dt
-
-    rng = np.random.RandomState(2019)
-    p_max = 1
-    wind_generator = WindGenerator(rng, p_max)
-
-    curve = []
-    date = dt.datetime(2019, 1, 1)
-    for i in range(24 * 4 * 3):
-        curve.append(wind_generator.next(date, 0.1))
-        date += dt.timedelta(minutes=15)
-
-    plt.plot(curve)
-    plt.xlabel('Timestep (15 min)')
-    plt.ylabel('Consumption factor in [0, 1]')
-    plt.title('Generated load curve over a week')
-
-    plt.show()
+# if __name__ == '__main__':
+    # import matplotlib.pyplot as plt
+    # import datetime as dt
+    #
+    # rng = np.random.RandomState(2019)
+    # p_max = 1
+    # wind_generator = WindGenerator(rng, p_max)
+    #
+    # curve = []
+    # date = dt.datetime(2019, 1, 1)
+    # for i in range(24 * 4 * 3):
+    #     curve.append(wind_generator.next(date, 0.1))
+    #     date += dt.timedelta(minutes=15)
+    #
+    # plt.plot(curve)
+    # plt.xlabel('Timestep (15 min)')
+    # plt.ylabel('Consumption factor in [0, 1]')
+    # plt.title('Generated load curve over a week')
+    #
+    # plt.show()

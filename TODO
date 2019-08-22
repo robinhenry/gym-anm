@@ -1,15 +1,16 @@
 REFACTORING:
-- make env6/utils into functions reusable by others.
+
 
 SIMULATOR:
 - implement check that final (P, Q) of storage is a valid injection point
 - un-comment check_casefile() and fix its bugs
+- use bounds on |S| for branches, in MVA
+- add time of the year (i.e. timestep idx since 00:00 on 1st of January) to state
 
 RENDERING:
-- add transformer instead of line 0 -> 1
 - remove 'client asked to close connection' print statements
-- divide webpage into 2 horizontal sections: 1 for the input graph, 1 for the
-    rest (e.g. clock, calendar, color key, reward, etc.)
+- add device number next to each device
+- add legend
 
 DOCUMENTING
 - check if "array_like" can be used (or what to use when list or array)
@@ -19,12 +20,7 @@ DOCUMENTING
 - how to reuse parent's attributes in docstring
 
 
-OBJECTIVES:
-- Friday: finish documentation, tests, and scenario generation
-- 2 weeks after: writing paper + documentation
+OBJECTIVES
 
 
 QUESTIONS
-- what values for HV zone?
-- branch: r, x, b, tap, shift, rate ?
--
