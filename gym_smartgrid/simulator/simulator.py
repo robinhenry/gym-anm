@@ -202,17 +202,16 @@ class Simulator(object):
             The initial state of charge of each storage unit.
         """
 
-        self.state = None
-
         if init_soc is None:
             init_soc = [None] * self.N_storage
 
         # Reset the initial state of charge of each storage unit.
         for su in self.storages.values():
             if init_soc[su.type_id] is None:
-                su.soc = self.rng.random() * (su.soc_max - su.soc_min) + su.soc_min
+                soc = self.rng.random() * (su.soc_max - su.soc_min) + su.soc_min
             else:
-                su.soc = init_soc[su.type_id]
+                soc = init_soc[su.type_id]
+            su.soc = soc
 
     def get_network_specs(self):
         """
@@ -345,8 +344,14 @@ class Simulator(object):
 
         Returns
         -------
+        state : dict of {str : array_like}
+            The current state of the system.
         reward : float
             The reward associated with the transition.
+        e_loss : float
+            The total energy loss.
+        penalty : float
+            The total penalty due to violation of operating constraints.
         """
 
         ### Manage passive loads. ###
@@ -398,9 +403,9 @@ class Simulator(object):
                       'P_BR': P_br, 'Q_BR': Q_br, 'IMAGN_BR': I_br_magn}
 
         ### Compute the total reward associated with the transition. ###
-        reward = self._get_reward(P_bus, P_potential, P_curt)
+        reward, e_loss, penalty = self._get_reward(P_bus, P_potential, P_curt)
 
-        return reward
+        return self.state, reward, e_loss, penalty
 
     def _manage_storage(self, desired_alpha, Q_storage_setpoints):
         """
@@ -658,6 +663,10 @@ class Simulator(object):
         reward : float
             The total reward associated with the transition to a new system
             state.
+        e_loss : float
+            The total energy loss.
+        penalty : float
+            The total penalty due to violation of operating constraints.
         """
 
         # Compute the total energy loss over the network. This includes
@@ -676,7 +685,7 @@ class Simulator(object):
 
         # Return reward as a negative cost.
         reward = - (energy_loss + curt_loss + penalty)
-        return reward
+        return reward, energy_loss + curt_loss, penalty
 
     def _get_penalty(self):
         """

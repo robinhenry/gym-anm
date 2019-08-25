@@ -1,12 +1,19 @@
-from gym_smartgrid.envs import SmartGridEnv6Easy, SmartGridEnv6Hard
+from gym_smartgrid.envs import SmartGrid6Easy, SmartGrid6Hard
 
 if __name__ == '__main__':
-    # env = SmartGridEnv6Easy()
-    env = SmartGridEnv6Hard()
+    env = SmartGrid6Easy()
+    # env = SmartGridEnv6Hard()
     env.reset()
-    for i in range(50000):
+    for i in range(5):
         env.render(sleep_time=.5)
-        env.step(env.action_space.sample()) # select a random action
+        a = env.action_space.sample()
+
+        # Choose action.
+
+
+
+        print(a)
+        env.step(a) # select a random action
 
 
     # history = env.close(path='test_history.csv')

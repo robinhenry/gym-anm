@@ -71,8 +71,6 @@ class SmartGridEnv(gym.Env):
         The random seed.
     render_history : pandas.DataFrame
         The history of past states, used for later visualization.
-    sleep_time : float
-        The sleeping time between two visualization updates.
 
     generators
     loads
@@ -315,8 +313,8 @@ class SmartGridEnv(gym.Env):
         self.P_gen_potential = [next(gen) for gen in self.generators]
 
         # Simulate a transition and compute the reward.
-        reward = self.simulator.transition(P_loads, self.P_gen_potential, *action)
-        self.state = self.simulator.state
+        self.state, reward, self.e_loss, self.penalty = \
+            self.simulator.transition(P_loads, self.P_gen_potential, *action)
         self.total_reward += reward
 
         # Create a tuple of observations.
@@ -370,14 +368,14 @@ class SmartGridEnv(gym.Env):
             `self.obs_values`.
         """
 
+        self.done = False
+        self.render_mode = None
+        self.total_reward = 0.
+        self.state = None
+
         # Select random date.
         self.time = gym_smartgrid.utils.random_date(self.np_random, self.year)
         self.end_time = self.time + self.episode_max_length
-
-        self.done = False
-        self.total_reward = 0.
-        self.state = None
-        self.render_mode = None
 
         # Initialize stochastic processes.
         dev_specs = self._get_dev_specs()
@@ -388,16 +386,38 @@ class SmartGridEnv(gym.Env):
                                     self.timestep_length,
                                     self.np_random)
 
+        # Reset the initial SoC of each storage unit.
         soc_start = self.init_soc(self.network_specs['SOC_MAX'])
         self.simulator.reset(soc_start)
 
-        obs = self._get_observations()
+        # Initialize simulator with an action that does nothing.
+        self.step(self._init_action())
+        self.time -= self.timestep_length
 
-        # Take a random first action to initialize the state of the simulator.
-        self.step(sample_action(self.np_random, self.action_space))
+        # self.step(sample_action(self.np_random, self.action_space))
         self.total_reward = 0.
 
+        # Get the initial observations.
+        self.state = self.simulator.state
+        obs = self._get_observations()
+
         return obs
+
+    def _init_action(self):
+        """
+        Get the action that doesn't modify the state of the system.
+
+        Returns
+        -------
+        action : tuple of numpy.ndarray
+            The action to take which will not modify the state.
+
+        """
+
+        curt = self.action_space.spaces[0].high
+        action = (curt, np.array([0.]), np.array([0.]))
+
+        return action
 
     def init_soc(self, soc_max=None):
         """
@@ -443,7 +463,7 @@ class SmartGridEnv(gym.Env):
         if self.render_mode is None:
 
             if mode in ['human', 'replay']:
-                self.sleep_time = sleep_time
+                pass
             elif mode == 'save':
                 self.render_history = None
             else:
@@ -454,12 +474,15 @@ class SmartGridEnv(gym.Env):
             self._init_render(specs)
 
             # Render the initial state.
-            self.render(mode=mode, sleep_time=sleep_time)
+            self.render(mode=mode, sleep_time=1.)
 
         else:
             state_values = [list(self.state[s]) for s in RENDERED_STATE_VALUES]
-            self._update_render(self.time, state_values,
-                                list(self.P_gen_potential))
+            self._update_render(self.time - self.timestep_length,
+                                state_values,
+                                list(self.P_gen_potential),
+                                [self.e_loss, self.penalty],
+                                sleep_time=sleep_time)
 
     def _init_render(self, network_specs):
         """
@@ -476,19 +499,23 @@ class SmartGridEnv(gym.Env):
             If the rendering mode is non-valid.
         """
 
+        title = type(self).__name__
+
         if self.render_mode in ['human', 'replay']:
             write_html(self.svg_data)
             self.http_server, self.ws_server = rendering.start(
+                title,
                 *network_specs)
 
         elif self.render_mode == 'save':
-            s = pd.Series({'specs': network_specs})
+            s = pd.Series({'title': title, 'specs': network_specs})
             self.render_history = pd.DataFrame([s])
 
         else:
             raise NotImplementedError
 
-    def _update_render(self, cur_time, state_values, P_potential):
+    def _update_render(self, cur_time, state_values, P_potential, costs,
+                       sleep_time):
         """
         Update the rendering of the environment state.
 
@@ -500,6 +527,11 @@ class SmartGridEnv(gym.Env):
             The state values needed for rendering.
         P_potential : list of float
             The potential generation of each VRE before curtailment (MW).
+        costs : list of float
+            The total energy loss and the total penalty associated with operating
+            constraints violation.
+        sleep_time : float
+            The sleeping time between two visualization updates.
 
         Raises
         ------
@@ -511,13 +543,15 @@ class SmartGridEnv(gym.Env):
             rendering.update(self.ws_server.address,
                              cur_time,
                              *state_values,
-                             P_potential)
-            time.sleep(self.sleep_time)
+                             P_potential,
+                             costs)
+            time.sleep(sleep_time)
 
         elif self.render_mode == 'save':
             d = {'time': self.time,
                  'state_values': state_values,
-                 'potential': P_potential}
+                 'potential': P_potential,
+                 'costs': costs}
             s = pd.Series(d)
             self.render_history = self.render_history.append(s,
                                                              ignore_index=True)
@@ -539,15 +573,14 @@ class SmartGridEnv(gym.Env):
 
         self.reset()
         self.render_mode = 'replay'
-        self.sleep_time = sleep_time
 
         history = pd.read_csv(path)
-        ns, obs, p_pot, times = self._unpack_history(history)
+        ns, obs, p_pot, times, costs = self._unpack_history(history)
 
         self._init_render(ns)
 
         for i in range(len(obs)):
-            self._update_render(times[i], obs[i], p_pot[i])
+            self._update_render(times[i], obs[i], p_pot[i], costs, sleep_time)
 
         self.close()
 
@@ -571,7 +604,9 @@ class SmartGridEnv(gym.Env):
             The potential generation of each VRE before curtailment (MW).
         times : list of datetime.datetime
             The times corresponding to each time step.
-
+        costs : list of float
+            The total energy loss and the total penalty associated with operating
+            constraints violation.
         """
 
         ns = ast.literal_eval(history.specs[0])
@@ -585,7 +620,10 @@ class SmartGridEnv(gym.Env):
         times = history.time[1:].values
         times = [dt.datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in times]
 
-        return ns, state_values, p_potential, times
+        costs = history.costs[1:].values
+        costs = [ast.literal_eval(c) for c in costs]
+
+        return ns, state_values, p_potential, times, costs
 
     def close(self, path=None):
         """

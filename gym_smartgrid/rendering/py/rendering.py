@@ -6,12 +6,15 @@ from websocket import create_connection
 from gym_smartgrid.rendering.py.servers import WsServer, HttpServer
 
 
-def start(dev_type, p_min, p_max, i_max, soc_max):
+def start(title, dev_type, p_min, p_max, i_max, soc_max):
     """
     Start visualizing the state of the environment in a new browser window.
 
     Parameters
     ----------
+    title : str
+        The title to give to the visualization, usually the name of the
+        environment.
     dev_type : list of int
         The type of each device connected to the network.
     p_min, p_max : list of float
@@ -35,7 +38,7 @@ def start(dev_type, p_min, p_max, i_max, soc_max):
     ws_server = WsServer()
 
     # Open a new browser window to display the visualization.
-    webbrowser.open_new(http_server.address + '/rendering')
+    webbrowser.open_new_tab(http_server.address + '/rendering')
 
     ws = create_connection(ws_server.address)
 
@@ -53,14 +56,15 @@ def start(dev_type, p_min, p_max, i_max, soc_max):
                           'pMax': p_max,
                           'iMax': i_max,
                           'socMin': [0.] * len(soc_max),
-                          'socMax': soc_max},
+                          'socMax': soc_max,
+                          'title': title},
                          separators=(',', ':'))
     ws.send(message)
     ws.close()
 
     return http_server, ws_server
 
-def update(ws_address, cur_time, p, i, soc, p_branch, p_potential):
+def update(ws_address, cur_time, p, i, soc, p_branch, p_potential, costs):
     """
     Update the visualization of the environment.
 
@@ -81,6 +85,9 @@ def update(ws_address, cur_time, p, i, soc, p_branch, p_potential):
     p_potential : list of float
         The potential real power generation of each VRE device before curtailment
         (MW).
+    costs : list of float
+        The total energy loss and the total penalty associated with operating
+        constraints violation.
     """
 
     ws = create_connection(ws_address)
@@ -92,7 +99,8 @@ def update(ws_address, cur_time, p, i, soc, p_branch, p_potential):
                           'iCurrents': i,
                           'socStorage': soc,
                           'pBranchFlows': p_branch,
-                          'pPotential': p_potential})
+                          'pPotential': p_potential,
+                          'reward': costs})
     ws.send(message)
     ws.close()
 

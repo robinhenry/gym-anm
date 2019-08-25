@@ -47,6 +47,8 @@ function init() {
         graph = new Graph(svgDevices, svgLines, svgStorageUnits, svgParams,
                     messageJson.deviceType, messageJson.pMin, messageJson.pMax,
                     messageJson.iMax, messageJson.socMin, messageJson.socMax);
+        addTitle(svgParams, messageJson.title);
+        initReward(svgParams.reward);
         break;
 
       // Case 2: Update the visualization.
@@ -54,8 +56,9 @@ function init() {
         graph.update(messageJson.pInjections, messageJson.iCurrents,
                      messageJson.socStorage, messageJson.pBranchFlows,
                      messageJson.pPotential);
-        update_calendar(messageJson.time[0], messageJson.time[1]);
-        update_clock(messageJson.time[2], messageJson.time[3]);
+        updateDate(svgParams, messageJson.time[0], messageJson.time[1]);
+        updateTime(svgParams, messageJson.time[2], messageJson.time[3]);
+        updateReward(svgParams.reward, messageJson.reward[0], messageJson.reward[1]);
         break;
     }
   };

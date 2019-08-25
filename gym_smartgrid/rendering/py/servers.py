@@ -1,11 +1,13 @@
 import json
 import os
+import sys
+import logging
 
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
 
-from gym_smartgrid import ROOT_FOLDER
+from gym_smartgrid import ROOT_FOLDER, RENDERING_LOGS
 
 
 class WsServer(object):
@@ -34,6 +36,7 @@ class WsServer(object):
         self.PORT = 9001
         self.HOST = '127.0.0.1'
         self.address = 'ws://' + self.HOST + ':' + str(self.PORT) + '/'
+        self.logging_level = logging.NOTSET
         self.clients = {}
         self.init_message = None
         self.init_client = None
@@ -59,7 +62,7 @@ class WsServer(object):
     def _start_server(self):
         """ Start the WebSocket server and keep it running. """
 
-        server = WebsocketServer(self.PORT)
+        server = WebsocketServer(self.PORT, self.HOST, self.logging_level)
 
         server.set_fn_client_left(self.client_left)
         server.set_fn_new_client(self.new_client)
@@ -170,7 +173,10 @@ class HttpServer(object):
         # Go to project root directory.
         os.chdir(ROOT_FOLDER)
 
+        sys.stderr = open(os.path.join(RENDERING_LOGS, "http_stderr.log"), "w")
+
         httpd = HTTPServer((self.HOST, self.PORT), SimpleHTTPRequestHandler)
-        print('Serving HTTP at : ' + self.HOST + ':' + str(self.PORT) + '...')
+        print('\nServing visualization at : ' + self.HOST + ':'
+              + str(self.PORT) + '...\n')
 
         httpd.serve_forever()

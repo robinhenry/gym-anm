@@ -87,7 +87,7 @@ class Device(object):
 
         self.p = None
         self.q = None
-        self.soc = None
+        self.soc = 0.
 
     def _compute_lag_lead_limits(self, dev_case):
         dQ_min = dev_case[DEV_H["QC2MIN"]] - dev_case[DEV_H["QC1MIN"]]
@@ -265,7 +265,7 @@ class Storage(Device):
 
         # Case 2: lower limit.
         elif self.soc + delta_soc < self.soc_min:
-            delta_soc = self.soc - self.soc_min
+            delta_soc = self.soc_min - self.soc
             max_alpha = delta_soc / delta_t
 
         # Get the real power injection in the network.

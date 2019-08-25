@@ -45,8 +45,10 @@ def write_html(svg_data):
     <script src="js/init.js"></script>
     <script src="js/devices.js"></script>
     <script src="js/graph.js"></script>
-    <script src="{0}"></script>
-    <script src="js/calendar.js"></script>
+    <script src="js/dateTime.js"></script>
+    <script src="js/reward.js"></script>
+    <script src="js/title.js"></script>
+    <script src="../envs/smartgrid_env6/svgLabels.js"></script>
     <title>SmartGrid-gym</title>
 </head>
 
@@ -54,28 +56,9 @@ def write_html(svg_data):
 
     <header></header>
 
-    <object id="svg-network" data="{1}"
+    <object id="svg-network" data="../envs/smartgrid_env6/network.svg"
             type="image/svg+xml" class="network">
     </object>
-
-    <aside>
-        <div class="calendar">
-            <time datetime="2014-09-20" class="icon">
-                <strong id="month"></strong>
-                <span id="day"></span>
-            </time>
-        </div>
-        
-        <div class="clock">
-            <canvas id="clock" width="100" height="100"></canvas>
-        </div>
-    </aside>
-    
-    <div class="legend">
-        <p> hello </p>
-    </div>
-    
-    <script src="js/clock.js"></script>
 
 </body>
 </html>

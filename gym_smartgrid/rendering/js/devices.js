@@ -41,9 +41,10 @@ class PowerInjection {
 
     // If the device is a curtailed VRE generator.
     if (this.isVRE) {
-      // Change the color of the potential P injection,
+      // Set height of potential P injection bar to 0.
+      svgNetwork.getElementById(this.pPotentialRect).setAttribute('height', 0);
+      // Change the color of the potential P injection.
       svgNetwork.getElementById(this.pPotentialRect).style.fill = this.potentialColor;
-      console.log(this.potentialColor);
       // Get the original y-position of the potential P bar.
       this.pPotentialY = parseFloat(svgNetwork.getElementById(this.pPotentialRect).getAttribute("y"));
     }

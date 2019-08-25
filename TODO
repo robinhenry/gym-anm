@@ -1,16 +1,14 @@
-REFACTORING:
+REFACTORING
 
-
-SIMULATOR:
+SIMULATOR
 - implement check that final (P, Q) of storage is a valid injection point
 - un-comment check_casefile() and fix its bugs
 - use bounds on |S| for branches, in MVA
 - add time of the year (i.e. timestep idx since 00:00 on 1st of January) to state
 
-RENDERING:
-- remove 'client asked to close connection' print statements
-- add device number next to each device
-- add legend
+RENDERING
+- deal with title during Replay
+- check that replay still works
 
 DOCUMENTING
 - check if "array_like" can be used (or what to use when list or array)
@@ -19,6 +17,9 @@ DOCUMENTING
 - add module docstrings
 - how to reuse parent's attributes in docstring
 
+SCENARIO HARD
+- increase PV production a little bit
+- increase industry consumption !!
 
 OBJECTIVES
 
