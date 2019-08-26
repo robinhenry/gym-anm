@@ -5,6 +5,8 @@ SIMULATOR
 - un-comment check_casefile() and fix its bugs
 - use bounds on |S| for branches, in MVA
 - add time of the year (i.e. timestep idx since 00:00 on 1st of January) to state
+- compute branch P, Q, I from both sides
+- remove rng seed from Simulator -> should not model any stochastic processes
 
 RENDERING
 - deal with title during Replay
