@@ -6,7 +6,7 @@ from websocket import create_connection
 from gym_smartgrid.rendering.py.servers import WsServer, HttpServer
 
 
-def start(title, dev_type, p_min, p_max, i_max, soc_max):
+def start(title, dev_type, p_min, p_max, s_rate, soc_max):
     """
     Start visualizing the state of the environment in a new browser window.
 
@@ -19,8 +19,8 @@ def start(title, dev_type, p_min, p_max, i_max, soc_max):
         The type of each device connected to the network.
     p_min, p_max : list of float
         The minimum and maximum real power injection of each device (MW).
-    i_max : list of float
-        The transmission line current ratings (p_from.u.).
+    s_rate : list of float
+        The transmission line apparent power ratings (MVA).
     soc_max : list of float
         The maximum state of charge of each storage unit (MWh).
 
@@ -54,7 +54,7 @@ def start(title, dev_type, p_min, p_max, i_max, soc_max):
                           'deviceType': dev_type,
                           'pMin': p_min_abs,
                           'pMax': p_max,
-                          'iMax': i_max,
+                          'sRate': s_rate,
                           'socMin': [0.] * len(soc_max),
                           'socMax': soc_max,
                           'title': title},
@@ -64,7 +64,7 @@ def start(title, dev_type, p_min, p_max, i_max, soc_max):
 
     return http_server, ws_server
 
-def update(ws_address, cur_time, p, i, soc, p_branch, p_potential, costs):
+def update(ws_address, cur_time, p, s, soc, p_potential, costs):
     """
     Update the visualization of the environment.
 
@@ -76,12 +76,10 @@ def update(ws_address, cur_time, p, i, soc, p_branch, p_potential, costs):
         The time corresponding to the state of the network.
     p  : list of float
         The real power injection from each device (MW).
-    i : list of float
-        The current magnitude flow in each transmission line (p_from.u.).
+    s : list of float
+        The apparent power flow in each branch (MVA).
     soc : list of float
         The state of charge of each storage unit (MWh).
-    p_branch : list of float
-        The real power flow in each transmisssion line (MW).
     p_potential : list of float
         The potential real power generation of each VRE device before curtailment
         (MW).
@@ -96,9 +94,8 @@ def update(ws_address, cur_time, p, i, soc, p_branch, p_potential, costs):
     message = json.dumps({'messageLabel': 'update',
                           'time': time_array,
                           'pInjections': p,
-                          'iCurrents': i,
+                          'sFlows': s,
                           'socStorage': soc,
-                          'pBranchFlows': p_branch,
                           'pPotential': p_potential,
                           'reward': costs})
     ws.send(message)

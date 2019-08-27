@@ -12,8 +12,6 @@ class Simulator(object):
 
     Attributes
     ----------
-    rng : numpy.random.RandomState
-        The random  seed.
     time_factor : float
         The fraction of an hour corresponding to the time interval between two
         consecutive time steps, e.g. 0.25 means an interval of 15 minutes.
@@ -56,7 +54,7 @@ class Simulator(object):
         Simulate a transition of the system from time t to time (t+1).
     """
 
-    def __init__(self, case, delta_t=15, lamb=1e3, rng=None):
+    def __init__(self, case, delta_t=15, lamb=1e3):
         """
         Parameters
         ----------
@@ -67,8 +65,6 @@ class Simulator(object):
         lamb : int, optional
             A constant factor multiplying the penalty associated with violating
             operational constraints.
-        rng : np.random.RandomState, optional
-            A random seed.
         """
 
         # Check the correctness of the input case file.
@@ -76,9 +72,6 @@ class Simulator(object):
 
         self.time_factor = delta_t / 60.
         self.lamb = lamb
-
-        # Initialize random generator.
-        self.rng = np.random.RandomState() if rng is None else rng
 
         # Load network case.
         self._load_case(case)
@@ -208,7 +201,7 @@ class Simulator(object):
         # Reset the initial state of charge of each storage unit.
         for su in self.storages.values():
             if init_soc[su.type_id] is None:
-                soc = self.rng.random() * (su.soc_max - su.soc_min) + su.soc_min
+                soc = 0.
             else:
                 soc = init_soc[su.type_id]
             su.soc = soc
@@ -389,7 +382,7 @@ class Simulator(object):
         I_to_magn = [np.absolute(i) for i in I_to]
 
         # 4. Compute P (MW) and Q (MVar) injections into each branch.
-        P_from, P_to, Q_from, Q_to = self._compute_branch_PQ()
+        P_from, P_to, Q_from, Q_to, S_flow = self._compute_branch_PQ()
 
         # 5. Get (P, Q) injection of each device.
         P_dev = [self.slack_dev.p] + [0.] * (self.N_device - 1)
@@ -404,7 +397,8 @@ class Simulator(object):
                       'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC,
                       'P_BR_F': P_from, 'P_BR_T': P_to,
                       'Q_BR_F': Q_from, 'Q_BR_T': Q_to,
-                      'I_MAGN_F': I_from_magn, 'I_MAGN_T': I_to_magn}
+                      'I_MAGN_F': I_from_magn, 'I_MAGN_T': I_to_magn,
+                      'S_FLOW': S_flow}
 
         ### Compute the total reward associated with the transition. ###
         reward, e_loss, penalty = self._get_reward(P_potential, P_curt)
@@ -634,9 +628,13 @@ class Simulator(object):
             The reactive power injection into each branch at the from bus (MW).
         Q_to : numpy.ndarray
             The reactive power injection into each branch at the to bus (MW).
+        S_flow : numpy.ndarray
+            The directed apparent flow from 'from' to 'to' bus in each branch
+            (MVA). Each flow magnitude is taken as
+            sign(p_from) * max(|s_from|, |s_to|).
         """
 
-        P_from, P_to, Q_from, Q_to = [], [], [], []
+        P_from, P_to, Q_from, Q_to, S_flow = [], [], [], [], []
         for branch in self.branches:
             s_from = self.buses[branch.f_bus].v * np.conj(branch.i_from) * self.baseMVA
             branch.p_from = np.real(s_from)
@@ -646,12 +644,17 @@ class Simulator(object):
             branch.p_to = np.real(s_to)
             branch.q_to = np.imag(s_to)
 
+            branch.s_flow = np.sign(branch.p_from) * \
+                            np.maximum(np.absolute(s_from), np.absolute(s_to))
+
             P_from.append(branch.p_from)
             P_to.append(branch.p_to)
             Q_from.append(branch.q_from)
             Q_to.append(branch.q_to)
+            S_flow.append(branch.s_flow)
 
-        return np.array(P_from), np.array(P_to), np.array(Q_from), np.array(Q_to)
+        return np.array(P_from), np.array(P_to), \
+               np.array(Q_from), np.array(Q_to), np.array(S_flow)
 
     def _get_reward(self, P_potential, P_curt):
         """

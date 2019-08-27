@@ -2,13 +2,17 @@ REFACTORING
 
 SIMULATOR
 - un-comment check_casefile() and fix its bugs
-- use bounds on |S| for branches, in MVA
-- compute branch P, Q, I from both sides
-- remove rng seed from Simulator -> should not model any stochastic processes
+
+TESTS
+- write tests for gym env
 
 RENDERING
+- change energy loss bar to have -ve values too
+- modify js code to use 'sFlow' variable names instead of currents 'i'
+- add year counter
 - deal with title during Replay
 - check that replay still works
+- add video saving
 
 DOCUMENTING
 - check if "array_like" can be used (or what to use when list or array)

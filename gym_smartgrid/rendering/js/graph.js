@@ -70,16 +70,14 @@ class Graph {
    * Update the state of the network.
    * @param {Array.<number>} pInjections The new real power injection at each
    * device.
-   * @param {Array.<number>} iCurrents The new branch current magnitude in
+   * @param {Array.<number>} sFlows The new branch apparent flow in
    * each transmission line.
    * @param {Array.<number>} socStorage The new state of charge of each storage
    * unit.
-   * @param {Array.<number>} pBranchFlows The new real power flow in each
-   * transmission line.
    * @param {Array.<number>} pPotential The potential real power injection from
    * each VRE generator before curtailment.
    */
-  update(pInjections, iCurrents, socStorage, pBranchFlows, pPotential) {
+  update(pInjections, sFlows, socStorage, pPotential) {
 
     // Update all devices.
     let pPotIdx = 0;
@@ -94,7 +92,7 @@ class Graph {
 
     // Update all transmission lines.
     for (let i = 0; i < this.linesN; i++) {
-      this.lines[i].update(iCurrents[i], pBranchFlows[i]);
+      this.lines[i].update(sFlows[i]);
     }
 
     // Update all storage units.

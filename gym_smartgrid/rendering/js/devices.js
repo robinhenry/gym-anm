@@ -178,13 +178,12 @@ class TransmissionLine {
 
   /**
    * Update the information displayed on the transmission line.
-   * @param iBranch
-   * @param pBranchFlow
+   * @param sFlow
    */
-  update(iBranch, pBranchFlow) {
+  update(sFlow) {
 
     // Compute the new height of the power flow bar.
-    let current_magn = Math.abs(iBranch);
+    let current_magn = Math.abs(sFlow);
     let barHeight = this.rectMaxHeight * (current_magn - this.iMin)
         / (this.iMax - this.iMin);
     barHeight = Math.min(barHeight, this.rectMaxHeight);
@@ -216,7 +215,7 @@ class TransmissionLine {
     }
 
     // Update the direction of each power flow arrow on the line.
-    this.rotateCurrentArrows(pBranchFlow);
+    this.rotateCurrentArrows(sFlow);
   }
 
   /**

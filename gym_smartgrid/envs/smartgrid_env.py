@@ -124,14 +124,12 @@ class SmartGridEnv(gym.Env):
         # Time variables.
         self.delta_t = delta_t
         self.timestep_length = dt.timedelta(minutes=delta_t)
-        self.episode_max_length = dt.timedelta(days=3 * 365)
         self.year = 2019
 
         self.obs_values = obs_values
 
         # Initialize AC power grid simulator.
-        self.simulator = Simulator(self.case, delta_t=self.delta_t,
-                                   rng=self.np_random)
+        self.simulator = Simulator(self.case, delta_t=self.delta_t)
         self.network_specs = self.simulator.specs
 
         # Build action and observation spaces.
@@ -205,10 +203,10 @@ class SmartGridEnv(gym.Env):
                                dtype=np.float32)
             obs_space.append(space)
 
-        if 'I_BR' in self.obs_values:
-            shape = network_specs['IMAX_BR'].shape
+        if 'RATE' in self.obs_values:
+            shape = network_specs['RATE'].shape
             space = spaces.Box(low=np.zeros(shape=shape),
-                               high=network_specs['IMAX_BR'],
+                               high=network_specs['RATE'],
                                dtype=np.float32)
             obs_space.append(space)
 
@@ -301,7 +299,7 @@ class SmartGridEnv(gym.Env):
             A dictionary of further information.
         """
 
-        if self.time >= self.end_time:
+        if self.end_time is not None and self.time >= self.end_time:
             raise gym.error.ResetNeeded('The episode is already over.')
 
         # Check if the action is in the available action space.
@@ -322,7 +320,7 @@ class SmartGridEnv(gym.Env):
 
         # End of episode if maximum number of time steps has been reached.
         self._increment_t()
-        if self.time >= self.end_time:
+        if self.end_time is not None and self.time >= self.end_time:
             self.done = True
 
         # Information returned for debugging.
@@ -333,7 +331,10 @@ class SmartGridEnv(gym.Env):
     def _increment_t(self):
         """ Increment the time. """
         self.time += self.timestep_length
-        self.time = self.time.replace(year=self.year)
+
+        if self.time.year != self.year:
+            self.year_counter += 1
+            self.time = self.time.replace(year=self.year)
 
     def _get_observations(self):
         """
@@ -373,9 +374,10 @@ class SmartGridEnv(gym.Env):
         self.total_reward = 0.
         self.state = None
 
-        # Select random date.
-        self.time = gym_smartgrid.utils.random_date(self.np_random, self.year)
-        self.end_time = self.time + self.episode_max_length
+        # Always start the simulation on January, 1st.
+        self.time = dt.datetime(self.year, 1, 1)
+        self.end_time = None
+        self.year_counter = 0
 
         # Initialize stochastic processes.
         dev_specs = self._get_dev_specs()
@@ -538,6 +540,8 @@ class SmartGridEnv(gym.Env):
         NotImplementedError
             If the rendering mode is non-valid.
         """
+
+
 
         if self.render_mode in ['human', 'replay']:
             rendering.update(self.ws_server.address,

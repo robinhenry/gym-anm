@@ -51,7 +51,7 @@ class TransmissionLine(object):
         self.r = br_case[BRANCH_H['BR_R']]
         self.x = br_case[BRANCH_H['BR_X']]
         self.b = br_case[BRANCH_H['BR_B']]
-        self.rate = br_case[BRANCH_H['RATE_A']] / baseMVA
+        self.rate = br_case[BRANCH_H['RATE']] / baseMVA
         self.tap_magn = br_case[BRANCH_H['TAP']]
         self.shift = br_case[BRANCH_H['SHIFT']]
 
