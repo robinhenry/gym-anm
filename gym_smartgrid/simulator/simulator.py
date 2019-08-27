@@ -52,7 +52,7 @@ class Simulator(object):
         Get the operating characteristics of the network.
     get_action_space()
         Get the control action space available.
-    transition(P_load, P_potential, P_curt_limit, desired_alpha, Q_storage)
+    transition(P_load, P_potential, P_curt_limit, alpha_setpoint, Q_storage)
         Simulate a transition of the system from time t to time (t+1).
     """
 
@@ -240,7 +240,7 @@ class Simulator(object):
         soc_min = [0] * self.N_storage
         soc_max = [0] * self.N_storage
 
-        I_max = []
+        S_max_br = []
 
         P_min_dev[0] = self.slack_dev.p_min
         P_max_dev[0] = self.slack_dev.p_max
@@ -260,7 +260,7 @@ class Simulator(object):
             soc_max[su.type_id] = su.soc_max
 
         for branch in self.branches:
-            I_max.append(branch.i_max)
+            S_max_br.append(branch.rate * self.baseMVA)
 
         for bus in self.buses:
             P_min_bus.append(bus.p_min)
@@ -275,7 +275,7 @@ class Simulator(object):
                  'VMIN_BUS': V_min_bus, 'VMAX_BUS': V_max_bus,
                  'PMIN_DEV': P_min_dev, 'PMAX_DEV': P_max_dev,
                  'QMIN_DEV': Q_min_dev, 'QMAX_DEV': Q_max_dev,
-                 'DEV_TYPE': dev_type, 'IMAX_BR': I_max,
+                 'DEV_TYPE': dev_type, 'SMAX_BR': S_max_br,
                  'SOC_MIN': soc_min, 'SOC_MAX': soc_max}
         return specs
 
@@ -290,17 +290,17 @@ class Simulator(object):
         -------
         P_curt_bounds : 2D numpy.ndarray
             The range of real power injection of VRE devices. For example,
-            P_curt_bounds[i, :] = [p_max, p_min] of the i^th VRE generator (MW).
+            P_curt_bounds[i_from, :] = [p_max, p_min] of the i_from^th VRE generator (MW).
         alpha_bounds : 2D numpy.ndarray
             The operating range of each storage unit. For example,
-            alpha_bounds[i, :] = [alpha_max, alpha_min] of each storage unit (MW).
+            alpha_bounds[i_from, :] = [alpha_max, alpha_min] of each storage unit (MW).
         q_storage_bounds : 2D numpy.ndarray
             The range of reactive power injection of VRE devices. For example,
-            q_storage_bounds[i, :] = [q_max, q_min] of each storage unit (MVAr).
+            q_storage_bounds[i_from, :] = [q_max, q_min] of each storage unit (MVAr).
 
         Notes
         -----
-        The bounds returned by this function are loose, i.e. some parts of
+        The bounds returned by this function are loose, i_from.e. some parts of
         those spaces might be physically impossible to achieve due to other
         operating constraints. This is just an indication of the range of action
         available to the DSO.
@@ -381,13 +381,15 @@ class Simulator(object):
 
         # 2. Solve PFEs and compute nodal V (p.u.), P (MW), Q (MVAr) vectors.
         P_bus, Q_bus, V_bus = self._solve_pfes()
+        V_bus_magn = [np.absolute(v) for v in V_bus]
 
-        # 3. Compute I in each branch (p.u.)
-        I_br = self._get_branch_currents()
-        I_br_magn = [np.absolute(i) for i in I_br]
+        # 3. Compute I injections into each branch (p.u.).
+        I_from, I_to = self._get_branch_currents()
+        I_from_magn = [np.absolute(i) for i in I_from]
+        I_to_magn = [np.absolute(i) for i in I_to]
 
-        # 4. Compute P (MW) and Q (MVar) power flows in each branch.
-        P_br, Q_br = self._compute_branch_PQ()
+        # 4. Compute P (MW) and Q (MVar) injections into each branch.
+        P_from, P_to, Q_from, Q_to = self._compute_branch_PQ()
 
         # 5. Get (P, Q) injection of each device.
         P_dev = [self.slack_dev.p] + [0.] * (self.N_device - 1)
@@ -398,12 +400,14 @@ class Simulator(object):
             Q_dev[dev.dev_id] = dev.q
 
         ### Store all state variables in a dictionary. ###
-        self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_BUS': V_bus,
+        self.state = {'P_BUS': P_bus, 'Q_BUS': Q_bus, 'V_MAGN_BUS': V_bus_magn,
                       'P_DEV': P_dev, 'Q_DEV': Q_dev, 'SOC': SOC,
-                      'P_BR': P_br, 'Q_BR': Q_br, 'IMAGN_BR': I_br_magn}
+                      'P_BR_F': P_from, 'P_BR_T': P_to,
+                      'Q_BR_F': Q_from, 'Q_BR_T': Q_to,
+                      'I_MAGN_F': I_from_magn, 'I_MAGN_T': I_to_magn}
 
         ### Compute the total reward associated with the transition. ###
-        reward, e_loss, penalty = self._get_reward(P_bus, P_potential, P_curt)
+        reward, e_loss, penalty = self._get_reward(P_potential, P_curt)
 
         return self.state, reward, e_loss, penalty
 
@@ -563,28 +567,26 @@ class Simulator(object):
         Compute the complex current on each transmission line (in p.u.).
 
         Since branch currents are not symmetrical, the current injection at each
-        end of the branch is computed, and the one with the highest magnitude
-        is kept, i.e. |I_ij| = max(|I_ij|, |I_ji|).
+        end of the branch is computed.
 
         Returns
         -------
-        numpy.ndarray
-            The complex current in each transmission line (p.u.).
+        I_from : numpy.ndarray
+            The complex current injection into each branch at the from bus
+            (p.u.).
+        I_to : numpy.ndarray
+            The complex current injection into each branch at the to bus (p.u.).
         """
 
-        I_br = []
+        I_from, I_to = [], []
         for branch in self.branches:
-            i_ij = self._get_current_from_voltage(branch, direction=True)
-            i_ji = self._get_current_from_voltage(branch, direction=False)
+            branch.i_from = self._get_current_from_voltage(branch, direction=True)
+            branch.i_to = self._get_current_from_voltage(branch, direction=False)
 
-            if np.abs(i_ij) >= np.abs(i_ji):
-                branch.i = i_ij
-            else:
-                branch.i = - i_ji
+            I_from.append(branch.i_from)
+            I_to.append(branch.i_to)
 
-            I_br.append(branch.i)
-
-        return np.array(I_br)
+        return np.array(I_from), np.array(I_to)
 
     def _get_current_from_voltage(self, branch, direction=True):
         """
@@ -624,24 +626,34 @@ class Simulator(object):
 
         Returns
         -------
-        P_br : list of float
-            The real power flow in each branch (MW).
-        Q_br : list of float
-            The reactive power flow in each branch (MVAr).
+        P_from : numpy.ndarray
+            The real power injection into each branch at the from bus (MW).
+        P_to : numpy.ndarray
+            The real power injection into each branch at the to bus (MW).
+        Q_from : numpy.ndarray
+            The reactive power injection into each branch at the from bus (MW).
+        Q_to : numpy.ndarray
+            The reactive power injection into each branch at the to bus (MW).
         """
 
-        P_br, Q_br = [], []
+        P_from, P_to, Q_from, Q_to = [], [], [], []
         for branch in self.branches:
-            s = self.buses[branch.f_bus].v * np.conj(branch.i) * self.baseMVA
-            branch.p = np.real(s)
-            branch.q = np.imag(s)
+            s_from = self.buses[branch.f_bus].v * np.conj(branch.i_from) * self.baseMVA
+            branch.p_from = np.real(s_from)
+            branch.q_from = np.imag(s_from)
 
-            P_br.append(branch.p)
-            Q_br.append(branch.q)
+            s_to = self.buses[branch.t_bus].v * np.conj(branch.i_to) * self.baseMVA
+            branch.p_to = np.real(s_to)
+            branch.q_to = np.imag(s_to)
 
-        return P_br, Q_br
+            P_from.append(branch.p_from)
+            P_to.append(branch.p_to)
+            Q_from.append(branch.q_from)
+            Q_to.append(branch.q_to)
 
-    def _get_reward(self, P_bus, P_potential, P_curt):
+        return np.array(P_from), np.array(P_to), np.array(Q_from), np.array(Q_to)
+
+    def _get_reward(self, P_potential, P_curt):
         """
         Return the total reward associated with the current state of the system.
 
@@ -651,8 +663,6 @@ class Simulator(object):
 
         Parameters
         ----------
-        P_bus : array_like
-            The nodal real power injection vector (MW).
         P_potential : array_like
             The potential real power generation of each VRE (MW).
         P_curt : array_like
@@ -671,21 +681,30 @@ class Simulator(object):
 
         # Compute the total energy loss over the network. This includes
         # transmission losses, as well as energy sent to storage units.
-        energy_loss = np.sum(P_bus) * self.time_factor
+        loss1 = self.slack_dev.p
+        for dev in list(self.gens.values()) + list(self.loads.values()):
+            loss1 += dev.p
+        for su in self.storages.values():
+            loss1 -= su.p
+
+        c1 = loss1
 
         # Compute energy loss due to curtailment. This is the difference
         # between the potential energy production, and the actual production.
         if P_curt.size:
-            curt_loss = np.sum(np.max(P_potential - P_curt)) * self.time_factor
+            c2 = np.sum(np.maximum(0, np.array(P_potential) - np.array(P_curt)))
         else:
-            curt_loss = 0.
+            c2 = 0.
+
+        # Compute the total energy loss.
+        energy_loss = (c1 + c2) * self.time_factor
 
         # Get the penalty associated with violating operating constraints.
         penalty = self._get_penalty()
 
         # Return reward as a negative cost.
-        reward = - (energy_loss + curt_loss + penalty)
-        return reward, energy_loss + curt_loss, penalty
+        reward = - (energy_loss + penalty)
+        return reward, energy_loss, penalty
 
     def _get_penalty(self):
         """
@@ -705,10 +724,13 @@ class Simulator(object):
                          + np.maximum(0, bus.v_min - v_magn)
 
         # Compute the total current constraints violation (p.u.).
-        i_penalty = 0.
+        s_penalty = 0.
         for branch in self.branches:
-            i_magn = np.absolute(branch.i)
-            i_penalty += np.maximum(0, i_magn - branch.i_max)
+            s_from = np.absolute(branch.p_from + 1.j * branch.q_from)
+            s_to = np.absolute(branch.p_to + 1.j * branch.q_to)
+            s = np.maximum(s_from, s_to)  / self.baseMVA
 
-        penalty = self.lamb * (v_penalty + i_penalty)
+            s_penalty += np.maximum(0, s - branch.rate)
+
+        penalty = self.lamb * (v_penalty + s_penalty)
         return penalty

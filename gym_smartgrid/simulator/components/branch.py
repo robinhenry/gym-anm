@@ -19,17 +19,15 @@ class TransmissionLine(object):
             The transmission line reactance (p.u.).
         b : float
             The transmission line susceptance (p.u.).
-        i_max : float
-            The current rate of the line (p.u.).
+        rate : float
+            The rate of the line in MVA.
         tap_magn : float
             The magnitude of the transformer tap.
         shift : float
             The complex phase angle of the transformer (degrees).
-        ang_min, arg_max : float
-            The minimum and maximum angle phase shifts across the line (degrees).
-        i : complex
+        i_from : complex
             The complex current flow in the line (p.u.).
-        p, q : float
+        p_from, q_from : float
             The real (MW) and reactive (MVAr) power flow in the line.
         series, shunt : complex
             The series and shunt admittances of the line in the pi-model (p.u.).
@@ -53,11 +51,9 @@ class TransmissionLine(object):
         self.r = br_case[BRANCH_H['BR_R']]
         self.x = br_case[BRANCH_H['BR_X']]
         self.b = br_case[BRANCH_H['BR_B']]
-        self.i_max = br_case[BRANCH_H['RATE_A']] / baseMVA
+        self.rate = br_case[BRANCH_H['RATE_A']] / baseMVA
         self.tap_magn = br_case[BRANCH_H['TAP']]
         self.shift = br_case[BRANCH_H['SHIFT']]
-        self.ang_min = br_case[BRANCH_H['ANGMIN']]
-        self.ang_max = br_case[BRANCH_H['ANGMAX']]
 
         # Deal with unspecified values.
         self.tap_magn = self.tap_magn if self.tap_magn > 0. else 1.
@@ -65,9 +61,12 @@ class TransmissionLine(object):
         self._compute_admittances()
 
         # Initialize attributes used later.
-        self.i = None
-        self.p = None
-        self.q = None
+        self.i_from = None
+        self.p_from = None
+        self.q_from = None
+        self.i_to = None
+        self.p_to = None
+        self.q_to = None
 
     def _compute_admittances(self):
         """

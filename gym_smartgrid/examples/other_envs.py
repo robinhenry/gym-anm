@@ -4,7 +4,7 @@ def run_env(id):
     env = gym.make(id)
     env.reset()
 
-    for i in range(100):
+    for i in range(1000000):
         env.render()
         _, reward, _, _ = env.step(env.action_space.sample())
         # print(reward)

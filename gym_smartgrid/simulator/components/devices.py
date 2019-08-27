@@ -44,7 +44,7 @@ class Device(object):
 
     Methods
     -------
-    compute_pq(p, q)
+    compute_pq(p_from, q_from)
         Compute the closest (P, Q) feasible power injection point.
     """
 
@@ -69,6 +69,12 @@ class Device(object):
         self.q_min = dev_case[DEV_H['QMIN']]
         self.p_max = dev_case[DEV_H['PMAX']]
         self.p_min = dev_case[DEV_H['PMIN']]
+        self.pc1 = dev_case[DEV_H["PC1"]]
+        self.pc2 = dev_case[DEV_H["PC2"]]
+        self.qc1_min = dev_case[DEV_H["QC1MIN"]]
+        self.qc1_max = dev_case[DEV_H["QC1MAX"]]
+        self.qc2_min = dev_case[DEV_H["QC2MIN"]]
+        self.qc2_max = dev_case[DEV_H["QC2MAX"]]
 
         if self.type == 4:
             self.soc_min = 0.
@@ -231,13 +237,14 @@ class Storage(Device):
 
         super().__init__(dev_id, su_id, dev_case)
 
-    def manage(self, desired_alpha, delta_t, q_setpoint):
+    def manage(self, alpha_setpoint, delta_t, q_setpoint):
         """
-        Compute the (P, Q) injection point and update the SoC of the storage unit.
+        Compute the (P, Q) injection point and update the SoC of the storage
+        unit.
 
         Parameters
         ----------
-        desired_alpha : float
+        alpha_setpoint : float
             The desired charging rate (MW).
         delta_t : float
             The fraction of an hour representing a single timestep, e.g. 0.25 for
@@ -247,11 +254,11 @@ class Storage(Device):
         """
 
         # Truncate desired charging rate if out of operating bounds.
-        max_alpha = np.minimum(desired_alpha, self.p_max)
+        max_alpha = np.minimum(alpha_setpoint, self.p_max)
         max_alpha = np.maximum(max_alpha, self.p_min)
 
         # Get energy being transferred.
-        if desired_alpha > 0.:
+        if alpha_setpoint > 0.:
             delta_soc = delta_t * (1 + self.eff) * max_alpha / 2.
         else:
             delta_soc = delta_t * max_alpha
@@ -269,7 +276,7 @@ class Storage(Device):
             max_alpha = delta_soc / delta_t
 
         # Get the real power injection in the network.
-        if desired_alpha > 0.:
+        if alpha_setpoint > 0.:
             p = - max_alpha
         else:
             p = - 2 * self.eff * max_alpha / (1 + self.eff)
@@ -284,7 +291,10 @@ class Storage(Device):
     def compute_pq(self, p_init, q_init):
         # docstring inherited
 
-        p = np.abs(p_init)
+        p_max = np.maximum(self.p_min, p_init)
+        p_max = np.minimum(self.p_max, p_max)
+
+        p = np.abs(p_max)
         q = q_init
 
         q = np.minimum(q, self.q_max)
@@ -296,5 +306,5 @@ class Storage(Device):
         if q < self.lag_slope * p + self.lag_off:
             q = self.lag_slope * p + self.lag_off
 
-        self.p = p_init
+        self.p = p_max
         self.q = q

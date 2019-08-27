@@ -82,8 +82,8 @@ if __name__ == '__main__':
     for i in range(1000):
         env.render(sleep_time=.5)
 
-        a = null_agent()
-        # a = agent(env.time)
+        # a = null_agent()
+        a = agent(env.time)
         obs, r, done, info = env.step(a)
         print('Reward: ', r)
 

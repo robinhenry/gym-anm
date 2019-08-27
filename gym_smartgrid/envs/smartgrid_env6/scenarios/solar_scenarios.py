@@ -68,7 +68,7 @@ class SolarGenerator(object):
 
         This function returns a capacity factor for solar generation following a
         bell curve (Gaussian), given a time of the day. It is assumed that hour=0
-        represents 12:00 a.m., i.e. hour=26 => 2:00 a.m. Noise is also added
+        represents 12:00 a.m., i_from.e. hour=26 => 2:00 a.m. Noise is also added
         sampled from a Gaussian N(0, 1).
 
         :return: the noisy solar generation, normalized in [0, 1].
@@ -118,7 +118,7 @@ class SolarGenerator(object):
     #
     # curve = []
     # date = dt.datetime(2019, 1, 1)
-    # for i in range(24 * 4 * 3):
+    # for i_from in range(24 * 4 * 3):
     #     curve.append(load_generator.next(date, bell_noise_factor=0.01,
     #                                      scale=0.01, cloud_noise_factor=0.05))
     #     date += dt.timedelta(minutes=15)

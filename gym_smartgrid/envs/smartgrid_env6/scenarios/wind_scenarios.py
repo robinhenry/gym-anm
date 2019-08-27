@@ -70,7 +70,7 @@ class WindGenerator(object):
     #
     # curve = []
     # date = dt.datetime(2019, 1, 1)
-    # for i in range(24 * 4 * 3):
+    # for i_from in range(24 * 4 * 3):
     #     curve.append(wind_generator.next(date, 0.1))
     #     date += dt.timedelta(minutes=15)
     #

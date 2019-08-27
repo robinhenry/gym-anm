@@ -35,8 +35,8 @@ def _load_demand_curves():
 
     This function loads the data stored in folder 'data_demand_curves' as a
     list of ndarray, one for each month of the year (in order). Each array is a
-    N_day x 96 matrix, where element [i, j] of the array represents the load
-    demand on day i, at timestep j, where each timestep is assumed to last 15
+    N_day x 96 matrix, where element [i_from, j] of the array represents the load
+    demand on day i_from, at timestep j, where each timestep is assumed to last 15
     minutes. The data is normalized to be in [0.2, 0.8].
 
     :return: a list of 12 ndarray, each containing 29-31 demand curves.
@@ -216,7 +216,7 @@ class SolarGenerator(DistributedGenerator):
 
         This function returns a capacity factor for solar generation following a
         bell curve (Gaussian), given a time of the day. It is assumed that hour=0
-        represents 12:00 a.m., i.e. hour=26 => 2:00 a.m. Noise is also added
+        represents 12:00 a.m., i_from.e. hour=26 => 2:00 a.m. Noise is also added
         sampled from a Gaussian N(0, 1).
 
         :param hour: hour of the day (hour=1.5 means 1:30 am).

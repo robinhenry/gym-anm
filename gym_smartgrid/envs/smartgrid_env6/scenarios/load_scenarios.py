@@ -73,7 +73,7 @@ class LoadGenerator(object):
 #
 #     curve = []
 #     date = dt.datetime(2019, 1, 1)
-#     for i in range(24 * 4 * 7):
+#     for i_from in range(24 * 4 * 7):
 #         curve.append(load_generator.next(date, 0.007))
 #         date += dt.timedelta(minutes=15)
 #

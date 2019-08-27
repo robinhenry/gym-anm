@@ -14,11 +14,11 @@ class Bus(object):
     is_slack : bool
         True if it is the slack bus, False otherwise.
     v_min, v_max : float
-        The minimum and maximum voltage magnitude (p.u.).
+        The minimum and maximum voltage magnitude (p_from.u.).
     v_slack : float
-        The fixed voltage magnitude, if it is the slack bus (p.u.).
+        The fixed voltage magnitude, if it is the slack bus (p_from.u.).
     v : float
-        The current complex bus voltage (p.u.).
+        The current complex bus voltage (p_from.u.).
     p, q : float
         The current real (MW) and reactive (MVAr) power injections at the bus.
     p_min, p_max, q_min, q_max : float

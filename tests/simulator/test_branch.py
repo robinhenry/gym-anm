@@ -1,22 +1,24 @@
 import unittest
 import numpy.testing as npt
+import os
 
 from gym_smartgrid.simulator.components import TransmissionLine
 
 class TestBranch(unittest.TestCase):
 
     def setUp(self):
+        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))))  # Set the working directory to the root.
+
         self.branch = \
-            TransmissionLine([0, 1, 2., 2., 1.5, 5, 0., 0., 1, 0., 360.], 100)
+            TransmissionLine([0, 1, 2., 2., 1.5, 5, 0., 0., 1], 100)
         self.transformer = \
-            TransmissionLine([0, 1, 2., 2., 1.5, 5, 2., 30, 1, 0., 360.], 100)
+            TransmissionLine([0, 1, 2., 2., 1.5, 5, 2., 30, 1], 100)
 
     def test_branch(self):
         self.assertEqual(self.branch.f_bus, 0)
         self.assertEqual(self.branch.t_bus, 1)
-        npt.assert_almost_equal(self.branch.ang_min, 0.)
-        npt.assert_almost_equal(self.branch.ang_max, 360.)
-        npt.assert_almost_equal(self.branch.i_max, 0.05)
+        npt.assert_almost_equal(self.branch.rate, 0.05)
 
         npt.assert_almost_equal(self.branch.tap, 1.)
 

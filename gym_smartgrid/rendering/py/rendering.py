@@ -20,7 +20,7 @@ def start(title, dev_type, p_min, p_max, i_max, soc_max):
     p_min, p_max : list of float
         The minimum and maximum real power injection of each device (MW).
     i_max : list of float
-        The transmission line current ratings (p.u.).
+        The transmission line current ratings (p_from.u.).
     soc_max : list of float
         The maximum state of charge of each storage unit (MWh).
 
@@ -77,7 +77,7 @@ def update(ws_address, cur_time, p, i, soc, p_branch, p_potential, costs):
     p  : list of float
         The real power injection from each device (MW).
     i : list of float
-        The current magnitude flow in each transmission line (p.u.).
+        The current magnitude flow in each transmission line (p_from.u.).
     soc : list of float
         The state of charge of each storage unit (MWh).
     p_branch : list of float
