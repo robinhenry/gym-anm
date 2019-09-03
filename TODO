@@ -1,7 +1,11 @@
 REFACTORING
 
 SIMULATOR
-- un-comment check_casefile() and fix its bugs
+- write checks for new environments
+    - case file structure
+    - obs values
+    - check output of init_vre(), init_load(), init_soc()
+- implement use of fixed generator (e.g. power plant)
 
 TESTS
 - write tests for gym env

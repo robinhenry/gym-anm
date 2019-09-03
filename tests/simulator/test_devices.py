@@ -2,7 +2,7 @@ import unittest
 import numpy.testing as npt
 import os
 
-from gym_smartgrid.simulator.components import Load, Storage, Generator
+from gym_anm.simulator.components import Load, Storage, Generator
 
 
 class TestDevices(unittest.TestCase):

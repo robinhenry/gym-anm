@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.constants import BRANCH_H
+from gym_anm.constants import BRANCH_H
 
 
 class TransmissionLine(object):

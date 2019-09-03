@@ -7,4 +7,4 @@ docs/build/
 *.nl
 *.lp
 *.ipynb_checkpoints
-gym_smartgrid/rendering/logs/
+gym_anm/rendering/logs/

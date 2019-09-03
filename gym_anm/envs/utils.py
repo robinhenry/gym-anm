@@ -1,6 +1,3 @@
-import os
-from gym_smartgrid import RENDERING_FOLDER, WEB_FILES
-
 
 def sample_action(np_random, action_space):
     """
@@ -25,47 +22,3 @@ def sample_action(np_random, action_space):
         actions.append(a)
 
     return tuple(actions)
-
-
-def write_html(svg_data):
-    """
-    Update the index.html file used for rendering the environment state.
-
-    Parameters
-    ----------
-    svg_data : dict of {str : str}
-        The paths to the SVG data needed for the visualization, with keys
-        {'labels', 'network'}.
-    """
-
-    s = """<!DOCTYPE html>
-<html>
-<head>
-    <link rel="stylesheet" href="css/styles.css">
-    <script src="js/init.js"></script>
-    <script src="js/devices.js"></script>
-    <script src="js/graph.js"></script>
-    <script src="js/dateTime.js"></script>
-    <script src="js/reward.js"></script>
-    <script src="js/title.js"></script>
-    <script src="../envs/smartgrid_env6/svgLabels.js"></script>
-    <title>SmartGrid-gym</title>
-</head>
-
-<body onload="init();">
-
-    <header></header>
-
-    <object id="svg-network" data="../envs/smartgrid_env6/network.svg"
-            type="image/svg+xml" class="network">
-    </object>
-
-</body>
-</html>
-
-    """.format(svg_data['labels'], svg_data['network'])
-
-    html_file = os.path.join(RENDERING_FOLDER, WEB_FILES['index'])
-
-    with open(html_file, 'w') as f:
-        f.write(s)

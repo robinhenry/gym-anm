@@ -1,4 +1,4 @@
-from gym_anm.envs.smartgrid_env6.anm6 import ANM6
+from gym_anm.envs.anm6_env.anm6 import ANM6
 
 class ANM6Easy(ANM6):
     def __init__(self):
@@ -26,7 +26,7 @@ class ANM6Easy(ANM6):
                                                   scenario3[i]))
         return vres
 
-    def init_soc(self, soc_max=None):
+    def init_soc(self, soc_max):
         return [s / 2. for s in soc_max]
 
     def _constant_generator(self, case1, case2, case3):

@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.envs.smartgrid_env6.anm6_hard import ANM6Hard
+from gym_anm.envs.anm6_env.anm6_hard import ANM6Hard
 
 
 def null_agent():

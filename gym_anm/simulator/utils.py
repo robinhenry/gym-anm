@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.constants import BUS_H, DEV_H
+from gym_anm.constants import BUS_H, DEV_H
 
 
 def check_casefile(case):

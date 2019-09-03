@@ -2,7 +2,7 @@ import unittest
 import numpy.testing as npt
 
 @unittest.skip
-class TestSmartgridEnv6(unittest.TestCase):
+class TestANMEnv6(unittest.TestCase):
     def setUp(self):
         pass
 

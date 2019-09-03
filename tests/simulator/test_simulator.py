@@ -4,7 +4,7 @@ import numpy as np
 import os
 import copy
 
-from gym_smartgrid.simulator import Simulator
+from gym_anm.simulator import Simulator
 
 
 class TestSimulator(unittest.TestCase):
@@ -16,9 +16,9 @@ class TestSimulator(unittest.TestCase):
 
         network= {"baseMVA": 100.0}
         network["bus"] = np.array([
-            [0, 3, 0, 0, 132, 1.04, 1.04],
-            [1, 1, 0, 0, 33, 1.1, 0.9],
-            [2, 1, 0, 0, 33, 1.1, 0.9],
+            [0, 3, 132, 1.04, 1.04],
+            [1, 1, 33, 1.1, 0.9],
+            [2, 1, 33, 1.1, 0.9],
         ])
         network["device"] = np.array([
             [0,  0, 0, 100, -90, 1, 80, -70, 0, 0, 0, 0, 0, 0,   0,   0],

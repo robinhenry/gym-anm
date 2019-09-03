@@ -1,8 +1,8 @@
 import os
 
-from gym_smartgrid.envs.smartgrid_env6.anm6 import ANM6
-from gym_smartgrid.envs.smartgrid_env6.scenarios import LoadGenerator, \
-    WindGenerator, SolarGenerator
+from gym_anm.envs.anm6_env.anm6 import ANM6
+from gym_anm.envs.anm6_env.scenarios import LoadGenerator, WindGenerator,\
+    SolarGenerator
 
 
 class ANM6Hard(ANM6):
@@ -48,5 +48,5 @@ class ANM6Hard(ANM6):
 
         return vres_lst
 
-    def init_soc(self, soc_max=None):
+    def init_soc(self, soc_max):
         return None

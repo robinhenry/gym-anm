@@ -2,7 +2,7 @@ import unittest
 import numpy.testing as npt
 import os
 
-from gym_smartgrid.simulator.components import Bus
+from gym_anm.simulator.components import Bus
 
 class TestBus(unittest.TestCase):
 
@@ -10,8 +10,8 @@ class TestBus(unittest.TestCase):
         os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))  # Set the working directory to the root.
 
-        self.slack = Bus([0, 3, 0.5, 2., 10, 1.04, 1.04])
-        self.pq = Bus([1, 1, 0.5, 2., 150, 1.1, 0.9])
+        self.slack = Bus([0, 3, 10, 1.04, 1.04])
+        self.pq = Bus([1, 1, 150, 1.1, 0.9])
 
     def test_slack(self):
         self.assertEqual(self.slack.id, 0)

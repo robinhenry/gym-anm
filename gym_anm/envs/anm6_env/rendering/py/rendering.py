@@ -1,8 +1,10 @@
 import webbrowser
 import json
+import os
 
 from websocket import create_connection
 from .servers import WsServer, HttpServer
+from .constants import RENDERING_FOLDER
 
 
 def start(title, dev_type, p_min, p_max, s_rate, soc_max):
@@ -37,7 +39,8 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_max):
     ws_server = WsServer()
 
     # Open a new browser window to display the visualization.
-    webbrowser.open_new_tab(http_server.address + '/rendering')
+    path = '/envs/anm6_env/rendering/'
+    webbrowser.open_new_tab(http_server.address + path)
 
     ws = create_connection(ws_server.address)
 
@@ -115,3 +118,41 @@ def close(http_server, ws_server):
 
     http_server.process.terminate()
     ws_server.process.terminate()
+
+
+def write_html():
+    """
+    Update the index.html file used for rendering the environment state.
+    """
+
+    s = """<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/init.js"></script>
+    <script src="js/devices.js"></script>
+    <script src="js/graph.js"></script>
+    <script src="js/dateTime.js"></script>
+    <script src="js/reward.js"></script>
+    <script src="js/title.js"></script>
+    <script src="envs/anm6/svgLabels.js"></script>
+    <title>SmartGrid-gym</title>
+</head>
+
+<body onload="init();">
+
+    <header></header>
+
+    <object id="svg-network" data="envs/anm6/network.svg"
+            type="image/svg+xml" class="network">
+    </object>
+
+</body>
+</html>
+
+    """
+
+    html_file = os.path.join(RENDERING_FOLDER, 'index.html')
+
+    with open(html_file, 'w') as f:
+        f.write(s)

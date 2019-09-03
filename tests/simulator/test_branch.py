@@ -2,7 +2,7 @@ import unittest
 import numpy.testing as npt
 import os
 
-from gym_smartgrid.simulator.components import TransmissionLine
+from gym_anm.simulator.components import TransmissionLine
 
 class TestBranch(unittest.TestCase):
 

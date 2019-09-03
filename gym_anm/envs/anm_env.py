@@ -397,7 +397,7 @@ class ANMEnv(gym.Env):
 
         return action
 
-    def init_soc(self, soc_max=None):
+    def init_soc(self, soc_max):
         """
         Get the initial state of charge for each storage unit.
 

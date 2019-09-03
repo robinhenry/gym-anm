@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from calendar import monthrange
 
-from gym_smartgrid.utils import dt_to_minutes
+from gym_anm.utils import dt_to_minutes
 
 
 class LoadGenerator(object):

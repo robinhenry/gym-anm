@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from gym_smartgrid.envs.smartgrid_env6.anm6_easy import ANM6Easy
+from gym_anm.envs.anm6_env.anm6_easy import ANM6Easy
 
 
 def null_agent():

@@ -3,7 +3,7 @@ import numpy.testing as npt
 import numpy as np
 import os
 
-from gym_smartgrid.simulator import Simulator
+from gym_anm.simulator import Simulator
 
 
 class TestPFE(unittest.TestCase):
@@ -18,8 +18,8 @@ class TestPFE(unittest.TestCase):
 
         case = {'baseMVA': 100}
         case['bus'] = np.array([
-            [0, 3, 0, 0, 10, 1, 1],
-            [1, 1, 0, 0, 10, 1.1, 0.9]
+            [0, 3, 10, 1, 1],
+            [1, 1, 10, 1.1, 0.9]
         ])
         case['device'] = np.array([
             [0,  0, 0, 30,   -30, 1, 40,    0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -48,9 +48,9 @@ class TestPFE(unittest.TestCase):
 
         case = {'baseMVA': 100}
         case['bus'] = np.array([
-            [0, 3, 0, 0, 10, 1, 1],
-            [1, 1, 0, 0, 10, 1.1, 0.9],
-            [2, 1, 0, 0, 10, 1.1, 0.9]
+            [0, 3, 10, 1, 1],
+            [1, 1, 10, 1.1, 0.9],
+            [2, 1, 10, 1.1, 0.9]
         ])
         case['device'] = np.array([
             [0, 0, 0, 50, -50, 1, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -86,9 +86,9 @@ class TestPFE(unittest.TestCase):
 
         case = {'baseMVA': 100}
         case['bus'] = np.array([
-            [0, 3, 0, 0, 10, 1, 1],
-            [1, 1, 0, 0, 10, 1.1, 0.9],
-            [2, 1, 0, 0, 10, 1.1, 0.9]
+            [0, 3, 10, 1, 1],
+            [1, 1, 10, 1.1, 0.9],
+            [2, 1, 10, 1.1, 0.9]
         ])
         case['device'] = np.array([
             [0, 0, 0, 50, -50, 1, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0],

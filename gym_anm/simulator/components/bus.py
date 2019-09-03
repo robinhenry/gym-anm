@@ -1,4 +1,4 @@
-from gym_smartgrid.constants import BUS_H
+from gym_anm.constants import BUS_H
 
 
 class Bus(object):

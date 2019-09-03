@@ -1,9 +1,9 @@
 import numpy as np
 import scipy.optimize as optimize
 
-from gym_smartgrid.simulator.components import Load, TransmissionLine, \
+from gym_anm.simulator.components import Load, TransmissionLine, \
     PowerPlant, Storage, VRE, Bus
-from gym_smartgrid.constants import DEV_H, BRANCH_H
+from gym_anm.constants import DEV_H, BRANCH_H
 
 
 class Simulator(object):

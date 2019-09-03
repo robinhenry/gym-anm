@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.constants import DEV_H
+from gym_anm.constants import DEV_H
 
 
 class Device(object):

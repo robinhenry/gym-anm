@@ -7,9 +7,7 @@ import pandas as pd
 
 from gym_anm.constants import RENDERED_NETWORK_SPECS, RENDERED_STATE_VALUES
 from gym_anm.envs import ANMEnv
-from gym_anm.envs.utils import write_html
-from gym_anm.envs.smartgrid_env6.rendering.py import rendering
-from gym_anm import ROOT_FOLDER
+from gym_anm.envs.anm6_env.rendering.py import rendering
 from .network import network
 
 
@@ -25,30 +23,6 @@ class ANM6(ANMEnv):
         delta_t = 15
         super().__init__(network, obs_values, delta_t, seed)
 
-        ### RENDERING ###
-        env_folder = os.path.dirname(os.path.realpath(__file__))
-        rendering_folder = os.path.join(env_folder, 'rendering')
-        rel_path = os.path.join()
-
-
-        self.svg_data = {'network': os.path.pardir()}
-
-        RENDERING_FOLDER = os.path.join(ROOT_FOLDER, 'rendering')
-        RENDERING_LOGS = os.path.join(RENDERING_FOLDER, 'logs')
-        ENV_FILES = {'case': 'network.py',
-                     'network': 'network.svg',
-                     'svgLabels': 'svgLabels.js'}
-        WEB_FILES = {'index': 'index.html'}
-
-
-        # Folder to new environment (== this folder).
-
-
-        # Store paths to files needed for rendering.
-        rel_path = os.path.relpath(env_folder, RENDERING_FOLDER)
-        self.svg_data = {'network': os.path.join(rel_path, ENV_FILES['network'])}
-        self.svg_data['labels'] = os.path.join(rel_path, ENV_FILES['svgLabels'])
-        #####
 
     def render(self, mode='human', sleep_time=0.1):
         """
@@ -115,7 +89,7 @@ class ANM6(ANMEnv):
         title = type(self).__name__
 
         if self.render_mode in ['human', 'replay']:
-            write_html(self.svg_data)
+            rendering.write_html()
             self.http_server, self.ws_server = rendering.start(
                 title,
                 *network_specs)

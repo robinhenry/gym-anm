@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.envs.smartgrid_env6.anm6_easy import ANM6Easy
+from gym_anm.envs.anm6_env.anm6_easy import ANM6Easy
 
 
 def agent(time):
@@ -78,14 +78,16 @@ def null_agent():
 if __name__ == '__main__':
     env = ANM6Easy()
     obs = env.reset()
-    print(obs)
 
-    for i in range(1000):
-        env.render(sleep_time=.5)
+    for i in range(24*4*365*5):
+        # env.render(sleep_time=.5)
 
         a = null_agent()
         # a = agent(env.time)
         obs, r, done, info = env.step(a)
-        print('Reward: ', r)
+        # print('Reward: ', r)
+
+        if not i % (24*4*365):
+            print('New year')
 
     env.close()
