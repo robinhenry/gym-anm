@@ -8,13 +8,9 @@ import numpy as np
 ### 1. Bus data:
 # BUS_I: bus number (0-indexing).
 # BUS_TYPE: bus type (1 = PQ, 2 = PV, 3 = slack).
-# GS: shunt conductance (MW demanded at V = 1.0 p_from.u.).
-# BS: shunt susceptance (MVAr injected at V = 1.0 p_from.i_from.).
-# BASE_kV : base voltage of the zone containing the bus (kV).
-# VMAX: maximum voltage magnitude (p_from.u.).
-# VMIN: minimum voltage magnitude (p_from.u.).
-
-# Note: GS, BS fields are not used.
+# BASE_KV : base voltage of the zone containing the bus (kV).
+# VMAX: maximum voltage magnitude (p.u.).
+# VMIN: minimum voltage magnitude (p.u.).
 
 ### 2. Device data:
 # BUS_I: bus number.
@@ -37,10 +33,10 @@ import numpy as np
 ### 3. Branch data.
 # F_BUS: "from" bus number.
 # T_BUS: "to" bus number.
-# BR_R: resistance (p_from.u.).
-# BR_X: reactance (p_from.u.).
-# BR_B: total line charging susceptance (p_from.u.).
-# RATE: MVA rating, set to 0 for unlimited.
+# BR_R: resistance (p.u.).
+# BR_X: reactance (p.u.).
+# BR_B: total line charging susceptance (p.u.).
+# RATE: MVA rating.
 # TAP: transformer off-nominal turns ratio. If non-zero, taps located at
 # 'from' bus and impedance at 'to' bus (see pi-model); if zero, indicating
 # no-transformer (i_from.e. a simple transmission line).
@@ -52,12 +48,12 @@ network = {"version": "ANM"}
 network["baseMVA"] = 100.0
 
 network["bus"] = np.array([
-    [0, 3, 0, 0, 132, 1.04, 1.04],
-    [1, 1, 0, 0, 33, 1.1, 0.9],
-    [2, 1, 0, 0, 33, 1.1, 0.9],
-    [3, 1, 0, 0, 33, 1.1, 0.9],
-    [4, 1, 0, 0, 33, 1.1, 0.9],
-    [5, 1, 0, 0, 33, 1.1, 0.9]
+    [0, 3, 132, 1.04, 1.04],
+    [1, 1, 33, 1.1, 0.9],
+    [2, 1, 33, 1.1, 0.9],
+    [3, 1, 33, 1.1, 0.9],
+    [4, 1, 33, 1.1, 0.9],
+    [5, 1, 33, 1.1, 0.9]
 ])
 
 network["device"] = np.array([

@@ -56,8 +56,12 @@ class SolarGenerator(object):
         """
         Compute the sunset and sunrise hour, based on the date of the year.
         """
-        T = 365 + isleap(self.date.year)
-        h = (self.date.hour + self.date.minute / 60.) % 24.
+        # Shift hour to be centered on December, 22nd (Winter Solstice).
+        since_1st_jan = (self.date - dt.datetime(self.date.year, 1, 1))
+        delta_hour = since_1st_jan.days * 24 + since_1st_jan.seconds // 3600
+
+        h = delta_hour + 240
+        T = 24 * (365 + isleap(self.date.year))
 
         self.sunset = 1.5 * np.sin(h * 2 * np.pi / T) + 18.5
         self.sunrise = 1.5 * np.sin(h * 2 * np.pi / T) + 5.5

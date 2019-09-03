@@ -1,5 +1,5 @@
 ### CASE HEADERS ###
-headers_bus = ['BUS_I', 'BUS_TYPE', 'GS', 'BS', 'BASE_KV', 'VMAX', 'VMIN']
+headers_bus = ['BUS_I', 'BUS_TYPE', 'BASE_KV', 'VMAX', 'VMIN']
 BUS_H = dict(zip(headers_bus, range(len(headers_bus))))
 headers_dev = ['BUS_I', 'DEV_TYPE', 'Q/P', 'QMAX', 'QMIN',
                'DEV_STATUS', 'PMAX', 'PMIN', 'PC1', 'PC2', 'QC1MIN',

@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.envs import SmartGrid6Easy
+from gym_smartgrid.envs.smartgrid_env6.anm6_easy import ANM6Easy
 
 
 def agent(time):
@@ -8,8 +8,8 @@ def agent(time):
     wind_max = 50
 
     wind = [25, wind_max, 18]
-    solar = [18, solar_max, solar_max]
-    p_su = [17, -20, 15]
+    solar = [16, solar_max, solar_max]
+    p_su = [16, -20, 15]
     q_su = [0, 0, 0]
 
     curt, p, q = None, None, None
@@ -76,14 +76,15 @@ def null_agent():
 
 
 if __name__ == '__main__':
-    env = SmartGrid6Easy()
+    env = ANM6Easy()
     obs = env.reset()
+    print(obs)
 
     for i in range(1000):
         env.render(sleep_time=.5)
 
-        # a = null_agent()
-        a = agent(env.time)
+        a = null_agent()
+        # a = agent(env.time)
         obs, r, done, info = env.step(a)
         print('Reward: ', r)
 

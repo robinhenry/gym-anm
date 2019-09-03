@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_smartgrid.envs import SmartGrid6Hard
+from gym_smartgrid.envs.smartgrid_env6.anm6_hard import ANM6Hard
 
 
 def null_agent():
@@ -8,7 +8,7 @@ def null_agent():
 
 
 if __name__ == '__main__':
-    env = SmartGrid6Hard()
+    env = ANM6Hard()
     obs = env.reset()
 
     for i in range(1000):

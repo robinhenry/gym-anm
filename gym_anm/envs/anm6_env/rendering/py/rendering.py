@@ -2,8 +2,7 @@ import webbrowser
 import json
 
 from websocket import create_connection
-
-from gym_smartgrid.rendering.py.servers import WsServer, HttpServer
+from .servers import WsServer, HttpServer
 
 
 def start(title, dev_type, p_min, p_max, s_rate, soc_max):

@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
-from gym_smartgrid.envs import SmartGrid6Easy
+from gym_smartgrid.envs.smartgrid_env6.anm6_easy import ANM6Easy
 
 
 def null_agent():
@@ -35,7 +34,7 @@ def draw_regions(axs):
 
 
 if __name__ == '__main__':
-    env = SmartGrid6Easy()
+    env = ANM6Easy()
     env.reset()
 
     ts = []
@@ -46,14 +45,16 @@ if __name__ == '__main__':
     ts = np.array(ts)
 
     sns.set()
-    fig, axs = plt.subplots(2, 1, sharex=True, figsize=(14, 5))
+    # fig, axs = plt.subplots(2, 1, sharex=True, figsize=(14, 5))
+    plt.figure(figsize=(15, 5))
+    axs = [plt.gca()]
 
     # plt.rc('text', usetex=True)
     labels = ['$P_1$', r'$\tilde P_2$', '$P_3$', r'$\tilde P_4$', '$P_5$']
     for i in range(1, 6):
         axs[0].plot(ts[:, i], label=labels[i - 1])
 
-    axs[0].set_ylabel('P (MW)', fontsize=15)
+    axs[0].set_ylabel(r'$W(t)$ (MW)', fontsize=15)
     axs[0].legend(loc='lower left')
 
     bus1 = ts[:, 1] + ts[:, 2]
@@ -61,13 +62,16 @@ if __name__ == '__main__':
     bus3 = ts[:, 5]
     buses = [bus1, bus2, bus3]
 
-    for i in range(3):
-        axs[1].plot(buses[i], label=rf'$P_{i+1}$')
+    # for i in range(3):
+    #     axs[1].plot(buses[i], label=rf'$P_{i+1}$')
+    #
+    # axs[1].set_xlabel('Time steps of 15 minutes', fontsize=15)
+    # axs[1].set_ylabel('P (MW)', fontsize=15)
+    # axs[1].legend()
+    # axs[1].legend(loc='lower left')
 
-    axs[1].set_xlabel('Time steps of 15 minutes', fontsize=15)
-    axs[1].set_ylabel('P (MW)', fontsize=15)
-    axs[1].legend()
-    axs[1].legend(loc='lower left')
+    axs[0].set_xlabel(rf'Time step $t$ (15 minutes)', fontsize=15)
+
 
     draw_regions(axs)
 
