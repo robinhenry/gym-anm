@@ -1,6 +1,5 @@
 import ast
 import datetime as dt
-import os
 import time
 
 import pandas as pd
@@ -24,7 +23,7 @@ class ANM6(ANMEnv):
         super().__init__(network, obs_values, delta_t, seed)
 
 
-    def render(self, mode='human', sleep_time=0.1):
+    def render(self, mode='human', sleep_time=0.):
         """
         Render the current state of the environment.
 

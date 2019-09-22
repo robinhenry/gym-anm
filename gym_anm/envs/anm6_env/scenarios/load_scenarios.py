@@ -1,8 +1,7 @@
 import os
 import pandas as pd
 from calendar import monthrange
-
-from gym_anm.utils import dt_to_minutes
+import datetime as dt
 
 
 class LoadGenerator(object):
@@ -36,16 +35,14 @@ class LoadGenerator(object):
         if self.prev_p is None:
             self.prev_p = self.day_curve[0]
 
-        delta_min = dt_to_minutes(self.delta_t)
-
-        t = int((self.date.hour * 60 + self.date.minute) / delta_min)
+        t = int((self.date.hour * 60 + self.date.minute) / self.delta_t)
         diff = self.day_curve[t - 1] - self.prev_p
         noise = self.np_random.normal(loc=diff, scale=self.scale)
 
         self.prev_p += noise
 
         # Increment the current time.
-        self.date += self.delta_t
+        self.date += dt.timedelta(minutes=self.delta_t)
 
         return self.prev_p * self.p_max
 
@@ -64,22 +61,26 @@ class LoadGenerator(object):
         self.prev_day = self.date.day
 
 
-# if __name__ == '__main__':
-#     folder = 'data_demand_curves'
-#     rng = np.random.RandomState(2019)
-#
-#     p_max = 10
-#     load_generator = LoadGenerator(folder, rng, p_max)
-#
-#     curve = []
-#     date = dt.datetime(2019, 1, 1)
-#     for i_from in range(24 * 4 * 7):
-#         curve.append(load_generator.next(date, 0.007))
-#         date += dt.timedelta(minutes=15)
-#
-#     import matplotlib.pyplot as plt
-#     plt.plot(curve)
-#     plt.xlabel('Timestep (15 min)')
-#     plt.ylabel('Consumption factor in [0, 1]')
-#     plt.title('Generated load curve over a week')
-#     plt.show()
+if __name__ == '__main__':
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    folder_house = 'data_demand_curves/house'
+    folder_factory = 'data_demand_curves/factory'
+    rng = np.random.RandomState(2019)
+    date = dt.datetime(2019, 1, 1)
+
+    p_max = 1
+    house = LoadGenerator(folder_house, date, 15, rng, p_max)
+    factory = LoadGenerator(folder_factory, date, 15, rng, p_max)
+
+    for gen in [house, factory]:
+        curve = []
+        for i_from in range(24 * 4):
+            curve.append(next(gen))
+
+        plt.plot(curve)
+        plt.xlabel('Timestep (15 min)')
+        plt.ylabel('Consumption factor in [0, 1]')
+        plt.title('Generated load curve over a week')
+        plt.show()

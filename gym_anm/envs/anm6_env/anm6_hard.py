@@ -32,7 +32,7 @@ class ANM6Hard(ANM6):
 
         return loads
 
-    def init_vre(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
+    def init_dg(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
         vres = {}
 
         for dev_id, p_max in sorted(wind_pmax.items()):

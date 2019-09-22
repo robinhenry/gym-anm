@@ -1,7 +1,7 @@
 import numpy as np
 from calendar import isleap
-import datetime as dt
 from scipy.stats import norm
+import datetime as dt
 
 
 class SolarGenerator(object):
@@ -12,124 +12,122 @@ class SolarGenerator(object):
         self.delta_t = delta_t
         self.date = init_date
 
-        self.bell_noise_factor = 0.05
-        self.scale = 0.005
-        self.prev_p = 0.
-        self.prev_base = None
-        self.prev_day = None
+        self.base_nf = 0.04
+        self.nf = 0.
+        self.p = 0.
+        self.base = None
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        if self.prev_base is None:
-            self._next_base()
+        T_days = 365 + isleap(self.date.year)
+        days_since_1jan = (self.date - dt.datetime(self.date.year, 1, 1)).days
+        days_since_solstice = days_since_1jan + 10
 
-        diff = self.prev_base - self.prev_p
-        noise = self.np_random.normal(loc=diff, scale=self.scale)
-        self.prev_p += noise
+        if self.base is None or (self.date.hour == 0 and self.date.minute == 0):
+            self.base, self.sunrise, self.sunset = \
+                self._next_day_base(days_since_solstice, T_days)
 
-        # Clip production to 0 before sunrise and after sunset.
-        if self.date.hour < self.sunrise or self.date.hour > self.sunset:
-            self.prev_p = 0.
+        timestep = int((self.date.hour * 60 + self.date.minute) / self.delta_t)
 
-        # Make sure that P stays within [0, 1].
-        self.prev_p = np.maximum(self.prev_p, 0.)
-        self.prev_p = np.minimum(self.prev_p, 1.)
+        if timestep == self.base.size - 1:
+            diff = self.base[0] - self.p
+        else:
+            diff = self.base[timestep + 1] - self.p
 
-        # Compute the next base value.
-        self._next_base()
+        noise = self.np_random.normal(loc=diff, scale=self.nf)
+        self.p += noise
+        self.p = self._clip_single_production(self.p,
+                                              self.date.hour + self.date.minute / 60,
+                                              self.sunrise, self.sunset)
 
         # Increment the date.
-        self.date += self.delta_t
+        self.date += dt.timedelta(minutes=self.delta_t)
 
-        return self.prev_p * self.p_max
+        return self.p * self.p_max
 
     def next(self):
         return self.__next__()
 
-    def _next_base(self):
-        self._sunset_sunrise_pattern()
-        self.prev_base = self._bell_curve() * self._yearly_pattern()
+    def _next_day_base(self, days_since_solstice, T_days):
+        sunrise, sunset = self._sunset_sunrise(days_since_solstice, T_days)
+        bell = self._bell_curve(sunrise, sunset)
+        scaling = self._yearly_pattern(days_since_solstice, T_days)
+        base = scaling * bell
 
-    def _sunset_sunrise_pattern(self):
+        # Add random noise.
+        base += self.np_random.normal(loc=0., scale=self.base_nf, size=base.size)
+        base = self._clip_base_curve(base, sunrise, sunset)
+
+        return base, sunrise, sunset
+
+    def _sunset_sunrise(self, days_since_solstice, T_days):
         """
         Compute the sunset and sunrise hour, based on the date of the year.
         """
         # Shift hour to be centered on December, 22nd (Winter Solstice).
-        since_1st_jan = (self.date - dt.datetime(self.date.year, 1, 1))
-        delta_hour = since_1st_jan.days * 24 + since_1st_jan.seconds // 3600
 
-        h = delta_hour + 240
-        T = 24 * (365 + isleap(self.date.year))
+        sunrise = 1.5 * np.cos(2 * np.pi * days_since_solstice / T_days) + 5.5
+        sunset = 1.5 * np.cos(2 * np.pi * days_since_solstice / T_days + np.pi) \
+                 + 18.5
 
-        self.sunset = 1.5 * np.sin(h * 2 * np.pi / T) + 18.5
-        self.sunrise = 1.5 * np.sin(h * 2 * np.pi / T) + 5.5
+        return sunrise, sunset
 
-    def _bell_curve(self):
+    def _bell_curve(self, sunrise, sunset):
         """
-        Return the a noisy solar generation-like (bell) curve value at hour t.
-
-        This function returns a capacity factor for solar generation following a
-        bell curve (Gaussian), given a time of the day. It is assumed that hour=0
-        represents 12:00 a.m., i_from.e. hour=26 => 2:00 a.m. Noise is also added
-        sampled from a Gaussian N(0, 1).
-
-        :return: the noisy solar generation, normalized in [0, 1].
+        Return the a deterministic solar generation-like (bell) curve for the day.
         """
 
-        h = (self.date.hour + self.date.minute / 60.) % 24.
-        y = lambda x: norm.pdf(x, loc=12., scale=2.)
-        if self.sunrise < h < self.sunset:
-            p = y(h) / y(12.)
-            # Add noise to the capacity factor (stochastic).
-            p += self.bell_noise_factor * self.np_random.normal(loc=0., scale=1.)
+        time = np.arange(0, 24, self.delta_t / 60)
+
+        sigma = 2.
+        y = np.exp(- (time - 12)**2 / (2 * sigma**2))
+        y = self._clip_base_curve(y, sunrise, sunset)
+
+        return y
+
+    def _yearly_pattern(self, days_since_solstice, T_days):
+        """
+        Return a factor to scale solar generation, based on the day of the year.
+        """
+        factor = 0.25 * np.cos(2 * np.pi * days_since_solstice / T_days + np.pi) \
+                 + 0.75
+        return factor
+
+    def _clip_base_curve(self, p, sunrise, sunset):
+        time = np.arange(0, 24, self.delta_t / 60)
+
+        p_clipped = np.array(p)
+        p_clipped[time < sunrise] = 0
+        p_clipped[time > sunset] = 0
+        p_clipped[p < 0] = 0
+
+        return p_clipped
+
+    def _clip_single_production(self, p, h, sunrise, sunset):
+        if p < 0 or h < sunrise or h > sunset:
+            return 0
         else:
-            p = 0.
+            return p
 
-        return p
 
-    def _yearly_pattern(self):
-        """
-        Return a factor to scale solar generation, based on the time of the year.
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
 
-        This function returns a factor in [0.5, 1.0] used to scale the solar
-        power generation curves, based on the time of the year, following a
-        simple sinusoid. The base hour=0 represents 12:00 a.m. on January,
-        1st. The sinusoid is designed to return its minimum value on the
-        Winter Solstice and its maximum value on the Summer one.
+    rng = np.random.RandomState(2019)
+    p_max = 1
+    init_date = dt.datetime(2019, 1, 1)
+    delta_t = 15
+    solar_generator = SolarGenerator(init_date, delta_t, rng, p_max)
 
-        :return: a solar generation scaling factor in [0, 1].
-        """
+    curve = []
+    for i_from in range(24 * 4 * 7):
+        curve.append(next(solar_generator))
 
-        # Shift hour to be centered on December, 22nd (Winter Solstice).
-        since_1st_jan = (self.date - dt.datetime(self.date.year, 1, 1))
-        delta_hour = since_1st_jan.days * 24 + since_1st_jan.seconds // 3600
+    plt.plot(curve)
+    plt.xlabel('Timestep (15 min)')
+    plt.ylabel('Solar production')
+    plt.title('Generated solar curve over a week')
 
-        h = delta_hour + 240
-        T = 24 * (365 + isleap(self.date.year))
-
-        r = 0.25 * np.sin(h * 2 * np.pi / T - np.pi / 2) + 0.75
-        return r
-
-# if __name__ == '__main__':
-    # import matplotlib.pyplot as plt
-    # import datetime as dt
-    #
-    # rng = np.random.RandomState(2019)
-    # p_max = 1
-    # load_generator = SolarGenerator(rng, p_max)
-    #
-    # curve = []
-    # date = dt.datetime(2019, 1, 1)
-    # for i_from in range(24 * 4 * 3):
-    #     curve.append(load_generator.next(date, bell_noise_factor=0.01,
-    #                                      scale=0.01, cloud_noise_factor=0.05))
-    #     date += dt.timedelta(minutes=15)
-    #
-    # plt.plot(curve)
-    # plt.xlabel('Timestep (15 min)')
-    # plt.ylabel('Consumption factor in [0, 1]')
-    # plt.title('Generated load curve over a week')
-    #
-    # plt.show()
+    plt.show()

@@ -10,73 +10,56 @@ class WindGenerator(object):
         self.p_max = p_max
         self.date = init_date
         self.delta_t = delta_t
-        self.p = 0.
-        self.noise_factor = 0.15
+        self.nf = 0.02
+        self.p = None
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        yearly_factor = self._yearly_pattern()
+        if self.p is None or (self.date.hour == 0 and self.date.minute == 0):
+            T_days = 365 + isleap(self.date.year)
+            days_since_1jan = (self.date - dt.datetime(self.date.year, 1, 1)).days
+            days_since_solstice = days_since_1jan + 10
 
-        # Add random noise sampled from N(0, 1).
-        noise = self.noise_factor * self.np_random.normal(0., scale=1.)
-        self.p = yearly_factor + noise
+            self.p = self._yearly_pattern(days_since_solstice, T_days)
 
-        # Make sure that P stays within [0, 1].
+        noise = self.np_random.normal(0., scale=self.nf)
+        self.p += noise
+
         self.p = self.p if self.p > 0. else 0.
         self.p = self.p if self.p < 1. else 1.
 
-        # Save next real power generation.
-        self.p_injection = self.p * self.p_max
-
         # Increment the date.
-        self.date += self.delta_t
+        self.date += dt.timedelta(minutes=self.delta_t)
 
-        return self.p_injection
+        return self.p * self.p_max
 
     def next(self):
         return self.__next__()
 
-    def _yearly_pattern(self):
+    def _yearly_pattern(self, days_since_solstice, T_days):
         """
-        Return a factor to scale wind generation, based on the time of the year.
-
-        This function returns a factor in [0.25, 0.75] used to scale the wind
-        power generation curves, based on the time of the year, following a
-        simple sinusoid. The base hour=0 represents 12:00 a.m. on January,
-        1st. The sinusoid is designed to return its minimum value on the
-        Summer Solstice and its maximum value on the Winter one.
-
-        :return: a wind generation scaling factor in [0, 1].
+        Return a factor to scale wind generation, based on the day of the year.
         """
+        return 0.25 * np.cos(days_since_solstice * 2 * np.pi / T_days) + 0.5
 
-        # Shift hour to be centered on December, 22nd (Winter Solstice).
-        since_1st_jan = (self.date - dt.datetime(self.date.year, 1, 1))
-        delta_hour = since_1st_jan.days * 24 + since_1st_jan.seconds // 3600
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
 
-        h = delta_hour + 240
-        T = 24 * (365 + isleap(self.date.year))
+    rng = np.random.RandomState(2019)
+    p_max = 1
+    init_date = dt.datetime(2019, 1, 1)
+    delta_t = 15
+    wind_generator = WindGenerator(init_date, delta_t, rng, p_max)
 
-        return 0.25 * np.cos(h * 2 * np.pi / T) + 0.5
+    curve = []
+    for i_from in range(24 * 4 * 50):
+        curve.append(next(wind_generator))
 
-# if __name__ == '__main__':
-    # import matplotlib.pyplot as plt
-    # import datetime as dt
-    #
-    # rng = np.random.RandomState(2019)
-    # p_max = 1
-    # wind_generator = WindGenerator(rng, p_max)
-    #
-    # curve = []
-    # date = dt.datetime(2019, 1, 1)
-    # for i_from in range(24 * 4 * 3):
-    #     curve.append(wind_generator.next(date, 0.1))
-    #     date += dt.timedelta(minutes=15)
-    #
-    # plt.plot(curve)
-    # plt.xlabel('Timestep (15 min)')
-    # plt.ylabel('Consumption factor in [0, 1]')
-    # plt.title('Generated load curve over a week')
-    #
-    # plt.show()
+    plt.plot(curve)
+    plt.xlabel('Timestep (15 min)')
+    plt.ylabel('Wind production')
+    plt.title('Generated wind curve over a week')
+
+    plt.show()

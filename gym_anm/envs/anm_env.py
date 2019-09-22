@@ -235,7 +235,7 @@ class ANMEnv(gym.Env):
         -------
 
         """
-        raise NotImplementedError('The function init_vre() should be implemented'
+        raise NotImplementedError('The function init_dg() should be implemented'
                                   ' by the subclass.')
 
     def init_load(self, load_pmax, init_date, delta_t, np_random):

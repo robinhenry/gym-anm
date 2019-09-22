@@ -63,7 +63,8 @@ class WsServer(object):
     def _start_server(self):
         """ Start the WebSocket server and keep it running. """
 
-        server = WebsocketServer(self.PORT, self.HOST, self.logging_level)
+        # server = WebsocketServer(self.PORT, self.HOST, self.logging_level)
+        server = WebsocketServer(self.PORT, self.HOST)
 
         server.set_fn_client_left(self.client_left)
         server.set_fn_new_client(self.new_client)
