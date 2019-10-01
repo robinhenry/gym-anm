@@ -109,7 +109,7 @@ class ANMEnv(gym.Env):
         self.network_specs = self.simulator.specs
 
         # Build action and observation spaces.
-        self.action_space = self._build_action_space()
+        self.action_space, self.action_lengths = self._build_action_space()
         self.observation_space = self._build_obs_space()
 
     def _build_action_space(self):
@@ -118,24 +118,29 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        gym.spaces.Tuple
+        space : gym.spaces.Tuple
             The action space of the environment.
+        action_lengths : list of int
+            The number of action variables for each type of action, i.e.
+            [4, 2, 2] -> 4 VRE generators, 2 DES.
         """
 
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
 
-        space_curtailment = spaces.Box(low=P_curt_bounds[:, 1],
-                                       high=P_curt_bounds[:, 0],
-                                       dtype=np.float32)
+        lower_bounds = np.concatenate((P_curt_bounds[:, 1],
+                                       alpha_bounds[:, 1],
+                                       q_bounds[:, 1]))
 
-        space_alpha = spaces.Box(low=alpha_bounds[:, 1],
-                                 high=alpha_bounds[:, 0],
-                                 dtype=np.float32)
+        upper_bounds = np.concatenate((P_curt_bounds[:, 0],
+                                       alpha_bounds[:, 0],
+                                       q_bounds[:, 0]))
 
-        space_q = spaces.Box(low=q_bounds[:, 1], high=q_bounds[:, 0],
-                             dtype=np.float32)
+        space = spaces.Box(low=lower_bounds, high=upper_bounds, dtype=np.float32)
 
-        return spaces.Tuple((space_curtailment, space_alpha, space_q))
+        action_lengths = [P_curt_bounds.shape[0], alpha_bounds.shape[0],
+                          q_bounds.shape[0]]
+
+        return space, action_lengths
 
     def _build_obs_space(self):
         """
@@ -143,56 +148,53 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        gym.spaces.Tuple
+        obs_space : gym.spaces.Tuple
             The observation space.
         """
 
-        obs_space = []
         network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
-        if 'P_BUS' in self.obs_values:
-            space = spaces.Box(low=network_specs['PMIN_BUS'],
-                               high=network_specs['PMAX_BUS'],
-                               dtype=np.float32)
-            obs_space.append(space)
+        lower_bounds, upper_bounds = [], []
 
-        if 'Q_BUS' in self.obs_values:
-            space = spaces.Box(low=network_specs['QMIN_BUS'],
-                               high=network_specs['QMAX_BUS'],
-                               dtype=np.float32)
-            obs_space.append(space)
+        for name in self.obs_values:
 
-        if 'V_BUS' in self.obs_values:
-            space = spaces.Box(low=network_specs['VMIN_BUS'],
-                               high=network_specs['VMAX_BUS'],
-                               dtype=np.float32)
-            obs_space.append(space)
+            if name == 'P_BUS':
+                lower_bounds.append(network_specs['PMIN_BUS'])
+                upper_bounds.append(network_specs['PMAX_BUS'])
 
-        if 'P_DEV' in self.obs_values:
-            space = spaces.Box(low=network_specs['PMIN_DEV'],
-                               high=network_specs['PMAX_DEV'],
-                               dtype=np.float32)
-            obs_space.append(space)
+            elif name == 'Q_BUS':
+                lower_bounds.append(network_specs['QMIN_BUS'])
+                upper_bounds.append(network_specs['QMAX_BUS'])
 
-        if 'Q_DEV' in self.obs_values:
-            space = spaces.Box(low=network_specs['QMIN_DEV'],
-                               high=network_specs['QMAX_DEV'],
-                               dtype=np.float32)
-            obs_space.append(space)
+            elif name == 'V_BUS':
+                lower_bounds.append(network_specs['VMIN_BUS'])
+                upper_bounds.append(network_specs['VMAX_BUS'])
 
-        if 'RATE' in self.obs_values:
-            shape = network_specs['RATE'].shape
-            space = spaces.Box(low=np.zeros(shape=shape),
-                               high=network_specs['RATE'],
-                               dtype=np.float32)
-            obs_space.append(space)
+            elif name == 'P_DEV':
+                lower_bounds.append(network_specs['PMIN_DEV'])
+                upper_bounds.append(network_specs['PMAX_DEV'])
 
-        if 'SOC' in self.obs_values:
-            space = spaces.Box(low=network_specs['SOC_MIN'],
-                               high=network_specs['SOC_MAX'],
-                               dtype=np.float32)
-            obs_space.append(space)
+            elif name == 'Q_DEV':
+                lower_bounds.append(network_specs['QMIN_DEV'])
+                upper_bounds.append(network_specs['QMAX_DEV'])
 
-        return spaces.Tuple(tuple(obs_space))
+            elif name == 'RATE':
+                shape = network_specs['RATE'].shape
+                lower_bounds.append(np.zeros(shape=shape))
+                upper_bounds.append(network_specs['RATE'])
+
+            elif name == 'SOC':
+                lower_bounds.append(network_specs['SOC_MIN'])
+                upper_bounds.append(network_specs['SOC_MAX'])
+
+            else:
+                raise ValueError('The type of observation ' + name
+                                 + 'is not supported.')
+
+        obs_space = spaces.Box(low=np.concatenate(lower_bounds),
+                               high=np.concatenate(upper_bounds),
+                               dtype=np.float32)
+
+        return obs_space
 
     def _get_dev_specs(self):
         """
@@ -286,9 +288,18 @@ class ANMEnv(gym.Env):
         P_loads = [next(load) for load in self.loads]
         self.P_gen_potential = [next(gen) for gen in self.generators]
 
+        # Separate 3 types of actions.
+        i = self.action_lengths[0]
+        j = i + self.action_lengths[1]
+        k = j + self.action_lengths[2]
+        P_curt_limit = action[0: i]
+        des_alpha = action[i: j]
+        Q_storage = action[j: k]
+
         # Simulate a transition and compute the reward.
         self.state, reward, self.e_loss, self.penalty = \
-            self.simulator.transition(P_loads, self.P_gen_potential, *action)
+            self.simulator.transition(P_loads, self.P_gen_potential,
+                                      P_curt_limit, des_alpha, Q_storage)
         self.total_reward += reward
 
         # Create a tuple of observations.
@@ -325,8 +336,14 @@ class ANMEnv(gym.Env):
 
         if self.state:
             obs = [list(self.state[ob]) for ob in self.obs_values]
+            obs = np.concatenate(obs).astype(np.float32)
         else:
             obs = None
+
+        # Check if the observation is in the available observation space.
+        assert self.observation_space.contains(obs), "%r (%s) invalid" \
+                                                   % (obs, type(obs))
+
         return obs
 
     def seed(self, seed=None):
@@ -392,8 +409,10 @@ class ANMEnv(gym.Env):
 
         """
 
-        curt = self.action_space.spaces[0].high
-        action = (curt, np.array([0.]), np.array([0.]))
+        P_curt_bounds = self.action_space.high[0: self.action_lengths[0]]
+        action = np.concatenate([P_curt_bounds,
+                                 [0] * self.action_lengths[1],
+                                 [0] * self.action_lengths[2]])
 
         return action
 

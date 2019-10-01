@@ -72,7 +72,7 @@ def agent(time):
     return np.array(curt), np.array([p]), np.array([q])
 
 def null_agent():
-    return np.array([30, 50]), np.array([0]), np.array([0])
+    return np.array([30, 50, 0, 0])
 
 
 if __name__ == '__main__':

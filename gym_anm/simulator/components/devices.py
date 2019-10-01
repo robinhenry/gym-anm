@@ -144,6 +144,9 @@ class Load(Device):
 
         super().__init__(dev_id, load_id, dev_case)
 
+        self.q_min = self.p_min * self.qp_ratio
+        self.q_max = self.q_max * self.qp_ratio
+
     def compute_pq(self, p, q=None):
         # docstring inherited
 

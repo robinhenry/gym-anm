@@ -281,15 +281,15 @@ class Simulator(object):
 
         Returns
         -------
-        P_curt_bounds : 2D numpy.ndarray
+        P_curt_bounds : numpy.ndarray
             The range of real power injection of VRE devices. For example,
-            P_curt_bounds[i_from, :] = [p_max, p_min] of the i_from^th VRE generator (MW).
-        alpha_bounds : 2D numpy.ndarray
+            P_curt_bounds[i, :] = [p_max, p_min] of the i_from^th VRE generator (MW).
+        alpha_bounds : numpy.ndarray
             The operating range of each storage unit. For example,
-            alpha_bounds[i_from, :] = [alpha_max, alpha_min] of each storage unit (MW).
-        q_storage_bounds : 2D numpy.ndarray
+            alpha_bounds[i, :] = [alpha_max, alpha_min] of each storage unit (MW).
+        q_storage_bounds : numpy.ndarray
             The range of reactive power injection of VRE devices. For example,
-            q_storage_bounds[i_from, :] = [q_max, q_min] of each storage unit (MVAr).
+            q_storage_bounds[i, :] = [q_max, q_min] of each storage unit (MVAr).
 
         Notes
         -----
