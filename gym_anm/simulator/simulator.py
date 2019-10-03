@@ -136,8 +136,8 @@ class Simulator(object):
 
                 else:
                     raise ValueError(f'The DEV_TYPE attribute of case['
-                                     f'{dev_idx, :} is not a valid type of '
-                                     f'device.')
+                                     + f'{dev_idx, :} is not a valid type of '
+                                     + f'device.')
                 dev_idx += 1
 
     def _build_admittance_matrix(self):
