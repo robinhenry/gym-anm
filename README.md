@@ -6,6 +6,8 @@ modelling active network management tasks for electricity distribution
 networks.**
   <br>
   
+[![Build Status](https://travis-ci.com/robinhenry/gym-anm.svg?token=y9jBzyzxgcYYHdKPqW9q&branch=master)](https://travis-ci.com/robinhenry/gym-anm)
+  
 Each `gym-anm` environment implements the same [general task](#general_task).
  
  This toolkit comes with a paper available at [ADD LINK], and 
