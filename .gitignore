@@ -8,3 +8,4 @@ docs/build/
 *.lp
 *.ipynb_checkpoints
 gym_anm/rendering/logs/
+gym_anm.egg-info/

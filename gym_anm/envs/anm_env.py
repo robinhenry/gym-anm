@@ -311,7 +311,7 @@ class ANMEnv(gym.Env):
             self.done = True
 
         # Information returned for debugging.
-        info = None
+        info = {'episode': None, 'year': self.year_counter}
 
         return self.obs, reward, self.done, info
 
