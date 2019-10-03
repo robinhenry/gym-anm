@@ -1,5 +1,3 @@
-NOTE: This environment is still under development, and should be fully available in September 2019. 
-
 # gym-anm
 
 **gym-anm is an extension to the OpenAI Gym toolkit. It provides researchers with
