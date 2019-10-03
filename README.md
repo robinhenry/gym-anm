@@ -1,12 +1,14 @@
 # gym-anm
 
-**gym-anm is an extension to the OpenAI Gym toolkit. It provides researchers with
- active network management benchmarks for electricity distribution networks.**
+**gym-anm is an extension to the [OpenAI Gym](https://github.com/openai/gym) toolkit. It provides researchers 
+with a tool to build and train reinforcement learning agents in environments 
+modelling active network management tasks for electricity distribution 
+networks.**
   <br>
   
-  Each `gym-anm` implements the same [general task](#general_task).
+Each `gym-anm` environment implements the same [general task](#general_task).
  
- This implementation comes with a paper available at [ADD LINK], and 
+ This toolkit comes with a paper available at [ADD LINK], and 
  researchers should reference `gym-anm` with the BibTeX entry:
  ```bash
 ADD BibTeX entry
@@ -38,7 +40,7 @@ framework for testing. To run a full coverage of `gym-anm`, first install
 ```
 pip install coverage
 ``` 
-and then, from the root project folder:
+and then, from the root project folder, run:
 ```
 coverage run -m tests
 coverage html
@@ -52,7 +54,7 @@ agent's goal consists in minimizing total energy losses while satisfying
 operating network constraints. <br>
 
 The action space is continuous (see [`gym.spaces.Box`](https://github.com/openai/gym/blob/master/gym/spaces/box.py)) 
-and consists in choosing, at each time step:
+and consists in setting, at each time step:
 * the maximum real power output from each renewable energy generator (also 
 known as the *curtailment value*),
 * the real power injection from each distributed energy storage unit,
@@ -66,7 +68,7 @@ Specific `gym-anm` environments can differ in terms of:
 * the topology and characteristics of the electricity distribution 
 network,
 * the observation space,
-* the modelling of the stochastic processes.
+* the modelling of the stochastic processes present in the system.
 
 For more information on building new environments, see [ADD LINK]. 
 
@@ -78,8 +80,6 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 
 * **Robin Henry** - *Initial work* - [add personal website url]
-
-See also the list of [contributors](https://github.com/robinhenry/gym-anm/graphs/contributors) who participated in this project.
 
 ## License
 

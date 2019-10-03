@@ -1,4 +1,0 @@
-gym
-pandas
-websocket-client>=0.56.0
-websocket-server>=0.4
