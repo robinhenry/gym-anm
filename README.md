@@ -1,3 +1,6 @@
+**Status:** Active (under active development, breaking changes may occur)
+
+
 # gym-anm
 
 **gym-anm is an extension to the [OpenAI Gym](https://github.com/openai/gym) toolkit. It provides researchers 
