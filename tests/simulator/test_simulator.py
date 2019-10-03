@@ -74,13 +74,15 @@ class TestSimulator(unittest.TestCase):
                  'VMAX_BUS': [1.04, 1.1, 1.1],
                  'PMIN_DEV': [-70, -5, 0, 0, -40],
                  'PMAX_DEV': [80, 0, 40, 50, 60],
-                 'QMIN_DEV': [-90, 0, -15, -25, -35],
+                 'QMIN_DEV': [-90, 0.0, -15, -25, -35],
                  'QMAX_DEV': [100, 0, 10, 20, 30],
                  'DEV_TYPE': [0, -1, 3, 2, 4],
                  'SMAX_BR': [32, 24, 17],
                  'SOC_MIN': [0],
                  'SOC_MAX': [100]}
-        npt.assert_equal(self.simulator.specs, specs)
+
+        for name, spec in specs.items():
+            npt.assert_almost_equal(self.simulator.specs[name], spec)
 
     def test_action_space(self):
         curt = np.array([[40, 0], [50, 0]])
