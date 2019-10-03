@@ -51,8 +51,9 @@ coverage html
 ## General task<a name="general_task"></a>
 
 Each environment built on top of `gym-anm` implements the same general active 
-network management task in a specific electricity distribution network. The 
-agent's goal consists in minimizing total energy losses while satisfying 
+network management task in a specific electricity distribution network (see 
+[`gym_anm/envs/anm_env.py`](gym_anm/envs/anm_env.py)). 
+The agent's goal consists in minimizing total energy losses while satisfying 
 operating network constraints. <br>
 
 The action space is continuous (see [`gym.spaces.Box`](https://github.com/openai/gym/blob/master/gym/spaces/box.py)) 
@@ -73,11 +74,6 @@ network,
 * the modelling of the stochastic processes present in the system.
 
 For more information on building new environments, see [ADD LINK]. 
-
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
 
 ## Authors
 
