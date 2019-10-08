@@ -10,7 +10,7 @@ from gym_anm.envs import utils
 
 class ANMEnv(gym.Env):
     """
-    An environment simulating an electricity distribution network.
+    An gym environment simulating an electricity distribution network.
 
     This environment was designed to train Reinforcement Learning agents to
     perform well in Active Network Management (ANM) tasks in electricity
@@ -19,28 +19,36 @@ class ANMEnv(gym.Env):
 
     Attributes
     ----------
-    case : dict of {str : numpy.ndarray}
-        The input case file representing the electricity network.
-    svg_data : dict of {str : str}
-        A dictionary with keys {'network', 'labels'} and values storing the
-        paths to the corresponding files needed for the environment rendering.
-    delta_t : int
-        The time interval between two consecutive time steps (minutes).
-    timestep_length : datetime.timedelta
-        The equivalent of `time_factor`.
-    year : int
-        The year on which to base the time process.
-    obs_values : list of str
-        The values to include in the observation space.
-    simulator : Simulator
-        The electricity distribution network simulator.
-    network_specs : dict of {str : array_like}
-        The operating characteristics of the electricity network.
     action_space : gym.spaces.Tuple
         The action space available to the agent interacting with the environment.
+    delta_t : int
+        The time interval between two consecutive time steps (minutes).
+    network_specs : dict of {str : list}
+        The operating characteristics of the electricity network.
+    np_random : numpy.random.RandomState
+        The random state of the environment.
+    obs_values : list of str
+        The values to include in the observation space.
     observation_space : gym.spaces.Tuple
         The observation space available to the agent interacting with the
         environment.
+    simulator : Simulator
+        The electricity distribution network simulator.
+    timestep_length : datetime.timedelta
+        Equivalent to `delta_t`.
+    year : int
+        The year on which to base the time process.
+
+
+
+
+    svg_data : dict of {str : str}
+        A dictionary with keys {'network', 'labels'} and values storing the
+        paths to the corresponding files needed for the environment rendering.
+
+
+
+
     state : dict of {str : array_like}
         The current values of the state variables of the environment.
     total_reward : float
@@ -58,8 +66,6 @@ class ANMEnv(gym.Env):
         True if the episode is over, False otherwise.
     render_mode : str
         The mode of the environment visualization.
-    np_random : array_like
-        The random seed.
     render_history : pandas.DataFrame
         The history of past states, used for later visualization.
 
@@ -87,6 +93,8 @@ class ANMEnv(gym.Env):
         """
         Parameters
         ----------
+        network : dict of {str : numpy.ndarray}
+            The network input file describing the power grid.
         obs_values : list of str
             The values to include in the observation space.
         delta_t : int, optional
@@ -121,11 +129,11 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        space : gym.spaces.Tuple
+        space : gym.spaces.Box
             The action space of the environment.
         action_lengths : list of int
-            The number of action variables for each type of action, i.e.
-            [4, 2, 2] -> 4 VRE generators, 2 DES.
+            The number of action variables for each type of action, e.g.
+            [4, 2, 2] -> 4 renewable generators, 2 DES units.
         """
 
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
@@ -151,8 +159,8 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        obs_space : gym.spaces.Tuple
-            The observation space.
+        obs_space : gym.spaces.Box
+            The observation space of the environment.
         """
 
         network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
@@ -204,18 +212,6 @@ class ANMEnv(gym.Env):
                                dtype=np.float32)
 
         return obs_space
-
-    def _get_dev_specs(self):
-        pmax = []
-        for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
-            p_max = self.network_specs['PMAX_DEV'][idx]
-            p_min = self.network_specs['PMIN_DEV'][idx]
-            if dev_type == -1:
-                pmax.append((dev_type, p_min))
-            elif dev_type in [1, 2, 3]:
-                pmax.append((dev_type, p_max))
-
-        return pmax
 
     def init_dg_load(self, pmax, init_date, delta_t, np_random):
 
@@ -366,7 +362,48 @@ class ANMEnv(gym.Env):
 
         return obs
 
+    def _get_dev_specs(self):
+        """
+        Return the device specs needed to initialize the stochastic processes.
+
+        Returns
+        -------
+        pmax : list of (int, float)
+            A pair (dev_type, pmax) for each device representing a stochastic
+            process (e.g. renewable energy resource).
+        """
+
+        pmax = []
+        for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
+            p_max = self.network_specs['PMAX_DEV'][idx]
+            p_min = self.network_specs['PMIN_DEV'][idx]
+            if dev_type == -1:
+                pmax.append((dev_type, p_min))
+            elif dev_type in [1, 2, 3]:
+                pmax.append((dev_type, p_max))
+
+        return pmax
+
     def _separate_load_dg(self, iterators, dev_types):
+        """
+        Separate the loads and generators objects modelling stochastic processes.
+
+        Parameters
+        ----------
+        iterators : list of Iterable
+            The passive loads and renewable energy generators.
+        dev_types : list of (int, float)
+            The specs of each device modelling a stochastic process (see
+            `_get_dev_specs()`).
+
+        Returns
+        -------
+        loads : list of Iterable
+            The loads.
+        gens : list of Iterable
+            The renewable energy generators.
+        """
+
         loads, gens = [], []
 
         for idx, dev_type in enumerate(dev_types):
@@ -385,9 +422,8 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        action : tuple of numpy.ndarray
+        action : numpy.ndarray
             The action to take which will not modify the state.
-
         """
 
         P_curt_bounds = self.action_space.high[0: self.action_lengths[0]]
@@ -404,7 +440,7 @@ class ANMEnv(gym.Env):
         Parameters
         ----------
         soc_max : list of float
-            The maximum state of charge of each storage unit.
+            The maximum state of charge of each DES unit.
 
         Returns
         -------

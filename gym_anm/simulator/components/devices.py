@@ -22,6 +22,8 @@ class Device(object):
         The constant ratio of reactive over real power injection.
     p_min, p_max, q_min, q_max : float
         The minimum and maximum real (MW) and reactive (MVAr) power injections.
+    pc1, pc2, qc1_min, qc1_max, qc2_min, qc2_max : float
+        The bounds describing the (P, Q) region of operation of the device.
     soc_min, soc_max : float
         The minimum and maximum state of charge (MWh) if the device is a storage
         unit; None otherwise.
@@ -35,7 +37,7 @@ class Device(object):
         The sole and offset of the leading line constraining the (P, Q) region of
         operation of the device.
     is_slack : bool
-        True if the device is connected to the slack bus, False otherwise.
+        True if the device is connected to the slack bus; False otherwise.
     p, q : float
         The current real (MW) and reactive (MVAr) power injection from the device.
     soc : float
@@ -56,8 +58,9 @@ class Device(object):
             The device unique ID.
         dev_spec_id : int
             The unique ID specific to the subset of devices of the same type.
-        dev_case : array_like
-            The corresponding device row in the case file describing the network.
+        dev_case : numpy.ndarray
+            The corresponding device row in the network file describing the
+            network.
         """
 
         self.dev_id = dev_id
@@ -84,7 +87,7 @@ class Device(object):
             self.soc_min, self.soc_max = None, None
             self.eff = None
 
-        if not self.dev_id:
+        if not self.type:
             self.is_slack = True
         else:
             self.is_slack = False
@@ -138,8 +141,9 @@ class Load(Device):
             The unique device ID.
         load_id : int
             The unique load ID.
-        dev_case : array_like
-            The corresponding device row in the case file describing the network.
+        dev_case : numpy.ndarray
+            The corresponding device row in the network file describing the
+            network.
         """
 
         super().__init__(dev_id, load_id, dev_case)
@@ -167,12 +171,12 @@ class Generator(Device):
             The unique device ID.
         gen_id : int
             The unique generator ID.
-        dev_case : array_like
-            The corresponding device row in the case file describing the network.
+        dev_case : numpy.ndarray
+            The corresponding device row in the network file describing the
+            network.
         """
 
         super().__init__(dev_id, gen_id, dev_case)
-
 
     def compute_pq(self, p_init, q_init=None):
         # docstring inherited
@@ -234,16 +238,16 @@ class Storage(Device):
             The unique device ID.
         su_id : int
             The unique storage unit iD.
-        dev_case : array_like
-            The corresponding device row in the case file describing the network.
+        dev_case : numpy.ndarray
+            The corresponding device row in the network file describing the
+            network.
         """
 
         super().__init__(dev_id, su_id, dev_case)
 
     def manage(self, alpha_setpoint, delta_t, q_setpoint):
         """
-        Compute the (P, Q) injection point and update the SoC of the storage
-        unit.
+        Compute the (P, Q) injection point and update the SoC.
 
         Parameters
         ----------

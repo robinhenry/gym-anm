@@ -9,6 +9,8 @@ class Bus(object):
     ----------
     id : int
         The bus unique ID.
+    baseKV : float
+        The base voltage of the region (kV).
     type : int
         The bus type (1 = PQ, 2 = PV, 3 = slack).
     is_slack : bool
@@ -30,9 +32,7 @@ class Bus(object):
         Parameters
         ----------
         bus_case : array_like
-            The corresponding bus row in the case file describing the network.
-        is_slak : bool, optional
-            True the bus is the slack bus, False otherwise.
+            The corresponding bus row in the network file describing the network.
         """
 
         self.id = int(bus_case[BUS_H['BUS_I']])

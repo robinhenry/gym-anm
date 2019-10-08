@@ -39,8 +39,9 @@ class TransmissionLine(object):
         """
         Parameters
         ----------
-        br_case : array_like
-            The corresponding branch row in the case file describing the network.
+        br_case : numpy.ndarray
+            The corresponding branch row in the network file describing the
+            network.
         baseMVA : int
             The base power of the system (MVA).
         """
