@@ -5,11 +5,8 @@ SIMULATOR
     - case file structure
     - obs values
     - check output of init_vre(), init_load(), init_soc()
-- implement use of fixed generator (e.g. power plant)
 
 ANM-ENV
-- transform observation (and action?) space to be Box instead of Tuple
-- 
 
 TESTS
 - write tests for gym env
@@ -28,6 +25,10 @@ DOCUMENTING
 - document __init__ files
 - add module docstrings
 - how to reuse parent's attributes in docstring
+
+DOCS
+- add webpage
+- build documentation
 
 OBJECTIVES
 

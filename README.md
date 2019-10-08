@@ -1,4 +1,4 @@
-**Status:** Active (under active development, breaking changes may occur)
+**Status:** Active (under active development, breaking changes may occur).
 
 
 # gym-anm
@@ -54,8 +54,9 @@ coverage html
 ## General task<a name="general_task"></a>
 
 Each environment built on top of `gym-anm` implements the same general active 
-network management task in a specific electricity distribution network (see 
-[`gym_anm/envs/anm_env.py`](gym_anm/envs/anm_env.py)). 
+network management task (see 
+[`gym_anm/envs/anm_env.py`](gym_anm/envs/anm_env.py)) in a specific 
+electricity distribution network.
 The agent's goal consists in minimizing total energy losses while satisfying 
 operating network constraints. <br>
 

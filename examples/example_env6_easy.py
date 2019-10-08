@@ -80,7 +80,7 @@ if __name__ == '__main__':
     obs = env.reset()
 
     for i in range(24*4*365*5):
-        env.render(sleep_time=.3)
+        # env.render(sleep_time=.3)
 
         a = null_agent()
         # a = agent(env.time)
