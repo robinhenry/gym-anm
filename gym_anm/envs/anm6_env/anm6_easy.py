@@ -1,6 +1,7 @@
 from gym_anm.envs.anm6_env.anm6 import ANM6
 
 class ANM6Easy(ANM6):
+
     def __init__(self):
         super().__init__()
 

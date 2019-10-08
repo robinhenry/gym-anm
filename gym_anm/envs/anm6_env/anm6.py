@@ -7,10 +7,32 @@ import pandas as pd
 from gym_anm.constants import RENDERED_NETWORK_SPECS, RENDERED_STATE_VALUES
 from gym_anm.envs import ANMEnv
 from gym_anm.envs.anm6_env.rendering.py import rendering
-from .network import network
+from gym_anm.envs.anm6_env.network import network
 
 
 class ANM6(ANMEnv):
+    """
+    This class implements a 6-bus gym-anm environment.
+
+    The structure of the electricity distribution network used for this
+    environment is shown below:
+
+    Slack ---------------------------
+            |            |           |
+          -----       -------      -----
+         |     |     |       |    |     |
+        House  PV  Factory  Wind  EV   DES
+
+    This environment has an observation space containing the real and reactive
+    power injection, P and Q, of each device (7) and the state of charge (SoC)
+    of the DES unit => 15 dimensional space.
+
+    The interval of time between consecutive time steps are taken as 15
+    minutes, to mimic the management of real distribution networks.
+
+    This environment supports rendering (web-based) through the functions
+    render(), replay(), and close().
+    """
 
     metadata = {'render.modes': ['human', 'save']}
 
@@ -32,14 +54,21 @@ class ANM6(ANMEnv):
         mode : {'human', 'save'}, optional
             The mode of rendering. If 'human', the environment is rendered while
             the agent interacts with it. If 'save', the state history is saved
-            for later visualization.
+            for later visualization using the function replay().
         sleep_time : float, optional
-            The sleeping time between two visualization updates.
+            The sleeping time between two visualization updates, only used if
+            mode == 'human'.
 
         Raises
         ------
         NotImplementedError
             If a non-valid mode is specified.
+
+        Notes
+        -----
+        When using mode == 'save', do not forget to call close() to stop
+        saving the history of interactions. If no call to close() is made,
+        the history will not be saved.
 
         See Also
         --------
@@ -55,6 +84,7 @@ class ANM6(ANMEnv):
             else:
                 raise NotImplementedError
 
+            # Render the initial image of the distribution network.
             self.render_mode = mode
             specs = [list(self.network_specs[s]) for s in RENDERED_NETWORK_SPECS]
             self._init_render(specs)
@@ -89,9 +119,8 @@ class ANM6(ANMEnv):
 
         if self.render_mode in ['human', 'replay']:
             rendering.write_html()
-            self.http_server, self.ws_server = rendering.start(
-                title,
-                *network_specs)
+            self.http_server, self.ws_server = \
+                rendering.start(title, *network_specs)
 
         elif self.render_mode == 'save':
             s = pd.Series({'title': title, 'specs': network_specs})
@@ -219,7 +248,7 @@ class ANM6(ANMEnv):
         ----------
         path : str, optional
             The path to the file to store the state history, only used if
-            `render_mode` is 'save'.
+            `render_mode` == 'save'.
 
         Returns
         -------

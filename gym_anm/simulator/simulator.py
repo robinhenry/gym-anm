@@ -58,11 +58,11 @@ class Simulator(object):
         Simulate a transition of the system from time t to time (t+1).
     """
 
-    def __init__(self, case, delta_t=15, lamb=1e3):
+    def __init__(self, network, delta_t=15, lamb=1e3):
         """
         Parameters
         ----------
-        case : dict of numpy.ndarray
+        network : dict of {str : numpy.ndarray}
             A network dictionary describing the power grid.
         delta_t : int, optional
             The interval of time between two consecutive time steps (in minutes).
@@ -72,13 +72,13 @@ class Simulator(object):
         """
 
         # Check the correctness of the input case file.
-        utils.check_network_file(case)
+        utils.check_network_file(network)
 
         self.time_factor = delta_t / 60.
         self.lamb = lamb
 
         # Load network case.
-        self._load_case(case)
+        self._load_case(network)
 
         # Number of elements in all sets.
         self.N_bus = len(self.buses)
