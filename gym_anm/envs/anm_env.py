@@ -5,6 +5,7 @@ import numpy as np
 import datetime as dt
 
 from gym_anm.simulator import Simulator
+from gym_anm.envs import utils
 
 
 class ANMEnv(gym.Env):
@@ -102,6 +103,8 @@ class ANMEnv(gym.Env):
         self.timestep_length = dt.timedelta(minutes=delta_t)
         self.year = 2019
 
+        # Set the observation space for the environment.
+        utils.check_obs_values(obs_values)
         self.obs_values = obs_values
 
         # Initialize AC power grid simulator.
@@ -165,7 +168,7 @@ class ANMEnv(gym.Env):
                 lower_bounds.append(network_specs['QMIN_BUS'])
                 upper_bounds.append(network_specs['QMAX_BUS'])
 
-            elif name == 'V_BUS':
+            elif name == 'V_MAGN_BUS':
                 lower_bounds.append(network_specs['VMIN_BUS'])
                 upper_bounds.append(network_specs['VMAX_BUS'])
 
@@ -185,6 +188,12 @@ class ANMEnv(gym.Env):
             elif name == 'SOC':
                 lower_bounds.append(network_specs['SOC_MIN'])
                 upper_bounds.append(network_specs['SOC_MAX'])
+
+            elif name in ['P_BR_F', 'P_BR_T', 'Q_BR_F', 'Q_BR_T', 'I_MAGN_F',
+                          'I_MAGN_T', 'S_FLOW']:
+                shape = network_specs['RATE'].shape
+                lower_bounds.append(- np.inf * np.ones(shape=shape))
+                upper_bounds.append(np.inf * np.ones(shape=shape))
 
             else:
                 raise ValueError('The type of observation ' + name
@@ -375,14 +384,15 @@ class ANMEnv(gym.Env):
         # Initialize stochastic processes.
         dev_specs = self._get_dev_specs()
         self.generators = self.init_dg(dev_specs[2], dev_specs[3],
-                                       self.time, self.timestep_length,
+                                       self.time, self.delta_t,
                                        self.np_random)
         self.loads = self.init_load(dev_specs[0], self.time,
-                                    self.timestep_length,
+                                    self.delta_t,
                                     self.np_random)
 
         # Reset the initial SoC of each storage unit.
         soc_start = self.init_soc(self.network_specs['SOC_MAX'])
+        utils.check_init_soc(soc_start, self.network_specs['SOC_MAX'])
         self.simulator.reset(soc_start)
 
         # Initialize simulator with an action that does nothing.

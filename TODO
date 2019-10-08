@@ -2,9 +2,7 @@ REFACTORING
 
 SIMULATOR
 - write checks for new environments
-    - case file structure
-    - obs values
-    - check output of init_vre(), init_load(), init_soc()
+    - check output of init_vre(), init_load()
 
 ANM-ENV
 
@@ -33,3 +31,9 @@ DOCS
 OBJECTIVES
 
 QUESTIONS
+
+
+PAPER
+
+
+

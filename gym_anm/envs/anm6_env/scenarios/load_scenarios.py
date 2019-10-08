@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from calendar import monthrange
 import datetime as dt
+import numpy as np
 
 
 class LoadGenerator(object):
@@ -39,7 +40,9 @@ class LoadGenerator(object):
         diff = self.day_curve[t - 1] - self.prev_p
         noise = self.np_random.normal(loc=diff, scale=self.scale)
 
+        # Add random noise.
         self.prev_p += noise
+        self.prev_p = np.maximum(0, np.minimum(1, self.prev_p))
 
         # Increment the current time.
         self.date += dt.timedelta(minutes=self.delta_t)

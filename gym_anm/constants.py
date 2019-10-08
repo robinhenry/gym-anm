@@ -17,3 +17,9 @@ GRID_SPECS = ['PMIN_BUS', 'PMAX_BUS', 'QMIN_BUS', 'QMAX_BUS', 'VMIN_BUS',
 ### Rendered values ###
 RENDERED_NETWORK_SPECS = ['DEV_TYPE', 'PMIN_DEV', 'PMAX_DEV', 'SMAX_BR', 'SOC_MAX']
 RENDERED_STATE_VALUES = ['P_DEV', 'S_FLOW', 'SOC']
+
+
+### Possible variables to use in observation space ###
+OBSERVATION_VALUES = ['P_BUS', 'Q_BUS', 'V_MAGN_BUS', 'P_DEV', 'Q_DEV', 'SOC',
+                      'P_BR_F', 'P_BR_T', 'Q_BR_F', 'Q_BR_T', 'I_MAGN_F',
+                      'I_MAGN_T', 'S_FLOW']

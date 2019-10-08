@@ -1,53 +1,71 @@
+import warnings
 import numpy as np
 
-from gym_anm.constants import BUS_H, DEV_H
+from gym_anm.constants import BUS_H, DEV_H, BRANCH_H
 
 
 def check_casefile(case):
 
-    buses = case['bus']
-    gen = case['gen']
+    _check_buses(case['bus'])
+    _check_branches(case['branch'])
+    _check_devices(case['device'])
 
-    # Check if there is exactly 1 slack bus, as specified in the case file.
+
+def _check_buses(buses):
+
+    # Check that there is exactly 1 slack bus.
     if np.sum(buses[:, BUS_H['BUS_TYPE']] == 3) != 1:
-        raise ValueError('There should be exactly one slack bus, '
-                         'as specified in the TYPE field of case["bus"].')
+        raise ValueError('There should be exactly one bus with BUS_TYPE == 3 '
+                         'in the network file, i.e. 1 slack bus.')
 
-    # Check the correctness of the slack bus specifications and get its
-    # fixed voltage magnitude.
-    if buses[0, BUS_H['BUS_TYPE']] == 3:
+    # Check that all other buses are of type PQ.
+    if np.sum(buses[:, BUS_H['BUS_TYPE']] == 1) != (buses.shape[0] - 1):
+        raise ValueError('All buses, except the slack bus, should have '
+                         'BUS_TYPE == 1 in the network file; only PV buses are '
+                         'supported at this point.')
 
-        # Check devices that are given as PV variables (fixed P and |V|).
-        # There should be exactly one such device (the slack bus) and it
-        # should be the first bus in the input file list. An error is
-        # raised otherwise.
+    # Check that the slack bus has a fixed voltage point.
+    if buses[buses[:, BUS_H['BUS_TYPE']] == 3, BUS_H['VMAX']] != buses[
+        buses[:, BUS_H['BUS_TYPE']] == 3, BUS_H['VMIN']]:
+        raise ValueError('The slack bus should have VMAX == VMIN in the '
+                         'network file.')
 
-        # Check if there is exactly one PV generator.
-        if np.sum(gen[:, DEV_H['VG']] != 0.) != 1:
-            raise ValueError('There should be exactly 1 PV generator '
-                             'connected to the slack (first) bus.')
 
-        # Check if the PV generator is the first one in the list of
-        # generators specified.
-        if gen[0, DEV_H['VG']] == 0.:
-            raise ValueError('The first generator in the input file should '
-                             'be a PV generator, connected to the slack '
-                             'bus.')
-        # Check if there is exactly 1 slack device specified in the
-        # VRE_TYPE column and it is the first one.
-        if np.sum(gen[:, DEV_H['VRE_TYPE']] == 0.) != 1 \
-                or gen[0, DEV_H['VRE_TYPE']] != 0.:
-            raise ValueError('The first device in the case.gen table '
-                             'should have VRE_TYPE == 0. to signify slack '
-                             'bus, and no other device should.')
+def _check_branches(branches):
 
-    else:
-        raise ValueError("The slack bus of the test case must be specified "
-                         "as the first bus in the input file. case['bus']["
-                         "0, 1] == 3 should be true.")
+    # Warn the user if RATE == 0.
+    for idx, branch in enumerate(branches):
+        if branch[BRANCH_H['RATE']] < 0:
+            raise ValueError(f'The rate of branch {idx} is < 0 in the network '
+                             f'file.')
+        if branch[BRANCH_H['RATE']] == 0:
+            warnings.warn(f'The rate of branch {idx} is 0 in the network file.')
 
-    # Check that the set-point voltage magnitude at the slack bus
-    # seems coherent.
-    if (self.V_magn_slack < 0.5) or (self.V_magn_slack > 1.5):
-        warnings.warn("Warning: voltage magnitude (" + str(self.V_magn_slack)
-                      + ") at the slack bus does not seem coherent.")
+
+def _check_devices(devices):
+
+    # Check that there is exactly 1 slack device.
+    if np.sum(devices[:, DEV_H['DEV_TYPE']] == 0) != 1:
+        raise ValueError('There should only be 1 device with DEV_TYPE == 0 in '
+                         'the network file, i.e. only 1 slack device.')
+
+    # Check that no Power Plant device is specified - unsupported yet.
+    if np.any(devices[:, DEV_H['DEV_TYPE']] == 1):
+        raise NotImplementedError('The device type DEV_TYPE == 1 (power '
+                                  'plant) is not supported yet.')
+
+    for idx, dev in enumerate(devices):
+
+        # Warn the user if a Q/P ratio is provided for slack or DES devices.
+        if dev[DEV_H['DEV_TYPE']] == 0 or dev[DEV_H['DEV_TYPE']] == 4:
+            if dev[DEV_H['Q/P']] != 0:
+                warnings.warn(f'Device {idx}: the Q/P ratio value will not be '
+                              f'used for device with DEV_TYPE == '
+                              f'{dev[DEV_H["DEV_TYPE"]]}.')
+
+        # Warn the user if QMAX, QMIN values are specified for load devices.
+        if dev[DEV_H['DEV_TYPE']] == -1:
+            if dev[DEV_H['QMAX']] != 0. or dev[DEV_H['QMIN']] != 0:
+                warnings.warn(f'Device {idx}: a value for VMAX or VMIN has '
+                              f'been specified in the network file but will '
+                              f'not be used.')

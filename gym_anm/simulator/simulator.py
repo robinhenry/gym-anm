@@ -4,6 +4,7 @@ import scipy.optimize as optimize
 from gym_anm.simulator.components import Load, TransmissionLine, \
     PowerPlant, Storage, VRE, Bus
 from gym_anm.constants import DEV_H, BRANCH_H
+from gym_anm.simulator import utils
 
 
 class Simulator(object):
@@ -68,7 +69,7 @@ class Simulator(object):
         """
 
         # Check the correctness of the input case file.
-        #utils.check_casefile(case)
+        utils.check_casefile(case)
 
         self.time_factor = delta_t / 60.
         self.lamb = lamb

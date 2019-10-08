@@ -43,7 +43,7 @@ import numpy as np
 # SHIFT: transformer phase shit angle (degrees), positive => delay.
 # BR_STATUS: branch status, 1 = in service, 0 = out-of-service.
 
-network = {"version": "ANM"}
+network = {"versiond": "ANM"}
 
 network["baseMVA"] = 100.0
 

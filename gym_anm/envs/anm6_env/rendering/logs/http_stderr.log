@@ -1,17 +1,26 @@
-127.0.0.1 - - [03/Oct/2019 10:25:14] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
-127.0.0.1 - - [03/Oct/2019 10:25:14] "GET /envs/anm6_env/rendering/envs/anm6/network.svg HTTP/1.1" 200 -
-127.0.0.1 - - [03/Oct/2019 10:25:15] code 404, message File not found
-127.0.0.1 - - [03/Oct/2019 10:25:15] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [08/Oct/2019 11:57:46] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
 Process http_server:
 Traceback (most recent call last):
-  File "/anaconda3/envs/anm-agents/lib/python3.7/multiprocessing/process.py", line 297, in _bootstrap
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/multiprocessing/process.py", line 258, in _bootstrap
     self.run()
-  File "/anaconda3/envs/anm-agents/lib/python3.7/multiprocessing/process.py", line 99, in run
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/multiprocessing/process.py", line 93, in run
     self._target(*self._args, **self._kwargs)
   File "/Users/robin/Code/ULG_2019/gym-anm/gym_anm/envs/anm6_env/rendering/py/servers.py", line 184, in _start_http_server
     httpd.serve_forever()
-  File "/anaconda3/envs/anm-agents/lib/python3.7/socketserver.py", line 232, in serve_forever
-    ready = selector.select(poll_interval)
-  File "/anaconda3/envs/anm-agents/lib/python3.7/selectors.py", line 415, in select
-    fd_event_list = self._selector.poll(timeout)
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socketserver.py", line 241, in serve_forever
+    self._handle_request_noblock()
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socketserver.py", line 320, in _handle_request_noblock
+    self.process_request(request, client_address)
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socketserver.py", line 351, in process_request
+    self.finish_request(request, client_address)
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socketserver.py", line 364, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socketserver.py", line 724, in __init__
+    self.handle()
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/http/server.py", line 418, in handle
+    self.handle_one_request()
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/http/server.py", line 386, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+  File "/anaconda3/envs/gym-smartgrid/lib/python3.6/socket.py", line 586, in readinto
+    return self._sock.recv_into(b)
 KeyboardInterrupt
