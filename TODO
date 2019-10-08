@@ -1,8 +1,6 @@
 REFACTORING
 
 SIMULATOR
-- write checks for new environments
-    - check output of init_vre(), init_load()
 
 ANM-ENV
 

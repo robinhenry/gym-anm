@@ -22,4 +22,18 @@ def random_date(np_random, year=2019):
     return dt.datetime(year, 1, 1) + random_day
 
 def dt_to_minutes(delta):
+    """
+    Convert a `datetime.timedelta` object into seconds.
+
+    Parameters
+    ----------
+    delta : `datetime.timedelta`
+        The interval of time to transform into seconds.
+
+    Returns
+    -------
+    int
+        The interval of time in seconds.
+    """
+
     return delta.seconds // 60 % 60

@@ -56,3 +56,11 @@ def check_init_soc(soc_init, soc_max):
     else:
         raise TypeError('The return value of init_soc(soc_max) should be a '
                         'list or None.')
+
+
+def check_load_dg_iterators(iterators, dev_specs):
+    n_stoc_processes = len(dev_specs)
+
+    if len(iterators) != n_stoc_processes:
+        raise ValueError(f'The return value of init_dg_load(...) should be a '
+                         f'list of size {n_stoc_processes}.')

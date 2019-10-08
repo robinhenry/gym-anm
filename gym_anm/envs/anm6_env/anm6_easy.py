@@ -4,27 +4,18 @@ class ANM6Easy(ANM6):
     def __init__(self):
         super().__init__()
 
-    def init_load(self, load_pmax, init_date, delta_t, np_random):
-        scenario1 = [-2, -20, 0]
-        scenario2 = [-5, -10, -25]
-        scenario3 = [-1, -4, 0]
+    def init_dg_load(self, pmax, init_date, delta_t, np_random):
+        house = [-2, -5, -1]
+        pv = [30, 4, 0]
+        factory = [-20, -10, -4]
+        wind = [40, 11, 40]
+        ev = [0, -25, 0]
 
-        loads = []
-        for i in range(len(scenario1)):
-            loads.append(self._constant_generator(scenario1[i], scenario2[i],
-                                                  scenario3[i]))
-        return loads
+        iterators = []
+        for case in [house, pv, factory, wind, ev]:
+            iterators.append(self._constant_generator(*case))
 
-    def init_dg(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
-        scenario1 = [30, 40]
-        scenario2 = [4, 11]
-        scenario3 = [0, 40]
-
-        vres = []
-        for i in range(len(scenario1)):
-            vres.append(self._constant_generator(scenario1[i], scenario2[i],
-                                                  scenario3[i]))
-        return vres
+        return iterators
 
     def init_soc(self, soc_max):
         return [s / 2. for s in soc_max]

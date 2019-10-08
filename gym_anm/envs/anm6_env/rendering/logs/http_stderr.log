@@ -1,4 +1,4 @@
-127.0.0.1 - - [08/Oct/2019 11:57:46] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
+127.0.0.1 - - [08/Oct/2019 12:49:37] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
 Process http_server:
 Traceback (most recent call last):
   File "/anaconda3/envs/gym-smartgrid/lib/python3.6/multiprocessing/process.py", line 258, in _bootstrap

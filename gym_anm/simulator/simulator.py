@@ -9,49 +9,52 @@ from gym_anm.simulator import utils
 
 class Simulator(object):
     """
-    A simulator of a single-phase AC electricity distribution network.
+    A simulator of an AC electricity distribution network.
 
     Attributes
     ----------
-    time_factor : float
-        The fraction of an hour corresponding to the time interval between two
-        consecutive time steps, e.g. 0.25 means an interval of 15 minutes.
-    lamb : int
-        A penalty factor associated with violating operating constraints.
     baseMVA : int
         The base power of the system (MVA).
-    buses : dict of {int : `Bus`}
-        The buses of the grid, where for each {key: value} pair, the key is a
-        unique bus ID.
     branches : dict of {int : `TransmissionLine`}
         The transmission lines of the grid, where for each {key: value} pair, the
         key is a unique transmission line ID.
+    buses : dict of {int : `Bus`}
+        The buses of the grid, where for each {key: value} pair, the key is a
+        unique bus ID.
     gens : dict of {int : `Generator`}
         The generators of the grid, where for each {key: value} pair, the key is
         a unique generator ID. The slack bus is *not* included.
+    lamb : int
+        A penalty factor associated with violating operating constraints.
+    loads : dict of {int : `Load`}
+        The passive loads of the grid, where for each {key: value} pair,
+        the key is a unique load ID.
+    N_bus, N_branch, N_load, N_device, N_storage, N_gen : int
+        The number of elements in each set (including slack bus and device).
+    slack_dev : `Generator`
+        The single generator connected to the slack bus.
+    specs : dict of {str : list}
+        The operating characteristics of the network.
+    state : dict of {str : numpy.ndarray}
+        The current state of the system.
     storages : dict of {int : `Storage`}
         The storage units of the grid, where for each {key: value} pair, the key
         is a unique storage unit ID.
-    slack_dev : `Generator`
-        The single generator connected to the slack bus.
-    N_bus, N_branch, N_load, N_device, N_storage : int
-        The number of elements in each set (including slack bus and device).
-    Y_bus : 2D numpy.ndarray
+    time_factor : float
+        The fraction of an hour corresponding to the time interval between two
+        consecutive time steps, e.g. 0.25 means an interval of 15 minutes.
+    Y_bus : numpy.ndarray
         The nodal admittance matrix of the network.
-    specs : dict of {str : list}
-        The operating characteristics of the network.
-    state : dict of {str : array_like}
-        The current state of the system.
 
     Methods
     -------
-    reset()
+    reset(init_soc)
         Reset the simulator.
     get_network_specs()
         Get the operating characteristics of the network.
     get_action_space()
         Get the control action space available.
-    transition(P_load, P_potential, P_curt_limit, alpha_setpoint, Q_storage)
+    transition(P_load, P_potential, P_curt_limit, desired_alpha, Q_storage)
         Simulate a transition of the system from time t to time (t+1).
     """
 
@@ -59,8 +62,8 @@ class Simulator(object):
         """
         Parameters
         ----------
-        case : dict of array_like
-            A case dictionary describing the power grid.
+        case : dict of numpy.ndarray
+            A network dictionary describing the power grid.
         delta_t : int, optional
             The interval of time between two consecutive time steps (in minutes).
         lamb : int, optional
@@ -69,7 +72,7 @@ class Simulator(object):
         """
 
         # Check the correctness of the input case file.
-        utils.check_casefile(case)
+        utils.check_network_file(case)
 
         self.time_factor = delta_t / 60.
         self.lamb = lamb
@@ -94,9 +97,21 @@ class Simulator(object):
         # Summarize the operating range of the network.
         self.specs = self.get_network_specs()
 
+        self.state = None
+
     def _load_case(self, case):
         """
-        Initialize the network model based on parameters given in a case file.
+        Initialize the network model based on parameters given in a network file.
+
+        Parameters
+        ----------
+        case : dict of numpy.ndarray
+            A network dictionary describing the power grid.
+
+        Raises
+        ------
+        ValueError
+            When the feature DEV_TYPE of a device is not valid.
         """
 
         self.baseMVA = case['baseMVA']
@@ -122,10 +137,6 @@ class Simulator(object):
 
                 elif dev_type == 0:
                     self.slack_dev = PowerPlant(dev_idx, 0, dev)
-
-                elif dev_type == 1:
-                    self.gens[dev_idx] = PowerPlant(dev_idx, gen_idx, dev)
-                    gen_idx += 1
 
                 elif dev_type == 2 or dev_type == 3:
                     self.gens[dev_idx] = VRE(dev_idx, gen_idx, dev)
@@ -297,7 +308,8 @@ class Simulator(object):
         The bounds returned by this function are loose, i_from.e. some parts of
         those spaces might be physically impossible to achieve due to other
         operating constraints. This is just an indication of the range of action
-        available to the DSO.
+        available to the DSO. Whenever an action is taken through the transition(
+        ) function, it gets mapped onto the set of physically feasible actions.
         """
 
         P_curt_bounds = []

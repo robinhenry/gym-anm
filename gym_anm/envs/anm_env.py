@@ -206,64 +206,21 @@ class ANMEnv(gym.Env):
         return obs_space
 
     def _get_dev_specs(self):
-        """
-        Extract the operating constraints of loads and VRE devices.
-
-        Returns
-        -------
-        load, power_plant, solar : dict of {int : float}
-            A dictionary of {key : value}, where the key is the device unique ID
-            and the value the maximum real power injection of the corresponding
-            device (negative for loads).
-        """
-
-        load, power_plant, wind, solar = {}, {}, {}, {}
+        pmax = []
         for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
             p_max = self.network_specs['PMAX_DEV'][idx]
             p_min = self.network_specs['PMIN_DEV'][idx]
             if dev_type == -1:
-                load[idx] = p_min
-            elif dev_type == 1:
-                power_plant[idx] = p_max
-            elif dev_type == 2:
-                wind[idx] = p_max
-            elif dev_type == 3:
-                solar[idx] = p_max
+                pmax.append((dev_type, p_min))
+            elif dev_type in [1, 2, 3]:
+                pmax.append((dev_type, p_max))
 
-        return load, power_plant, wind, solar
+        return pmax
 
-    def init_dg(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
-        """
+    def init_dg_load(self, pmax, init_date, delta_t, np_random):
 
-        Parameters
-        ----------
-        wind_pmax
-        solar_pmax
-        delta_t
-        np_random
-
-        Returns
-        -------
-
-        """
-        raise NotImplementedError('The function init_dg() should be implemented'
-                                  ' by the subclass.')
-
-    def init_load(self, load_pmax, init_date, delta_t, np_random):
-        """
-
-        Parameters
-        ----------
-        load_pmax
-        delta_t
-        np_random
-
-        Returns
-        -------
-
-        """
-        raise NotImplementedError('The function init_load() should be implemented'
-                                  ' by the subclass.')
+        raise NotImplementedError('The function init_dg_load() should be '
+                                  'implemented by the subclass.')
 
     def step(self, action):
         """
@@ -383,12 +340,13 @@ class ANMEnv(gym.Env):
 
         # Initialize stochastic processes.
         dev_specs = self._get_dev_specs()
-        self.generators = self.init_dg(dev_specs[2], dev_specs[3],
-                                       self.time, self.delta_t,
-                                       self.np_random)
-        self.loads = self.init_load(dev_specs[0], self.time,
-                                    self.delta_t,
-                                    self.np_random)
+        iterators = self.init_dg_load(dev_specs, self.time, self.delta_t,
+                                      self.np_random)
+        utils.check_load_dg_iterators(iterators, dev_specs)
+
+        # Separate loads and generators.
+        self.loads, self.generators = \
+            self._separate_load_dg(iterators, [t for (t, p) in dev_specs])
 
         # Reset the initial SoC of each storage unit.
         soc_start = self.init_soc(self.network_specs['SOC_MAX'])
@@ -407,6 +365,19 @@ class ANMEnv(gym.Env):
         obs = self._get_observations()
 
         return obs
+
+    def _separate_load_dg(self, iterators, dev_types):
+        loads, gens = [], []
+
+        for idx, dev_type in enumerate(dev_types):
+            if dev_type == -1:
+                loads.append(iterators[idx])
+            elif dev_type in [1, 2, 3]:
+                gens.append(iterators[idx])
+            else:
+                raise ValueError('This type of device is not supported.')
+
+        return loads, gens
 
     def _init_action(self):
         """

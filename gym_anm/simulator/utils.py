@@ -4,7 +4,21 @@ import numpy as np
 from gym_anm.constants import BUS_H, DEV_H, BRANCH_H
 
 
-def check_casefile(case):
+def check_network_file(case):
+    """
+    Check that the input network file follows the required structure.
+
+    Parameters
+    ----------
+    case : dict of numpy.ndarray
+
+    Raises
+    ------
+    ValueError
+        If the network file does not follow the required structure.
+    NotImplementedError
+        If the network file contains devices of unsupported type.
+    """
 
     _check_buses(case['bus'])
     _check_branches(case['branch'])
@@ -12,6 +26,11 @@ def check_casefile(case):
 
 
 def _check_buses(buses):
+    """ Check the structure of the input BUS array. """
+
+    # Check that the array if of the right shape.
+    if buses.shape[1] != 5:
+        raise ValueError('network["BUS"] should have 5 columns.')
 
     # Check that there is exactly 1 slack bus.
     if np.sum(buses[:, BUS_H['BUS_TYPE']] == 3) != 1:
@@ -32,6 +51,11 @@ def _check_buses(buses):
 
 
 def _check_branches(branches):
+    """ Check the structure of the input BRANCH array. """
+
+    # Check that the array if of the right shape.
+    if branches.shape[1] != 9:
+        raise ValueError('network["BRANCH"] should have 9 columns.')
 
     # Warn the user if RATE == 0.
     for idx, branch in enumerate(branches):
@@ -43,6 +67,11 @@ def _check_branches(branches):
 
 
 def _check_devices(devices):
+    """ Check the structure of the input DEVICE array. """
+
+    # Check that the array if of the right shape.
+    if devices.shape[1] != 16:
+        raise ValueError('network["DEVICE"] should have 16 columns.')
 
     # Check that there is exactly 1 slack device.
     if np.sum(devices[:, DEV_H['DEV_TYPE']] == 0) != 1:

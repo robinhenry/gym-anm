@@ -9,44 +9,42 @@ class ANM6Hard(ANM6):
     def __init__(self):
         super().__init__()
 
-    def init_load(self, load_pmax, init_date, delta_t, np_random):
-        folder_house = os.path.join(os.path.dirname(__file__), 'scenarios',
+    def init_dg_load(self, pmax, init_date, delta_t, np_random):
+
+        folder_house_ev = os.path.join(os.path.dirname(__file__), 'scenarios',
                                     'data_demand_curves', 'house')
         folder_factory = os.path.join(os.path.dirname(__file__), 'scenarios',
                                     'data_demand_curves', 'factory')
-        loads = []
 
-        for dev_idx, p_max in sorted(load_pmax.items()):
+        iterators = []
+        for idx, dev in enumerate(pmax):
+            dev_type, p_max = dev
 
-            # Assign the folder corresponding to the kind of load.
-            if dev_idx in [1, 5]:
-                folder = folder_house
-            elif dev_idx in [3]:
-                folder = folder_factory
+            if dev_type == -1:
+
+                # Assign the folder corresponding to the kind of load.
+                if idx in [0, 4]:  # shifted by 1 because slack bus is not here.
+                    folder = folder_house_ev
+                elif idx == 2:
+                    folder = folder_factory
+                else:
+                    raise ValueError('The device ID does not match.')
+
+                new_dev = LoadGenerator(folder, init_date, delta_t, np_random,
+                                        p_max)
+
+            elif dev_type == 2:
+                new_dev = WindGenerator(init_date, delta_t, np_random, p_max)
+
+            elif dev_type == 3:
+                new_dev = SolarGenerator(init_date, delta_t, np_random, p_max)
+
             else:
-                raise ValueError('The device ID does not match.')
+                raise ValueError('Device type is not supported.')
 
-            new_load = LoadGenerator(folder, init_date, delta_t, np_random,
-                                     p_max)
-            loads.append(new_load)
+            iterators.append(new_dev)
 
-        return loads
-
-    def init_dg(self, wind_pmax, solar_pmax, init_date, delta_t, np_random):
-        vres = {}
-
-        for dev_id, p_max in sorted(wind_pmax.items()):
-            vres[dev_id] = WindGenerator(init_date, delta_t, np_random, p_max)
-
-        for dev_id, p_max in sorted(solar_pmax.items()):
-            vres[dev_id] = SolarGenerator(init_date, delta_t, np_random, p_max)
-
-        # Transform the dictionary into a list, ordered by device index.
-        vres_lst = []
-        for dev_id in sorted(vres.keys()):
-            vres_lst.append(vres[dev_id])
-
-        return vres_lst
+        return iterators
 
     def init_soc(self, soc_max):
         return None
