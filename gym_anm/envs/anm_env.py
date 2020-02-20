@@ -120,12 +120,19 @@ class ANMEnv(gym.Env):
         self.network_specs = self.simulator.specs
 
         # Build action and observation spaces.
-        self.action_space, self.action_lengths = self._build_action_space()
+        self.action_space, self.action_lengths, self.action_high, \
+            self.action_low = self._build_action_space()
         self.observation_space = self._build_obs_space()
 
     def _build_action_space(self):
         """
         Build the available action space.
+
+        Notes
+        -----
+        The returned action space is normalized so that the environment accepts
+        actions in the range [-1, 1]. The conversion is then handled by the
+        environment.
 
         Returns
         -------
@@ -146,12 +153,14 @@ class ANMEnv(gym.Env):
                                        alpha_bounds[:, 0],
                                        q_bounds[:, 0]))
 
-        space = spaces.Box(low=lower_bounds, high=upper_bounds, dtype=np.float32)
+        space = spaces.Box(low=-np.ones_like(lower_bounds),
+                           high=np.ones_like(upper_bounds),
+                           dtype=np.float32)
 
         action_lengths = [P_curt_bounds.shape[0], alpha_bounds.shape[0],
                           q_bounds.shape[0]]
 
-        return space, action_lengths
+        return space, action_lengths, lower_bounds, upper_bounds
 
     def _build_obs_space(self):
         """
@@ -245,6 +254,11 @@ class ANMEnv(gym.Env):
         # Check if the action is in the available action space.
         assert self.action_space.contains(action), "%r (%s) invalid" \
                                                    % (action, type(action))
+
+        # Re-scale the normalized action from [-1, 1] to the actual action
+        # space.
+        action = (action + 1) * (self.action_high - self.action_low) / 2. \
+                 + self.action_low
 
         # Get the output of the stochastic processes (vre generation, loads).
         P_loads = [next(load) for load in self.loads]

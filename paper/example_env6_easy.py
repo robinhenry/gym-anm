@@ -69,7 +69,8 @@ def agent(time):
         p = p_su[2]
         q = q_su[2]
 
-    return np.array(curt), np.array([p]), np.array([q])
+    return np.concatenate((curt, [p], [q]))
+    #return np.array(curt), np.array([p]), np.array([q])
 
 def null_agent():
     return np.array([30, 50, 0, 0])
@@ -82,8 +83,8 @@ if __name__ == '__main__':
     for i in range(24*4*365*5):
         env.render(sleep_time=.3)
 
-        a = null_agent()
-        # a = agent(env.time)
+        # a = null_agent()
+        a = agent(env.time)
         obs, r, done, info = env.step(a)
         # print('Reward: ', r)
 
