@@ -122,7 +122,8 @@ class ANMEnv(gym.Env):
         # Build action and observation spaces.
         self.action_space, self.action_lengths, self.action_high, \
             self.action_low = self._build_action_space()
-        self.observation_space = self._build_obs_space()
+        self.observation_space, self.obs_low, self.obs_high, \
+            self.obs_space_bounded = self._build_obs_space()
 
     def _build_action_space(self):
         """
@@ -132,15 +133,21 @@ class ANMEnv(gym.Env):
         -----
         The returned action space is normalized so that the environment accepts
         actions in the range [-1, 1]. The conversion is then handled by the
-        environment.
+        environment in `step()`.
 
         Returns
         -------
         space : gym.spaces.Box
-            The action space of the environment.
+            The normalized action space of the environment.
         action_lengths : list of int
             The number of action variables for each type of action, e.g.
             [4, 2, 2] -> 4 renewable generators, 2 DES units.
+        lower_bounds : numpy.ndarray
+            The actual lower bounds on actions accepted by the power grid
+            simulator.
+        upper_bounds : numpy.ndarray
+            The actual upper bounds on actions accepted by the power grid
+            simulator.
         """
 
         P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
@@ -154,8 +161,7 @@ class ANMEnv(gym.Env):
                                        q_bounds[:, 0]))
 
         space = spaces.Box(low=-np.ones_like(lower_bounds),
-                           high=np.ones_like(upper_bounds),
-                           dtype=np.float32)
+                           high=np.ones_like(upper_bounds))
 
         action_lengths = [P_curt_bounds.shape[0], alpha_bounds.shape[0],
                           q_bounds.shape[0]]
@@ -166,10 +172,23 @@ class ANMEnv(gym.Env):
         """
         Build the observation space.
 
+        Notes
+        -----
+        1. The returned observation space is normalized so that the environment
+        emits observations in the range [-1, 1]. The conversion is handled
+        by the environment in `step()`.
+        2. For observations that are not
+
         Returns
         -------
         obs_space : gym.spaces.Box
-            The observation space of the environment.
+            The normalized observation space of the environment.
+        lower_bounds : numpy.ndarray
+            The actual lower bounds on observations emitted by the environment.
+        upper_bounds : numpy.ndarray
+            The actual upper bounds on observations emitted by the environment.
+        obs_space_bounded : bool
+            True if the non-scaled observation space is lower and upper bounded.
         """
 
         network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
@@ -197,11 +216,6 @@ class ANMEnv(gym.Env):
                 lower_bounds.append(network_specs['QMIN_DEV'])
                 upper_bounds.append(network_specs['QMAX_DEV'])
 
-            elif name == 'RATE':
-                shape = network_specs['RATE'].shape
-                lower_bounds.append(np.zeros(shape=shape))
-                upper_bounds.append(network_specs['RATE'])
-
             elif name == 'SOC':
                 lower_bounds.append(network_specs['SOC_MIN'])
                 upper_bounds.append(network_specs['SOC_MAX'])
@@ -216,11 +230,22 @@ class ANMEnv(gym.Env):
                 raise ValueError('The type of observation ' + name
                                  + 'is not supported.')
 
-        obs_space = spaces.Box(low=np.concatenate(lower_bounds),
-                               high=np.concatenate(upper_bounds),
-                               dtype=np.float32)
+        lower_bounds = np.concatenate(lower_bounds)
+        upper_bounds = np.concatenate(upper_bounds)
 
-        return obs_space
+        # Check if the non-normalized space is lower and upper bounded.
+        actual_space = spaces.Box(low=lower_bounds, high=upper_bounds)
+        obs_space_bounded = actual_space.is_bounded()
+
+        if obs_space_bounded:
+            obs_space = spaces.Box(low=-np.ones_like(lower_bounds),
+                                   high=np.ones_like(upper_bounds))
+        else:
+            print('Warning: the observation space was not normalized to [-1, 1]'
+                  'because it is not bounded.')
+            obs_space = actual_space
+
+        return obs_space, lower_bounds, upper_bounds, obs_space_bounded
 
     def init_dg_load(self, pmax, init_date, delta_t, np_random):
 
@@ -241,7 +266,7 @@ class ANMEnv(gym.Env):
         state_values : Tuple of array_like
             The observation corresponding to the new state s_{t+1}.
         reward : float
-            The rewar associated with the transition.
+            The reward associated with the transition.
         done : bool
             True if the episode is over, False otherwise.
         info : dict
@@ -257,8 +282,9 @@ class ANMEnv(gym.Env):
 
         # Re-scale the normalized action from [-1, 1] to the actual action
         # space.
-        action = (action + 1) * (self.action_high - self.action_low) / 2. \
-                 + self.action_low
+        action = utils.linear_scale(action, self.action_space.low,
+                                    self.action_space.high, self.action_low,
+                                    self.action_high)
 
         # Get the output of the stochastic processes (vre generation, loads).
         P_loads = [next(load) for load in self.loads]
@@ -281,6 +307,16 @@ class ANMEnv(gym.Env):
         # Create a tuple of observations.
         self.obs = self._get_observations()
 
+        # Linearly scale the observations to be in [-1, 1].
+        scaled_obs = utils.linear_scale(self.obs, self.obs_low,
+                                        self.obs_high,
+                                        self.observation_space.low,
+                                        self.observation_space.high)
+
+        # Check if the observation is in the available observation space.
+        assert self.observation_space.contains(scaled_obs), "%r (%s) invalid" \
+                                                % (scaled_obs, type(scaled_obs))
+
         # End of episode if maximum number of time steps has been reached.
         self._increment_t()
         if self.end_time is not None and self.time >= self.end_time:
@@ -289,7 +325,7 @@ class ANMEnv(gym.Env):
         # Information returned for debugging.
         info = {'episode': None, 'year': self.year_counter}
 
-        return self.obs, reward, self.done, info
+        return scaled_obs, reward, self.done, info
 
     def _increment_t(self):
         """ Increment the time. """
@@ -315,10 +351,6 @@ class ANMEnv(gym.Env):
             obs = np.concatenate(obs).astype(np.float32)
         else:
             obs = None
-
-        # Check if the observation is in the available observation space.
-        assert self.observation_space.contains(obs), "%r (%s) invalid" \
-                                                   % (obs, type(obs))
 
         return obs
 

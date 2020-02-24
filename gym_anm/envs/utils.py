@@ -142,3 +142,15 @@ def check_load_dg_iterators(iterators, dev_specs):
     for idx, it in enumerate(iterators):
         if not isinstance(it, Iterable):
             raise TypeError(f'Object {idx} is not iterable.')
+
+
+def linear_scale(x, x_min, x_max, y_min, y_max):
+    """
+    Linear mapping between [x_min, x_max] and [y_min, y_max].
+
+    Linearly scales the entries in x which have a range between x_min and x_max
+    to the range defined between y_min and y_max.
+    """
+    y = (y_max - y_min) / (x_max - x_min) * x + (
+            y_min * x_max - y_max * x_min) / (x_max - x_min)
+    return y
