@@ -280,6 +280,9 @@ class ANMEnv(gym.Env):
         # assert self.action_space.contains(action), "%r (%s) invalid" \
         #                                            % (action, type(action))
 
+        # Clip the action to be within the available action space.
+        action = np.clip(action, self.action_space.low, self.action_space.high)
+
         # Re-scale the normalized action from [-1, 1] to the actual action
         # space.
         action = utils.linear_scale(action, self.action_space.low,
