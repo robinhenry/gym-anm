@@ -277,8 +277,8 @@ class ANMEnv(gym.Env):
             raise gym.error.ResetNeeded('The episode is already over.')
 
         # Check if the action is in the available action space.
-        assert self.action_space.contains(action), "%r (%s) invalid" \
-                                                   % (action, type(action))
+        # assert self.action_space.contains(action), "%r (%s) invalid" \
+        #                                            % (action, type(action))
 
         # Re-scale the normalized action from [-1, 1] to the actual action
         # space.
