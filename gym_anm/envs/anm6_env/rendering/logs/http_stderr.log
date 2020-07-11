@@ -1,18 +1,28 @@
-127.0.0.1 - - [08/Feb/2020 09:43:43] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [08/Feb/2020 09:43:45] "GET /envs/ HTTP/1.1" 200 -
-127.0.0.1 - - [08/Feb/2020 09:43:47] "GET /envs/anm6_env/ HTTP/1.1" 200 -
-127.0.0.1 - - [08/Feb/2020 09:43:48] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
-127.0.0.1 - - [08/Feb/2020 09:43:48] "GET /envs/anm6_env/rendering/envs/anm6/network.svg HTTP/1.1" 200 -
+127.0.0.1 - - [03/Mar/2020 11:25:26] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
 Process http_server:
 Traceback (most recent call last):
-  File "/Users/robin/anaconda3/envs/anm-agents/lib/python3.6/multiprocessing/process.py", line 258, in _bootstrap
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/multiprocessing/process.py", line 297, in _bootstrap
     self.run()
-  File "/Users/robin/anaconda3/envs/anm-agents/lib/python3.6/multiprocessing/process.py", line 93, in run
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/multiprocessing/process.py", line 99, in run
     self._target(*self._args, **self._kwargs)
   File "/Users/robin/Code/ULG_2019/gym-anm/gym_anm/envs/anm6_env/rendering/py/servers.py", line 184, in _start_http_server
     httpd.serve_forever()
-  File "/Users/robin/anaconda3/envs/anm-agents/lib/python3.6/socketserver.py", line 236, in serve_forever
-    ready = selector.select(poll_interval)
-  File "/Users/robin/anaconda3/envs/anm-agents/lib/python3.6/selectors.py", line 376, in select
-    fd_event_list = self._poll.poll(timeout)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socketserver.py", line 237, in serve_forever
+    self._handle_request_noblock()
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socketserver.py", line 316, in _handle_request_noblock
+    self.process_request(request, client_address)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socketserver.py", line 347, in process_request
+    self.finish_request(request, client_address)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socketserver.py", line 360, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/http/server.py", line 646, in __init__
+    super().__init__(*args, **kwargs)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socketserver.py", line 720, in __init__
+    self.handle()
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/http/server.py", line 426, in handle
+    self.handle_one_request()
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/http/server.py", line 394, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+  File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/socket.py", line 589, in readinto
+    return self._sock.recv_into(b)
 KeyboardInterrupt

@@ -1,3 +1,4 @@
+import numpy as np
 import unittest
 import numpy.testing as npt
 import os
@@ -10,14 +11,22 @@ class TestBranch(unittest.TestCase):
         os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))  # Set the working directory to the root.
 
+        self.baseMVA = 100
+        self.bus_ids = [1, 2]
+
+        # No transformer
+        br = np.array([1, 2, 2., 2., 1.5, 5., 1., 0.])
         self.branch = \
-            TransmissionLine([0, 1, 2., 2., 1.5, 5, 0., 0., 1], 100)
+            TransmissionLine(br, self.baseMVA, self.bus_ids)
+
+        # Transformer
+        tr = np.array([2, 1, 2., 2., 1.5, 5, 2., 30,])
         self.transformer = \
-            TransmissionLine([0, 1, 2., 2., 1.5, 5, 2., 30, 1], 100)
+            TransmissionLine(tr, self.baseMVA, self.bus_ids)
 
     def test_branch(self):
-        self.assertEqual(self.branch.f_bus, 0)
-        self.assertEqual(self.branch.t_bus, 1)
+        self.assertEqual(self.branch.f_bus, 1)
+        self.assertEqual(self.branch.t_bus, 2)
         npt.assert_almost_equal(self.branch.rate, 0.05)
 
         npt.assert_almost_equal(self.branch.tap, 1.)

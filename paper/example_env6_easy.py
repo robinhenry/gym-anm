@@ -2,6 +2,14 @@ import numpy as np
 
 from gym_anm.envs.anm6_env.anm6_easy import ANM6Easy
 
+def scale_action(x, x_min, x_max, y_min, y_max):
+    """
+    Scales the entries in x which have a range between x_min and x_max
+    to the range defined between y_min and y_max.
+    """
+    y = (y_max - y_min) / (x_max - x_min) * x + (
+            y_min * x_max - y_max * x_min) / (x_max - x_min)
+    return y
 
 def agent(time):
     solar_max = 30
@@ -73,7 +81,7 @@ def agent(time):
     #return np.array(curt), np.array([p]), np.array([q])
 
 def null_agent():
-    return np.array([30, 50, 0, 0])
+    return np.array([1, 1, 0, 0])
 
 
 if __name__ == '__main__':
@@ -81,10 +89,12 @@ if __name__ == '__main__':
     obs = env.reset()
 
     for i in range(24*4*365*5):
-        env.render(sleep_time=.3)
+        env.render(sleep_time=.5)
 
-        # a = null_agent()
-        a = agent(env.time)
+        a = null_agent()
+        # a = agent(env.time)
+        # a = scale_action(a, np.array([0, 0, -50, -50]), np.array([30, 50, 50, 50]),
+        #                  np.array([-1, -1, -1, -1]), np.array([1, 1, 1, 1]))
         obs, r, done, info = env.step(a)
         # print('Reward: ', r)
 

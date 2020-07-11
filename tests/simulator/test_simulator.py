@@ -119,7 +119,7 @@ class TestSimulator(unittest.TestCase):
             b.q_from = 0.1
             b.q_to = 0.1
 
-        reward, e_loss, penalty = simulator._get_reward(p_pot, p_curt)
+        reward, e_loss, penalty = simulator._compute_reward(p_pot, p_curt)
 
         npt.assert_almost_equal(reward, - 17 * time_factor)
         npt.assert_almost_equal(e_loss, 17 * time_factor)
@@ -158,7 +158,7 @@ class TestSimulator(unittest.TestCase):
         simulator.branches[2].p_to = 18
         simulator.branches[2].q_to = 0
 
-        reward, e_loss, penalty = simulator._get_reward(p_pot, p_curt)
+        reward, e_loss, penalty = simulator._compute_reward(p_pot, p_curt)
 
         npt.assert_almost_equal(reward, - 17 * time_factor - 260)
         npt.assert_almost_equal(e_loss, 17 * time_factor)

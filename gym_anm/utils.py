@@ -1,39 +1,90 @@
-import datetime as dt
+from gym_anm.constants import STATE_VARIABLES
+from gym_anm.errors import ArgsError, ObsNotSupportedError, UnitsNotSupportedError, ObsSpaceError
 
 
-def random_date(np_random, year=2019):
+def check_env_args(K, delta_t, lamb, gamma, observation, state_bounds):
     """
-    Generate a random date within the year `year`.
+    Raises an error if the arguments of the new environment do not match the
+    requirements.
 
     Parameters
     ----------
-    np_random : numpy.random.RandomState
-        The random seed.
-    year : int
-        The year from which to generate a random date.
-
-    Returns
-    -------
-    datetime.datetime
-        A datetime of 00:00 on a random day within the year `year`.
+    K : int
+        The number of auxiliary variables.
+    delta_t : float
+        The interval of time between two consecutive time steps (fraction of
+        hour).
+    lamb : int or float
+        The factor multiplying the penalty associated with violating
+        operational constraints (used in the reward signal).
+    gamma : float
+        The discount factor in [0, 1].
+    observation : callable or str or list
+        The observation space. It can be specified as "state" to construct a
+        fully observable environment (o_t = s_t); as a callable function such
+        that o_t = observation(s_t); or as a list of tuples (x, y, z) that
+        refers to the electrical quantity x (str) at the nodes/branches/devices
+        y (list) in unit z (str, optional).
+    state_bounds : dict of {str : dict}
+        The bounds on the state variables of the distribution network.
     """
 
-    random_day = dt.timedelta(days=np_random.randint(1, 365))
-    return dt.datetime(year, 1, 1) + random_day
+    if K < 0:
+        raise ArgsError('The argument K is %d but should be >= 0.' % (K))
+    if delta_t <= 0:
+        raise ArgsError('The argument delta_t is %.2f but should be > 0.' % (delta_t))
+    if lamb < 0:
+        raise ArgsError('The argument lamb is %d but should be > 0.' % (lamb))
+    if gamma < 0 or gamma > 1:
+        raise ArgsError('The argument gamma is %.4f but should be in [0, 1].' % (gamma))
 
-def dt_to_minutes(delta):
+    # Check that the observation space is correctly specified.
+    if isinstance(observation, str) and observation == 'state':
+        pass
+    elif isinstance(observation, list):
+        _check_observation_vars(observation, state_bounds)
+    elif callable(observation):
+        pass
+    else:
+        raise ArgsError('The argument observation is of type {} but should be '
+                        'either a list, a callable, or the string "state".'
+                        .format(type(observation)))
+
+
+def _check_observation_vars(observation, state_bounds):
     """
-    Convert a `datetime.timedelta` object into seconds.
+    Checks the specs of the observation space when specified as a list.
 
     Parameters
     ----------
-    delta : `datetime.timedelta`
-        The interval of time to transform into seconds.
-
-    Returns
-    -------
-    int
-        The interval of time in seconds.
+    observation : list of tuples
+        The observation space as a list of tuples (x, y, z), each of which
+        refers to
+        the electrical quantity x (str) at the nodes/branches/devices
+        y (list) in unit z (str, optional).
+    state_bounds : dict of {str : dict}
+        The bounds on the state variables of the distribution network.
     """
 
-    return delta.seconds // 60 % 60
+    for obs in observation:
+        if len(obs) not in [2, 3]:
+            raise ObsSpaceError('The observation tuple {} should be a list with '
+                                '2 or 3 elements.'.format(obs))
+
+        # Check that the observation variable is supported.
+        key = obs[0]
+        if key not in STATE_VARIABLES.keys():
+            raise ObsNotSupportedError(key, STATE_VARIABLES)
+
+        # Check that the nodes/devices/branches specified exist.
+        nodes = obs[1]
+        if isinstance(nodes, str) and nodes == 'all':
+            pass
+        elif isinstance(nodes, list):
+            for n in nodes:
+                if n not in state_bounds[key].keys():
+                    raise ObsSpaceError('Observation {} is not supported for'
+                                        'device/branch/bus with ID {}.'
+                                        .format(key, n))
+        else:
+            raise ObsSpaceError()

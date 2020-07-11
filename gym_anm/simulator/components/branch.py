@@ -1,5 +1,6 @@
 import numpy as np
 
+from gym_anm.simulator.components.errors import BranchSpecError
 from gym_anm.constants import BRANCH_H
 
 
@@ -20,44 +21,51 @@ class TransmissionLine(object):
         b : float
             The transmission line susceptance (p.u.).
         rate : float
-            The rate of the line in MVA.
+            The rate of the line in (p.u.).
         tap_magn : float
             The magnitude of the transformer tap.
         shift : float
             The complex phase angle of the transformer (degrees).
-        i_from : complex
-            The complex current flow in the line (p.u.).
-        p_from, q_from : float
-            The real (MW) and reactive (MVAr) power flow in the line.
+        i_from, i_to : complex
+            The complex current flows I_{ij} and I_{ji} (p.u.).
+        p_from, p_to : float
+            The real power flows P_{ij} and P_{ji} in the line (p.u.).
+        q_from, q_to : float
+            The reactive power flows Q_{ij} and Q_{ji} in the line (p.u.).
+        s_apparent_max : float
+            The apparent power flow through the line, taken as the maximum of the
+            apparent power injection at each end, with the sign indicating its
+            direction (+ is f_bus -> t_bus; - is f_bus <- t_bus) (p.u.).
         series, shunt : complex
             The series and shunt admittances of the line in the pi-model (p.u.).
         tap : complex
-            The complex tap of the transformer.
+            The complex tap of the transformer (p.u.).
     """
 
-    def __init__(self, br_case, baseMVA):
+    def __init__(self, br_spec, baseMVA, bus_ids):
         """
         Parameters
         ----------
-        br_case : numpy.ndarray
+        br_spec : numpy.ndarray
             The corresponding branch row in the network file describing the
             network.
         baseMVA : int
             The base power of the system (MVA).
+        bus_ids : list of int
+            The list of unique bus IDs.
         """
 
-        # Import values from case file.
-        self.f_bus = int(br_case[BRANCH_H['F_BUS']])
-        self.t_bus = int(br_case[BRANCH_H['T_BUS']])
-        self.r = br_case[BRANCH_H['BR_R']]
-        self.x = br_case[BRANCH_H['BR_X']]
-        self.b = br_case[BRANCH_H['BR_B']]
-        self.rate = br_case[BRANCH_H['RATE']] / baseMVA
-        self.tap_magn = br_case[BRANCH_H['TAP']]
-        self.shift = br_case[BRANCH_H['SHIFT']]
+        # Import values from network file.
+        self.f_bus = int(br_spec[BRANCH_H['F_BUS']])
+        self.t_bus = int(br_spec[BRANCH_H['T_BUS']])
+        self.r = br_spec[BRANCH_H['BR_R']]
+        self.x = br_spec[BRANCH_H['BR_X']]
+        self.b = br_spec[BRANCH_H['BR_B']]
+        self.rate = br_spec[BRANCH_H['RATE']] / baseMVA
+        self.tap_magn = br_spec[BRANCH_H['TAP']]
+        self.shift = br_spec[BRANCH_H['SHIFT']]
 
-        # Deal with unspecified values.
-        self.tap_magn = self.tap_magn if self.tap_magn > 0. else 1.
+        self._check_input_specs(bus_ids)
 
         self._compute_admittances()
 
@@ -68,18 +76,105 @@ class TransmissionLine(object):
         self.i_to = None
         self.p_to = None
         self.q_to = None
+        self.s_apparent_max = None
+
+    def _check_input_specs(self, bus_ids):
+
+        if self.f_bus is None or self.f_bus not in bus_ids:
+            raise BranchSpecError('The F_BUS value of the branch is {} but should be in {}.'.format(self.f_bus, bus_ids))
+
+        if self.t_bus is None or self.t_bus not in bus_ids:
+            raise BranchSpecError('The T_BUS value of the branch is {} but should be in {}.'.format(self.t_bus, bus_ids))
+
+        if self.r is None:
+            self.r = 0.
+        elif self.r < 0:
+            raise BranchSpecError('The BR_R value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+
+        if self.x is None:
+            self.x = 0.
+        elif self.x < 0:
+            raise BranchSpecError('The BR_X value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+
+        if self.b is None:
+            self.b = 0.
+        elif self.b < 0:
+            raise BranchSpecError('The BR_B value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+
+        if self.rate is None:
+            self.rate = np.inf
+        elif self.rate < 0:
+            raise BranchSpecError('The RATE value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+
+        if self.tap_magn is None:
+            self.tap_magn = 1.
+        elif self.tap_magn < 0:
+            raise BranchSpecError('The TAP value for branch (%d, %d) should be >0. Use TAP=1 and SHIFT=0 to model'
+                                  'the absence of an off-nominal transformer.' % (self.f_bus, self.t_bus))
+
+        if self.shift is None:
+            self.shift = 0.
+        elif self.shift < 0 or self.shift > 360:
+            raise BranchSpecError('The BR_SHIFT value for branch (%d, %d) should be in [0, 360].' % (self.f_bus, self.t_bus))
 
     def _compute_admittances(self):
         """
         Compute the series, shunt admittances and transformer tap of the line.
         """
 
-        # Compute the branch series admittance as y_s = 1 / (r + jx).
+        # Compute the branch series admittance as y_{ij} = 1 / (r + jx).
         self.series = 1. / (self.r + 1.j * self.x)
 
-        # Compute the branch shunt admittance y_m = jb / 2.
+        # Compute the branch shunt admittance y_{ij}^{sh} = jb / 2.
         self.shunt = 1.j * self.b / 2.
 
         # Create complex tap ratio of generator as: tap = a exp(j shift).
         shift = self.shift * np.pi / 180.
         self.tap = self.tap_magn * np.exp(1.j * shift)
+
+    def compute_currents(self, v_f, v_t):
+        """
+        Compute the complex current injections on the transmission line.
+
+        Parameters
+        ----------
+        v_f : np.complex
+            The complex voltage at bus `self.f_bus`.
+        v_t : np.complex
+            The complex voltage at bus `self.t_bus`.
+        """
+
+        # Forward current.
+        i_1 = (self.series + self.shunt) * v_f / (np.absolute(self.tap) ** 2)
+        i_2 = - self.series * v_t / np.conjugate(self.tap)
+        self.i_from = i_1 + i_2
+
+        # Backward current.
+        i_1 = (self.series + self.shunt) * v_t
+        i_2 = - self.series * v_f / self.tap
+        self.i_to = i_1 + i_2
+
+    def compute_power_flows(self, v_f, v_t):
+        """
+        Compute the power flows on the transmission line.
+
+        Parameters
+        ----------
+        v_f : np.complex
+            The complex voltage at bus `self.f_bus` (p.u.).
+        v_t : np.complex
+            The complex voltage at bus `self.t_bus` (p.u.).
+        """
+
+        # Forward power flows.
+        s_from = v_f * np.conj(self.i_from)
+        self.p_from = s_from.real
+        self.q_from = s_from.imag
+
+        # Backward power flows.
+        s_to = v_t * np.conj(self.i_to)
+        self.p_to = s_to.real
+        self.q_to = s_to.imag
+
+        # Compute directed apparent power flow.
+        self.s_apparent_max = np.sign(self.p_from) * np.maximum(s_from, s_to)

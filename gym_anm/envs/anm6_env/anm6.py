@@ -4,7 +4,6 @@ import time
 
 import pandas as pd
 
-from gym_anm.constants import RENDERED_NETWORK_SPECS, RENDERED_STATE_VALUES
 from gym_anm.envs import ANMEnv
 from gym_anm.envs.anm6_env.rendering.py import rendering
 from gym_anm.envs.anm6_env.network import network
@@ -42,6 +41,11 @@ class ANM6(ANMEnv):
         seed = None
         obs_values = ['P_DEV', 'Q_DEV', 'SOC']
         delta_t = 15
+
+        # Rendered values.
+        self.rendered_network_specs = ['DEV_TYPE', 'PMIN_DEV', 'PMAX_DEV', 'SMAX_BR', 'SOC_MAX']
+        self.rendered_state_values = ['P_DEV', 'S_FLOW', 'SOC']
+
         super().__init__(network, obs_values, delta_t, seed)
 
 
@@ -86,14 +90,14 @@ class ANM6(ANMEnv):
 
             # Render the initial image of the distribution network.
             self.render_mode = mode
-            specs = [list(self.network_specs[s]) for s in RENDERED_NETWORK_SPECS]
+            specs = [list(self.network_specs[s]) for s in self.rendered_network_specs]
             self._init_render(specs)
 
             # Render the initial state.
             self.render(mode=mode, sleep_time=1.)
 
         else:
-            state_values = [list(self.state[s]) for s in RENDERED_STATE_VALUES]
+            state_values = [list(self.state[s]) for s in self.rendered_state_values]
             self._update_render(self.time - self.timestep_length,
                                 state_values,
                                 list(self.P_gen_potential),
@@ -116,6 +120,14 @@ class ANM6(ANMEnv):
         """
 
         title = type(self).__name__
+
+        # Add the '-' to the displayed title.
+        if 'Easy' in title:
+            title = 'ANM6-Easy'
+        elif 'Hard' in title:
+            title = 'ANM6-Hard'
+        else:
+            print('Warning: the env title might not get rendered correctly.')
 
         if self.render_mode in ['human', 'replay']:
             rendering.write_html()

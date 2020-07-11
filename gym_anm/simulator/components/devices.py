@@ -1,7 +1,9 @@
 import numpy as np
+from warnings import warn
+import cvxpy as cp
 
 from gym_anm.constants import DEV_H
-
+from gym_anm.simulator.components.errors import DeviceSpecError, LoadSpecError, GenSpecError, StorageSpecError
 
 class Device(object):
     """
@@ -11,120 +13,95 @@ class Device(object):
     ----------
     dev_id : int
         The unique device ID.
-    type_id : int
-        The unique ID within a subset of devices (e.g. loads, generators, etc.).
     bus_id : int
         The ID of the bus the device is connected to.
     type : int
-        The device type : -1 (load), 0 (slack), 1 (power plant), 2 (wind),
-        3 (solar), 4 (storage).
+        The device type : -1 (load), 0 (slack), 1 (classical generator),
+        2 (renewable energy), 3 (storage).
     qp_ratio : float
         The constant ratio of reactive over real power injection.
     p_min, p_max, q_min, q_max : float
-        The minimum and maximum real (MW) and reactive (MVAr) power injections.
-    pc1, pc2, qc1_min, qc1_max, qc2_min, qc2_max : float
-        The bounds describing the (P, Q) region of operation of the device.
+        The minimum and maximum real (p.u.) and reactive (p.u.) power injections.
+    p_plus, p_minus, q_plus, q_minus : float
+        The bounds describing the (P, Q) region of physical operation of the device (p.u.).
     soc_min, soc_max : float
-        The minimum and maximum state of charge (MWh) if the device is a storage
-        unit; None otherwise.
+        The minimum and maximum state of charge if the device is a storage
+        unit (p.u. per hour); None otherwise.
     eff : float
         The round-trip efficiency in [0, 1] if the device is a storage unit;
         None otherwise.
-    lag_slope, lag_off : float
-        The slope and offset of the lagging line constraining the (P, Q) region of
-        operation of the device.
-    lead_slope, lead_off : float
-        The sole and offset of the leading line constraining the (P, Q) region of
-        operation of the device.
+    tau_1, tau_2, tau_3, tau_4 : float
+        The slope of the constraints on Q when P is near its maximum (1-2 are used
+        for generators, 1-4 for storage units, and the remaining ones are None).
+    rho_1, rho_2, rho_3, rho_4 : float
+        The offset of the linear constraints on Q when P is near its maximum (see `tau_1`).
     is_slack : bool
         True if the device is connected to the slack bus; False otherwise.
     p, q : float
-        The current real (MW) and reactive (MVAr) power injection from the device.
+        The real and reactive power injections from the device (p.u.).
+    p_pot : float
+        The maximum active generation of the device at the current time (p.u.),
+        if a generator; None otherwise.
     soc : float
-        The state of charge if the device is a storage unit; None otherwise.
-
+        The state of charge if the device is a storage unit (p.u. per hour);
+        None otherwise.
 
     Methods
     -------
-    compute_pq(p_from, q_from)
-        Compute the closest (P, Q) feasible power injection point.
+    map_pq(p, q)
+        Map (p, q) to the closest (P, Q) feasible power injection point.
     """
 
-    def __init__(self, dev_id, dev_spec_id, dev_case):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
         """
         Parameters
         ----------
-        dev_id : int
-            The device unique ID.
-        dev_spec_id : int
-            The unique ID specific to the subset of devices of the same type.
-        dev_case : numpy.ndarray
+        dev_spec : numpy.ndarray
             The corresponding device row in the network file describing the
             network.
+        bus_ids : list of int
+            The list of unique bus IDs.
+        baseMVA : int
+            The base power of the network.
         """
 
-        self.dev_id = dev_id
-        self.type_id = dev_spec_id
-        self.bus_id = int(dev_case[DEV_H['BUS_I']])
-        self.type = int(dev_case[DEV_H['DEV_TYPE']])
-        self.qp_ratio = dev_case[DEV_H['Q/P']]
-        self.q_max = dev_case[DEV_H['QMAX']]
-        self.q_min = dev_case[DEV_H['QMIN']]
-        self.p_max = dev_case[DEV_H['PMAX']]
-        self.p_min = dev_case[DEV_H['PMIN']]
-        self.pc1 = dev_case[DEV_H["PC1"]]
-        self.pc2 = dev_case[DEV_H["PC2"]]
-        self.qc1_min = dev_case[DEV_H["QC1MIN"]]
-        self.qc1_max = dev_case[DEV_H["QC1MAX"]]
-        self.qc2_min = dev_case[DEV_H["QC2MIN"]]
-        self.qc2_max = dev_case[DEV_H["QC2MAX"]]
+        # Components used by all types of devices.
+        self.dev_id = int(dev_spec[DEV_H['DEV_I']])
+        self.bus_id = int(dev_spec[DEV_H['BUS_I']])
+        self.type = int(dev_spec[DEV_H['DEV_TYPE']])
 
-        if self.type == 4:
-            self.soc_min = 0.
-            self.soc_max = dev_case[DEV_H['SOC_MAX']]
-            self.eff = dev_case[DEV_H['EFF']]
-        else:
-            self.soc_min, self.soc_max = None, None
-            self.eff = None
+        # Components device-specific.
+        self.qp_ratio = None
+        self.p_min, self.p_max = None, None
+        self.q_min, self.q_max = None, None
+        self.p_plus, self.p_minus = None, None
+        self.q_plus, self.q_minus = None, None
+        self.soc_min, self.soc_max = None, None
+        self.eff = None
+        self.tau_1, self.tau_2, self.tau_3, self.tau_4 = None, None, None, None
+        self.rho_1, self.rho_2, self.rho_3, self.rho_4 = None, None, None, None
 
-        if not self.type:
+        if self.type == 0:
             self.is_slack = True
         else:
             self.is_slack = False
 
-        self._compute_lag_lead_limits(dev_case)
+        self._check_generic_input_specs(bus_ids)
+        self._check_type_specific_specs(dev_spec, baseMVA)
 
         self.p = None
         self.q = None
-        self.soc = 0.
+        self.p_pot = None    # only for generators
+        self.soc = None      # only for storage units
 
-    def _compute_lag_lead_limits(self, dev_case):
-        dQ_min = dev_case[DEV_H["QC2MIN"]] - dev_case[DEV_H["QC1MIN"]]
-        dQ_max = dev_case[DEV_H["QC2MAX"]] - dev_case[DEV_H["QC1MAX"]]
-        dP = dev_case[DEV_H["PC2"]] - dev_case[DEV_H["PC1"]]
+    def _check_generic_input_specs(self, bus_ids):
+        if self.bus_id is None or self.bus_id not in bus_ids:
+            DeviceSpecError('Device {} has unique bus ID = {} but should be in {}.'.format(self.dev_id, self.bus_id, bus_ids))
 
-        if dP and dev_case[DEV_H["PC1"]]:
-            self.lag_slope = dQ_min / dP
-            self.lag_off = dev_case[DEV_H["QC1MIN"]] \
-                           - dQ_min / dP * dev_case[DEV_H["PC1"]]
+        if self.type is None or self.type not in [-1, 0, 1, 2, 3]:
+            DeviceSpecError('The DEV_TYPE value for device %d should be in [-1, 0, 1, 2, 3].')
 
-            self.lead_slope = dQ_max / dP
-            self.lead_off = dev_case[DEV_H["QC1MAX"]] \
-                            - dQ_max / dP * dev_case[DEV_H["PC1"]]
-
-        else:
-            self.lag_slope, self.lag_off = None, None
-            self.lead_slope, self.lead_off = None, None
-
-    def compute_pq(self, p, q):
-        """
-        Compute the closest (P, Q) feasible power injection point.
-
-        Parameters
-        ----------
-        p, q : float
-            The desired (P, Q) power injection point (MW, MVAr).
-        """
+    def _check_type_specific_specs(self, dev_spec, baseMVA):
         raise NotImplementedError
 
 
@@ -133,28 +110,40 @@ class Load(Device):
     A passive load connected to an electric power grid.
     """
 
-    def __init__(self, dev_id, load_id, dev_case):
-        """
-        Parameters
-        ----------
-        dev_id : int
-            The unique device ID.
-        load_id : int
-            The unique load ID.
-        dev_case : numpy.ndarray
-            The corresponding device row in the network file describing the
-            network.
-        """
-
-        super().__init__(dev_id, load_id, dev_case)
-
-        self.q_min = self.p_min * self.qp_ratio
-        self.q_max = self.q_max * self.qp_ratio
-
-    def compute_pq(self, p, q=None):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
         # docstring inherited
 
-        self.p  = p
+        super().__init__(dev_spec, bus_ids, baseMVA)
+
+    def _check_type_specific_specs(self, dev_spec, baseMVA):
+
+        self.qp_ratio = dev_spec[DEV_H['Q/P']]
+        if self.qp_ratio is None:
+            raise LoadSpecError('A fixed Q/P value must be provided for device (load) %d.' % (self.dev_id))
+
+        self.p_max = 0.
+
+        self.p_min = dev_spec[DEV_H['PMIN']]
+        if self.p_min is None:
+            self.p_min = - np.inf
+            warn('The P_min value of device %d is set to - infinity.' % (self.dev_id))
+        else:
+            self.p_min /= baseMVA  # to p.u.
+
+        self.q_max = self.q_max * self.qp_ratio
+        self.q_min = self.p_min * self.qp_ratio
+
+    def map_pq(self, p):
+        """
+        Map p to the closest (P, Q) feasible power injection point.
+
+        Parameters
+        ----------
+        p : float
+            The desired P power injection point (p.u.).
+        """
+
+        self.p  = np.clip(p, self.p_min, self.p_max)
         self.q = p * self.qp_ratio
 
 
@@ -163,155 +152,365 @@ class Generator(Device):
     A generator connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case):
-        """
-        Parameters
-        ----------
-        dev_id : int
-            The unique device ID.
-        gen_id : int
-            The unique generator ID.
-        dev_case : numpy.ndarray
-            The corresponding device row in the network file describing the
-            network.
-        """
-
-        super().__init__(dev_id, gen_id, dev_case)
-
-    def compute_pq(self, p_init, q_init=None):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
         # docstring inherited
 
-        p = p_init
-        p = np.minimum(p, self.p_max)
-        p = np.maximum(p, self.p_min)
+        super().__init__(dev_spec, bus_ids, baseMVA)
 
-        q = p * self.qp_ratio
-        q = np.minimum(q, self.q_max)
-        q = np.maximum(q, self.q_min)
+    def _check_type_specific_specs(self, dev_spec, baseMVA):
 
-        if (self.lead_slope is not None) and (self.lead_off is not None):
-            if q > self.lead_slope * p + self.lead_off:
-                p = self.lead_off / (self.qp_ratio - self.lead_slope)
-                q = p * self.qp_ratio
+        self.p_max = dev_spec[DEV_H['PMAX']]
+        if self.p_max is None:
+            warn('The P_max value of device %d is set to infinity.' % (
+                self.dev_id))
+            self.p_max = np.inf
+        elif self.p_max < 0:
+            raise GenSpecError(
+                'The PMAX value of device %d should be >= 0.' % (self.dev_id))
+        else:
+            self.p_max /= baseMVA  # to p.u.
 
-        if (self.lag_slope is not None) and (self.lag_off is not None):
-            if q < self.lag_slope * p + self.lag_off:
-                p = self.lag_off / (self.qp_ratio - self.lag_slope)
-                q = p * self.qp_ratio
+        self.p_min = dev_spec[DEV_H['PMIN']] / baseMVA
+        if self.p_min is None:
+            self.p_min = 0.
+        elif self.p_min < 0:
+            raise GenSpecError(
+                'The PMIN value of device %d should be >= 0.' % (self.dev_id))
+        else:
+            self.p_min /= baseMVA  # to p.u.
 
-        self.p = p
-        self.q = q
+        if self.p_max < self.p_min:
+            raise GenSpecError('Device %d has PMAX < PMIN.' % (self.dev_id))
+
+        self.q_max = dev_spec[DEV_H['QMAX']]
+        if self.q_max is None:
+            warn('The Q_max value of device %d is set to infinity.' % (
+                self.dev_id))
+            self.q_max = np.inf
+        else:
+            self.q_max /= baseMVA  # to p.u.
+
+        self.q_min = dev_spec[DEV_H['QMIN']]
+        if self.q_min is None:
+            self.q_min = - np.inf
+            warn('The Q_min value of device %d is set to - infinity.' % (self.dev_id))
+        else:
+            self.q_min /= baseMVA  # to p.u.
+
+        if self.q_max < self.q_min:
+            raise GenSpecError('Device %d has QMAX < QMIN.' % (self.dev_id))
+
+        self.p_plus = dev_spec[DEV_H['P+']]
+        if self.p_plus is None:
+            self.p_plus = self.p_max
+        elif self.p_plus < self.p_min:
+            raise GenSpecError('Device %d has P+ < PMIN' % (self.dev_id))
+        elif self.p_plus > self.p_max:
+            raise GenSpecError('Device %d has P+ > PMAX.' % (self.dev_id))
+        else:
+            self.p_plus /= baseMVA  # to p.u.
+
+        self.p_minus = dev_spec[DEV_H['P-']]
+        if self.p_minus is not None:
+            warn('The P- value of device %d is going to be ignored.' % (
+                self.dev_id))
+
+        self.q_plus = dev_spec[DEV_H['Q+']]
+        if self.q_plus is None:
+            self.q_plus = self.q_max
+        elif self.q_plus > self.q_max:
+            raise GenSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
+        else:
+            self.q_plus /= baseMVA  # to p.u.
+
+        self.q_minus = dev_spec[DEV_H['Q-']]
+        if self.q_minus is None:
+            self.q_minus = self.q_min
+        elif self.q_minus < self.q_min:
+            raise GenSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
+        else:
+            self.q_minus /= baseMVA  # to p.u.
+
+        if self.q_plus < self.q_minus:
+            raise GenSpecError('Device %d has Q+ < Q-.' % (self.dev_id))
+
+        if self.p_max == self.p_plus:
+            self.tau_1 = 0.
+            self.tau_2 = 0.
+        else:
+            self.tau_1 = (self.q_plus - self.q_max) / (self.p_max - self.p_plus)
+            self.tau_2 = (self.q_minus - self.q_min) / (self.p_max - self.p_plus)
+
+        self.rho_1 = self.q_max - self.tau_1 * self.p_plus
+        self.rho_2 = self.q_min - self.tau_2 * self.p_plus
+
+    def map_pq(self, p, q):
+        """
+        Map (p, q) to the closest (P, Q) feasible power injection point.
+
+        Parameters
+        ----------
+        p, q : float
+            The desired (P, Q) power injection point (p.u.).
+        """
+
+        # Desired set-point.
+        point = np.array([p, q])
+
+        # Inequality constraints for the optimization problem.
+        G = np.array([[-1, 0],
+                      [1, 0],
+                      [1, 0],
+                      [0, -1],
+                      [0, 1],
+                      [-self.tau_1, 1],
+                      [self.tau_2, -1]])
+
+        h = np.array([-self.p_min,
+                      self.p_max,
+                      self.p_pot,
+                      - self.q_min,
+                      self.q_max,
+                      self.rho_1,
+                      - self.rho_2])
+
+        # Define and solve the CVXPY problem.
+        x = cp.Variable(2)
+        prob = cp.Problem(cp.Minimize(cp.sum_squares(x - point)),
+                          [G @ x <= h])
+        prob.solve()
+
+        self.p = x.value[0]
+        self.q = x.value[1]
 
 
-class PowerPlant(Generator):
+class ClassicalGen(Generator):
     """
     A non-renewable energy source connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
         # docstring inherited
 
-        super().__init__(dev_id, gen_id, dev_case)
+        super().__init__(dev_spec, bus_ids, baseMVA)
 
 
-class VRE(Generator):
+class RenewableGen(Generator):
     """
     A renewable energy source connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, gen_id, dev_case):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
         # docstring inherited
 
-        super().__init__(dev_id, gen_id, dev_case)
+        super().__init__(dev_spec, bus_ids, baseMVA)
 
 
-class Storage(Device):
+class StorageUnit(Device):
     """
     A distributed storage unit connected to an electrical power grid.
     """
 
-    def __init__(self, dev_id, su_id, dev_case):
+    def __init__(self, dev_spec, bus_ids, baseMVA):
+
+        super().__init__(dev_spec, bus_ids, baseMVA)
+
+    def _check_type_specific_specs(self, dev_spec, baseMVA):
+
+        self.p_max = dev_spec[DEV_H['PMAX']]
+        if self.p_max is None:
+            warn('The P_max value of device %d is set to infinity.' % (
+                self.dev_id))
+            self.p_max = np.inf
+        elif self.p_max < 0:
+            raise StorageSpecError(
+                'The PMAX value of device %d should be >= 0.' % (self.dev_id))
+        else:
+            self.p_max /= baseMVA  # to p.u.
+
+        self.p_min = dev_spec[DEV_H['PMIN']]
+        if self.p_min is None:
+            self.p_min = - np.inf
+            warn('The P_min value of device %d is set to - infinity.' % (self.dev_id))
+        elif self.p_min > 0:
+            raise StorageSpecError(
+                'The PMIN value of device %d should be <= 0.' % (self.dev_id))
+        else:
+            self.p_min /= baseMVA  # to p.u.
+
+        if self.p_max < self.p_min:
+            raise StorageSpecError('Device %d has PMAX < PMIN.' % (self.dev_id))
+
+        self.q_max = dev_spec[DEV_H['QMAX']]
+        if self.q_max is None:
+            warn('The Q_max value of device %d is set to infinity.' % (self.dev_id))
+            self.q_max = np.inf
+        else:
+            self.q_max /= baseMVA  # to p.u.
+
+        self.q_min = dev_spec[DEV_H['QMIN']]
+        if self.q_min is None:
+            self.q_min = - np.inf
+            warn('The Q_min value of device %d is set to - infinity.' % (self.dev_id))
+        else:
+            self.q_min /= baseMVA  # to p.u.
+
+        if self.q_max < self.q_min:
+            raise StorageSpecError('Device %d has QMAX < QMIN.' % (self.dev_id))
+
+        self.p_plus = dev_spec[DEV_H['P+']]
+        if self.p_plus is None:
+            self.p_plus = self.p_max
+        elif self.p_plus < self.p_min:
+            raise StorageSpecError('Device %d has P+ < PMIN' % (self.dev_id))
+        elif self.p_plus > self.p_max:
+            raise StorageSpecError('Device %d has P+ > PMAX.' % (self.dev_id))
+        else:
+            self.p_plus /= baseMVA  # to p.u.
+
+        self.p_minus = dev_spec[DEV_H['P-']]
+        if self.p_minus is None:
+            self.p_minus = self.p_min
+        elif self.p_minus < self.p_min:
+            raise StorageSpecError('Device %d has P- < PMIN' % (self.dev_id))
+        elif self.p_minus > self.p_max:
+            raise StorageSpecError('Device %d has P- > PMAX' % (self.dev_id))
+        else:
+            self.p_minus /= baseMVA  # to p.u.
+
+        if self.p_plus < self.p_minus:
+            raise StorageSpecError('Device %d has P+ < P-.' % (self.dev_id))
+
+        self.q_plus = dev_spec[DEV_H['Q+']]
+        if self.q_plus is None:
+            self.q_plus = self.q_max
+        elif self.q_plus > self.q_max:
+            raise StorageSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
+        else:
+            self.q_plus /= baseMVA  # to p.u.
+
+        self.q_minus = dev_spec[DEV_H['Q-']]
+        if self.q_minus is None:
+            self.q_minus = self.q_min
+        elif self.q_minus < self.q_min:
+            raise DeviceSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
+        else:
+            self.q_minus /= baseMVA  # to p.u.
+
+        if self.q_plus < self.q_minus:
+            raise GenSpecError('Device %d has Q+ < Q-.' % (self.dev_id))
+
+        if self.p_max == self.p_plus:
+            self.tau_1 = 0.
+            self.tau_2 = 0.
+        else:
+            self.tau_1 = (self.q_plus - self.q_max) / (self.p_max - self.p_plus)
+            self.tau_2 = (self.q_minus - self.q_min) / (self.p_max - self.p_plus)
+
+        self.rho_1 = self.q_max - self.tau_1 * self.p_plus
+        self.rho_2 = self.q_min - self.tau_2 * self.p_plus
+
+        if self.p_min == self.p_minus:
+            self.tau_3 = 0.
+            self.tau_4 = 0.
+        else:
+            self.tau_3 = (self.q_min - self.q_minus) / (self.p_minus - self.p_min)
+            self.tau_4 = (self.q_max - self.q_plus) / (self.p_minus - self.p_min)
+
+        self.rho_3 = self.q_min - self.tau_3 * self.p_minus
+        self.rho_4 = self.q_max - self.tau_4 * self.p_minus
+
+        self.soc_min = dev_spec[DEV_H['SOC_MIN']]
+        if self.soc_min is None:
+            self.soc_min = 0.
+        elif self.soc_min < 0.:
+            raise StorageSpecError('Device %d is a storage unit and has SOC_MIN < 0.' % (self.dev_id))
+        else:
+            self.soc_min /= baseMVA  # to p.u.
+
+        self.soc_max = dev_spec[DEV_H['SOC_MAX']]
+        if self.soc_max is None:
+            raise StorageSpecError('Device %d is a storage unit and has SOC_MAX = None.' % (self.dev_id))
+        if self.soc_max < 0.:
+            raise StorageSpecError('Device %d is a storage unit and has SOC_MAX < 0.' % (self.dev_id))
+        else:
+            self.soc_max /= baseMVA  # to p.u.
+
+        if self.soc_max < self.soc_min:
+            raise StorageSpecError('Device %d is a storage unit and has SOC_MAX < SOC_MIN.' % (self.dev_id))
+
+        self.eff = dev_spec[DEV_H['EFF']]
+        if self.eff is None:
+            warn('Setting (dis)charging efficiency of device %d (storage unit) to 1.' % (self.dev_id))
+            self.eff = 1.
+        elif self.eff < 0. or self.eff > 1.:
+            raise StorageSpecError('Device %d is a storage unit and has EFF outside of [0, 1].' % (self.dev_id))
+
+        return
+
+    def map_pq(self, p, q, delta_t):
         """
+        Map (p, q) to the closest (P, Q) feasible power injection point.
+
         Parameters
         ----------
-        dev_id : int
-            The unique device ID.
-        su_id : int
-            The unique storage unit iD.
-        dev_case : numpy.ndarray
-            The corresponding device row in the network file describing the
-            network.
+        p, q : float
+            The desired (P, Q) power injection point (p.u.).
         """
 
-        super().__init__(dev_id, su_id, dev_case)
+        # Desired set-point.
+        point = np.array([p, q])
 
-    def manage(self, alpha_setpoint, delta_t, q_setpoint):
+        # Inequality constraints.
+        G = np.array([[-1, 0],
+                      [1, 0],
+                      [0, -1],
+                      [0, 1],
+                      [-self.tau_1, 1],
+                      [self.tau_2, -1],
+                      [self.tau_3, -1],
+                      [-self.tau_4, 1],
+                      [-1, 0],
+                      [1, 0]])
+
+        h = np.array([-self.p_min,
+                      self.p_max,
+                      -self.q_min,
+                      self.q_max,
+                      self.rho_1,
+                      -self.rho_2,
+                      -self.rho_3,
+                      self.rho_4,
+                      -(self.soc - self.soc_max) / (delta_t * self.eff),
+                      self.eff * (self.soc - self.soc_min) / delta_t])
+
+        # Define and solve the CVXPY problem.
+        x = cp.Variable(2)
+        prob = cp.Problem(cp.Minimize(cp.sum_squares(x - point)), [G @ x <= h])
+        prob.solve()
+
+        self.p = x.value[0]
+        self.q = x.value[1]
+
+    def update_soc(self, delta_t):
         """
-        Compute the (P, Q) injection point and update the SoC.
+        Update the state of charge based on the current power injection.
+
+        This function updates the new state of charge SoC_{t+1}, assuming that
+        the device injects `self.p` active power (in p.u.) into the network
+        during `delta_t` hours.
 
         Parameters
         ----------
-        alpha_setpoint : float
-            The desired charging rate (MW).
         delta_t : float
-            The fraction of an hour representing a single timestep, e.g. 0.25 for
-            a timestep of 15 minutes.
-        q_setpoint : float
-            The desired reactive power injection into the network (MVAr).
+            Time interval between subsequent timesteps (in fraction of hour).
         """
 
-        # Truncate desired charging rate if out of operating bounds.
-        max_alpha = np.minimum(alpha_setpoint, self.p_max)
-        max_alpha = np.maximum(max_alpha, self.p_min)
-
-        # Get energy being transferred.
-        if alpha_setpoint > 0.:
-            delta_soc = delta_t * (1 + self.eff) * max_alpha / 2.
+        # Compute the new SoC.
+        if self.p <= 0:
+            self.soc -= delta_t * self.eff * self.p
         else:
-            delta_soc = delta_t * max_alpha
+            self.soc -= delta_t * self.p / self.eff
 
-        # Check that SoC constraints are satisfied and modify the charging
-        # rate if it is.
-        # Case 1: upper limit.
-        if self.soc + delta_soc > self.soc_max:
-            delta_soc = self.soc_max - self.soc
-            max_alpha = 2 * delta_soc / (delta_t * (1 + self.eff))
-
-        # Case 2: lower limit.
-        elif self.soc + delta_soc < self.soc_min:
-            delta_soc = self.soc_min - self.soc
-            max_alpha = delta_soc / delta_t
-
-        # Get the real power injection in the network.
-        if alpha_setpoint > 0.:
-            p = - max_alpha
-        else:
-            p = - 2 * self.eff * max_alpha / (1 + self.eff)
-
-        # Compute the reactive power injection into the network.
-        self.compute_pq(p, q_setpoint)
-
-        # Update the state of charge.
-        self.soc += delta_soc
-
-
-    def compute_pq(self, p_init, q_init):
-        # docstring inherited
-
-        p_max = np.maximum(self.p_min, p_init)
-        p_max = np.minimum(self.p_max, p_max)
-
-        p = np.abs(p_max)
-        q = q_init
-
-        q = np.minimum(q, self.q_max)
-        q = np.maximum(q, self.q_min)
-
-        if q > self.lead_slope * p + self.lead_off:
-            q = self.lead_slope * p + self.lead_off
-
-        if q < self.lag_slope * p + self.lag_off:
-            q = self.lag_slope * p + self.lag_off
-
-        self.p = p_max
-        self.q = q
+        # Clip the new state of charge to be in [soc_min, soc_max].
+        self.soc = np.clip(self.soc, self.soc_min, self.soc_max)

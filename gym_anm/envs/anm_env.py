@@ -3,9 +3,14 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 import datetime as dt
+from copy import copy
+from warnings import warn
 
 from gym_anm.simulator import Simulator
-from gym_anm.envs import utils
+from gym_anm.errors import ObsSpaceError, ObsNotSupportedError
+from gym_anm.utils import check_env_args
+from gym_anm.constants import STATE_VARIABLES
+from gym_anm.simulator.components import StorageUnit, Generator
 
 
 class ANMEnv(gym.Env):
@@ -23,7 +28,7 @@ class ANMEnv(gym.Env):
         The action space available to the agent interacting with the environment.
     delta_t : int
         The time interval between two consecutive time steps (minutes).
-    network_specs : dict of {str : list}
+    state_bounds : dict of {str : list}
         The operating characteristics of the electricity network.
     np_random : numpy.random.RandomState
         The random state of the environment.
@@ -89,278 +94,102 @@ class ANMEnv(gym.Env):
         Stop rendering.
     """
 
-    def __init__(self, network, obs_values, delta_t=15, seed=None):
+    def __init__(self, network, observation, K, delta_t, gamma, lamb, seed=None):
         """
         Parameters
         ----------
         network : dict of {str : numpy.ndarray}
-            The network input file describing the power grid.
-        obs_values : list of str
-            The values to include in the observation space.
-        delta_t : int, optional
-            The time interval between two consecutive time steps (minutes).
+            The network input dictionary describing the power grid.
+        observation : callable or list or str
+            The observation space. It can be specified as "state" to construct a
+            fully observable environment (o_t = s_t); as a callable function such
+            that o_t = observation(s_t); or as a list of tuples (x, y, z) that
+            refers to the electrical quantity x (str) at the nodes/branches/devices
+            y (list) in unit z (str, optional).
+        K : int
+            The number of auxiliary variables.
+        delta_t : float
+            The interval of time between two consecutive time steps (fraction of
+            hour).
+        gamma : float
+            The discount factor in [0, 1].
+        lamb : int or float
+            The factor multiplying the penalty associated with violating
+            operational constraints (used in the reward signal).
         seed : int, optional
             A random seed.
         """
 
-        # Set random seed.
+        self.K = K
+        self.gamma = gamma
+        self.lamb = lamb
+        self.delta_t = delta_t
+
         self.seed(seed)
 
         # Time variables.
-        self.delta_t = delta_t
-        self.timestep_length = dt.timedelta(minutes=delta_t)
-        self.year = 2019
+        self.timestep_length = dt.timedelta(minutes=int(60 * delta_t))
+        self.year = 2020
 
-        # Set the observation space for the environment.
-        utils.check_obs_values(obs_values)
-        self.obs_values = obs_values
+        # Initialize the AC power grid simulator.
+        self.simulator = Simulator(network, self.delta_t, self.lamb)
 
-        # Initialize AC power grid simulator.
-        self.simulator = Simulator(network, delta_t=self.delta_t)
-        self.network_specs = self.simulator.specs
+        # Check the arguments provided.
+        check_env_args(K, delta_t, lamb, gamma, observation,
+                       self.simulator.state_bounds)
 
-        # Build action and observation spaces.
-        self.action_space, self.action_lengths, self.action_high, \
-            self.action_low = self._build_action_space()
-        self.observation_space, self.obs_low, self.obs_high, \
-            self.obs_space_bounded = self._build_obs_space()
+        # Variables to include in state vectors.
+        self.state_values = [('dev_p', 'all', 'MW'), ('dev_q', 'all', 'MVAr'),
+                             ('des_soc', 'all', 'MWh'), ('gen_p_max', 'all', 'MW'),
+                             ('aux', 'all', None)]
 
-    def _build_action_space(self):
+        # Build action space.
+        self.action_space = self._build_action_space()
+
+        # Build observation space.
+        self.obs_values = self._build_observation_space(observation)
+        self.observation_space = self.observation_bounds()
+
+    def init_state(self):
+        raise NotImplementedError
+
+    def next_vars(self, s_t):
+        raise NotImplementedError
+
+    def observation_bounds(self):
         """
-        Build the available action space.
+        Builds the observation space of the environment.
 
-        Notes
-        -----
-        The returned action space is normalized so that the environment accepts
-        actions in the range [-1, 1]. The conversion is then handled by the
-        environment in `step()`.
+        If the observation space is specified as a callable object, then its
+        bounds are set to (- np.inf, np.inf)^{N_o} by default (this is done
+        during the `reset()` call, as the size of observation vectors is not
+        known before then. Alternatively, the user can specify its own bounds
+        by overwriting this function in the new environment.
 
         Returns
         -------
-        space : gym.spaces.Box
-            The normalized action space of the environment.
-        action_lengths : list of int
-            The number of action variables for each type of action, e.g.
-            [4, 2, 2] -> 4 renewable generators, 2 DES units.
-        lower_bounds : numpy.ndarray
-            The actual lower bounds on actions accepted by the power grid
-            simulator.
-        upper_bounds : numpy.ndarray
-            The actual upper bounds on actions accepted by the power grid
-            simulator.
+        gym.spaces.Box or None
+            The bounds of the observation space.
         """
-
-        P_curt_bounds, alpha_bounds, q_bounds = self.simulator.get_action_space()
-
-        lower_bounds = np.concatenate((P_curt_bounds[:, 1],
-                                       alpha_bounds[:, 1],
-                                       q_bounds[:, 1]))
-
-        upper_bounds = np.concatenate((P_curt_bounds[:, 0],
-                                       alpha_bounds[:, 0],
-                                       q_bounds[:, 0]))
-
-        space = spaces.Box(low=-np.ones_like(lower_bounds),
-                           high=np.ones_like(upper_bounds))
-
-        action_lengths = [P_curt_bounds.shape[0], alpha_bounds.shape[0],
-                          q_bounds.shape[0]]
-
-        return space, action_lengths, lower_bounds, upper_bounds
-
-    def _build_obs_space(self):
-        """
-        Build the observation space.
-
-        Notes
-        -----
-        1. The returned observation space is normalized so that the environment
-        emits observations in the range [-1, 1]. The conversion is handled
-        by the environment in `step()`.
-        2. For observations that are not
-
-        Returns
-        -------
-        obs_space : gym.spaces.Box
-            The normalized observation space of the environment.
-        lower_bounds : numpy.ndarray
-            The actual lower bounds on observations emitted by the environment.
-        upper_bounds : numpy.ndarray
-            The actual upper bounds on observations emitted by the environment.
-        obs_space_bounded : bool
-            True if the non-scaled observation space is lower and upper bounded.
-        """
-
-        network_specs = {k: np.array(v) for k, v in self.network_specs.items()}
         lower_bounds, upper_bounds = [], []
 
-        for name in self.obs_values:
+        if self.obs_values is None:
+            warn('The observation space is unbounded.')
+            # In this case, the size of the obs space is obtained after the
+            # environment has been reset. See `reset()`.
+            return None
 
-            if name == 'P_BUS':
-                lower_bounds.append(network_specs['PMIN_BUS'])
-                upper_bounds.append(network_specs['PMAX_BUS'])
-
-            elif name == 'Q_BUS':
-                lower_bounds.append(network_specs['QMIN_BUS'])
-                upper_bounds.append(network_specs['QMAX_BUS'])
-
-            elif name == 'V_MAGN_BUS':
-                lower_bounds.append(network_specs['VMIN_BUS'])
-                upper_bounds.append(network_specs['VMAX_BUS'])
-
-            elif name == 'P_DEV':
-                lower_bounds.append(network_specs['PMIN_DEV'])
-                upper_bounds.append(network_specs['PMAX_DEV'])
-
-            elif name == 'Q_DEV':
-                lower_bounds.append(network_specs['QMIN_DEV'])
-                upper_bounds.append(network_specs['QMAX_DEV'])
-
-            elif name == 'SOC':
-                lower_bounds.append(network_specs['SOC_MIN'])
-                upper_bounds.append(network_specs['SOC_MAX'])
-
-            elif name in ['P_BR_F', 'P_BR_T', 'Q_BR_F', 'Q_BR_T', 'I_MAGN_F',
-                          'I_MAGN_T', 'S_FLOW']:
-                shape = network_specs['RATE'].shape
-                lower_bounds.append(- np.inf * np.ones(shape=shape))
-                upper_bounds.append(np.inf * np.ones(shape=shape))
-
-            else:
-                raise ValueError('The type of observation ' + name
-                                 + 'is not supported.')
-
-        lower_bounds = np.concatenate(lower_bounds)
-        upper_bounds = np.concatenate(upper_bounds)
-
-        # Check if the non-normalized space is lower and upper bounded.
-        actual_space = spaces.Box(low=lower_bounds, high=upper_bounds)
-        obs_space_bounded = actual_space.is_bounded()
-
-        if obs_space_bounded:
-            obs_space = spaces.Box(low=-np.ones_like(lower_bounds),
-                                   high=np.ones_like(upper_bounds))
         else:
-            print('Warning: the observation space was not normalized to [-1, 1]'
-                  'because it is not bounded.')
-            obs_space = actual_space
+            bounds = self.simulator.state_bounds
+            for key, nodes, unit in self.obs_values:
+                for n in nodes:
+                    lower_bounds.append(bounds[key][n][unit][0])
+                    upper_bounds.append(bounds[key][n][unit][1])
 
-        return obs_space, lower_bounds, upper_bounds, obs_space_bounded
+        space = spaces.Box(low=np.array(lower_bounds),
+                           high=np.array(upper_bounds))
 
-    def init_dg_load(self, pmax, init_date, delta_t, np_random):
-
-        raise NotImplementedError('The function init_dg_load() should be '
-                                  'implemented by the subclass.')
-
-    def step(self, action):
-        """
-        Take a control action and transition from a state s_t to a state s_{t+1}.
-
-        Parameters
-        ----------
-        action : Tuple of array_like
-            The action taken by the agent.
-
-        Returns
-        -------
-        state_values : Tuple of array_like
-            The observation corresponding to the new state s_{t+1}.
-        reward : float
-            The reward associated with the transition.
-        done : bool
-            True if the episode is over, False otherwise.
-        info : dict
-            A dictionary of further information.
-        """
-
-        if self.end_time is not None and self.time >= self.end_time:
-            raise gym.error.ResetNeeded('The episode is already over.')
-
-        # Check if the action is in the available action space.
-        # assert self.action_space.contains(action), "%r (%s) invalid" \
-        #                                            % (action, type(action))
-
-        # Clip the action to be within the available action space.
-        action = np.clip(action, self.action_space.low, self.action_space.high)
-
-        # Re-scale the normalized action from [-1, 1] to the actual action
-        # space.
-        action = utils.linear_scale(action, self.action_space.low,
-                                    self.action_space.high, self.action_low,
-                                    self.action_high)
-
-        # Get the output of the stochastic processes (vre generation, loads).
-        P_loads = [next(load) for load in self.loads]
-        self.P_gen_potential = [next(gen) for gen in self.generators]
-
-        # Separate 3 types of actions.
-        i = self.action_lengths[0]
-        j = i + self.action_lengths[1]
-        k = j + self.action_lengths[2]
-        P_curt_limit = action[0: i]
-        des_alpha = action[i: j]
-        Q_storage = action[j: k]
-
-        # Simulate a transition and compute the reward.
-        self.state, reward, self.e_loss, self.penalty = \
-            self.simulator.transition(P_loads, self.P_gen_potential,
-                                      P_curt_limit, des_alpha, Q_storage)
-        self.total_reward += reward
-
-        # Create a tuple of observations.
-        self.obs = self._get_observations()
-
-        # Linearly scale the observations to be in [-1, 1].
-        scaled_obs = utils.linear_scale(self.obs, self.obs_low,
-                                        self.obs_high,
-                                        self.observation_space.low,
-                                        self.observation_space.high)
-
-        # Check if the observation is in the available observation space.
-        assert self.observation_space.contains(scaled_obs), "%r (%s) invalid" \
-                                                % (scaled_obs, type(scaled_obs))
-
-        # End of episode if maximum number of time steps has been reached.
-        self._increment_t()
-        if self.end_time is not None and self.time >= self.end_time:
-            self.done = True
-
-        # Information returned for debugging.
-        info = {'episode': None, 'year': self.year_counter}
-
-        return scaled_obs, reward, self.done, info
-
-    def _increment_t(self):
-        """ Increment the time. """
-        self.time += self.timestep_length
-
-        if self.time.year != self.year:
-            self.year_counter += 1
-            self.time = self.time.replace(year=self.year)
-
-    def _get_observations(self):
-        """
-        Select the observations available to the agent from the current state.
-
-        Returns
-        -------
-        state_values : list of list of float
-            The observations available to the agent, as specified by
-            `self.obs_values`.
-        """
-
-        if self.state:
-            obs = [list(self.state[ob]) for ob in self.obs_values]
-            obs = np.concatenate(obs).astype(np.float32)
-        else:
-            obs = None
-
-        return obs
-
-    def seed(self, seed=None):
-        """ Seed the random number generator. """
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
+        return space
 
     def reset(self):
         """
@@ -368,140 +197,251 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        state_values : list of list of float
-            The observations available to the agent, as specified by
-            `self.obs_values`.
+        obs : numpy.ndarray
+            The initial observation vector.
         """
 
         self.done = False
         self.render_mode = None
-        self.total_reward = 0.
-        self.state = None
+        self.timestep = 0
+        self.total_disc_return = 0.
 
-        # Always start the simulation on January, 1st.
-        self.time = dt.datetime(self.year, 1, 1)
-        self.end_time = None
-        self.year_counter = 0
+        # Initialize the state.
+        self.state = self.init_state()
 
-        # Initialize stochastic processes.
-        dev_specs = self._get_dev_specs()
-        iterators = self.init_dg_load(dev_specs, self.time, self.delta_t,
-                                      self.np_random)
-        utils.check_load_dg_iterators(iterators, dev_specs)
+        # Apply the initial state to the simulator.
+        self.simulator.reset(self.state)
+        self.state = self._construct_state()  # in case the original state was infeasible.
 
-        # Separate loads and generators.
-        self.loads, self.generators = \
-            self._separate_load_dg(iterators, [t for (t, p) in dev_specs])
+        # Construct the initial observation vector.
+        obs = self.observation(self.state)
 
-        # Reset the initial SoC of each storage unit.
-        soc_start = self.init_soc(self.network_specs['SOC_MAX'])
-        utils.check_init_soc(soc_start, self.network_specs['SOC_MAX'])
-        self.simulator.reset(soc_start)
+        # Update the observation space bounds if required.
+        if self.observation_space is None:
+            self.observation_space = spaces.Box(low=-np.ones(len(obs)) * np.inf,
+                                                high=np.ones(len(obs)) * np.inf)
 
-        # Initialize simulator with an action that does nothing.
-        self.step(self._init_action())
-        self.time -= self.timestep_length
-
-        # self.step(sample_action(self.np_random, self.action_space))
-        self.total_reward = 0.
-
-        # Get the initial observations.
-        self.state = self.simulator.state
-        obs = self._get_observations()
+        err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
+        assert self.observation_space.contains(obs), err_msg
 
         return obs
 
-    def _get_dev_specs(self):
+    def observation(self, s_t):
         """
-        Return the device specs needed to initialize the stochastic processes.
+        Returns the observation vector corresponding to the current state `s_t`.
 
-        Returns
-        -------
-        pmax : list of (int, float)
-            A pair (dev_type, pmax) for each device representing a stochastic
-            process (e.g. renewable energy resource).
-        """
-
-        pmax = []
-        for idx, dev_type in enumerate(self.network_specs['DEV_TYPE']):
-            p_max = self.network_specs['PMAX_DEV'][idx]
-            p_min = self.network_specs['PMIN_DEV'][idx]
-            if dev_type == -1:
-                pmax.append((dev_type, p_min))
-            elif dev_type in [1, 2, 3]:
-                pmax.append((dev_type, p_max))
-
-        return pmax
-
-    def _separate_load_dg(self, iterators, dev_types):
-        """
-        Separate the loads and generators objects modelling stochastic processes.
+        Alternatively, this function can be overwritten in custom environments.
 
         Parameters
         ----------
-        iterators : list of Iterable
-            The passive loads and renewable energy generators.
-        dev_types : list of (int, float)
-            The specs of each device modelling a stochastic process (see
-            `_get_dev_specs()`).
+        s_t : numpy.ndarray
+            The current state vector `s_t`.
 
         Returns
         -------
-        loads : list of Iterable
-            The loads.
-        gens : list of Iterable
-            The renewable energy generators.
+        numpy.ndarray
+            The corresponding observation vector `o_t`.
         """
+        return self._extract_state_variables(self.obs_values)
 
-        loads, gens = [], []
-
-        for idx, dev_type in enumerate(dev_types):
-            if dev_type == -1:
-                loads.append(iterators[idx])
-            elif dev_type in [1, 2, 3]:
-                gens.append(iterators[idx])
-            else:
-                raise ValueError('This type of device is not supported.')
-
-        return loads, gens
-
-    def _init_action(self):
+    def step(self, action):
         """
-        Get the action that doesn't modify the state of the system.
+        Take a control action and transition from a state s_t to a state s_{t+1}.
 
-        Returns
-        -------
+        Parameters
+        ----------
         action : numpy.ndarray
-            The action to take which will not modify the state.
-        """
-
-        P_curt_bounds = self.action_space.high[0: self.action_lengths[0]]
-        action = np.concatenate([P_curt_bounds,
-                                 [0] * self.action_lengths[1],
-                                 [0] * self.action_lengths[2]])
-
-        return action
-
-    def init_soc(self, soc_max):
-        """
-        Get the initial state of charge for each storage unit.
-
-        Parameters
-        ----------
-        soc_max : list of float
-            The maximum state of charge of each DES unit.
+            The action vector `a_t` taken by the agent.
 
         Returns
         -------
-        list of float
-            The initial state of charge of each storage unit.
+        obs : numpy.ndarray
+            The observation vector `o_{t+1}`.
+        reward : float
+            The reward associated with the transition `r_t`.
+        done : bool
+            True if the episode is over, False otherwise. Always False in
+            `gym-anm` environments.
+        info : dict
+            A dictionary with further information (used for debugging).
         """
 
-        raise NotImplementedError('The function init_soc() should be implemented'
-                                  ' by the subclass.')
+        err_msg = "Action %r (%s) invalid." % (action, type(action))
+        assert self.action_space.contains(action), err_msg
+
+        # 1a. Sample the internal stochastic variables.
+        vars = self.next_vars(self.state)
+        P_load = vars[:self.simulator.N_load]
+        P_pot = vars[self.simulator.N_load: self.simulator.N_load + self.simulator.N_non_slack_gen]
+        aux = vars[self.simulator.N_load + self.simulator.N_non_slack_gen:]
+        assert len(aux) == self.K
+
+        # 2. Extract the different actions from the action vector.
+        P_set_points = {}
+        Q_set_points = {}
+        gen_slack_ids = [i for i, dev in self.simulator.devices
+                             if isinstance(dev, Generator) and not dev.is_slack]
+        des_ids = [i for i, dev in self.simulator.devices if isinstance(dev, StorageUnit)]
+        N_gen = len(gen_slack_ids)
+        N_des = len(des_ids)
+
+        for a, dev_id in zip(action[:N_gen], gen_slack_ids):
+            P_set_points[dev_id] = a
+        for a, dev_id in zip(action[N_gen: 2 * N_gen], gen_slack_ids):
+            Q_set_points[dev_id] = a
+        for a, dev_id in zip(action[2 * N_gen: 2 * N_gen + N_des], des_ids):
+            P_set_points[dev_id] = a
+        for a, dev_id in zip(action[2 * N_gen + N_des:], des_ids):
+            Q_set_points[dev_id] = a
+
+        # 3. Apply the action in the simulator.
+        _, r, self.e_loss, self.penalty = \
+            self.simulator.transition(P_load, P_pot, P_set_points, Q_set_points)
+
+        # 4. Construct the state and observation vector.
+        self.state = self._construct_state()
+        obs = self.observation(self.state)
+
+        err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
+        assert self.observation_space.contains(obs), err_msg
+
+        # 5. Update the discounted return.
+        self.total_disc_return += self.gamma ** self.timestep * r
+        self.timestep += 1
+
+        return obs, r, self.done, {}
+
 
     def render(self, mode='human'):
         raise NotImplementedError
 
     def close(self):
         raise NotImplementedError
+
+    def seed(self, seed=None):
+        """Seed the random number generator. """
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def _build_action_space(self):
+        """
+        Build the available loose action space `\mathcal A`.
+
+        Returns
+        -------
+        space : gym.spaces.Box
+            The action space of the environment.
+        """
+
+        P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds = \
+            self.simulator.get_action_space()
+
+        lower_bounds, upper_bounds = [], []
+
+        for dev_id in sorted(P_gen_bounds.keys()):
+            upper_bounds.append(P_gen_bounds[dev_id][0])
+            lower_bounds.append(P_gen_bounds[dev_id][1])
+
+        for dev_id in sorted(Q_gen_bounds.keys()):
+            upper_bounds.append(Q_gen_bounds[dev_id][0])
+            lower_bounds.append(Q_gen_bounds[dev_id][1])
+
+        for dev_id in sorted(P_des_bounds.keys()):
+            upper_bounds.append(P_des_bounds[dev_id][0])
+            lower_bounds.append(Q_des_bounds[dev_id][1])
+
+        space = spaces.Box(low=np.array(lower_bounds),
+                           high=np.array(upper_bounds))
+
+        return space
+
+    def _build_observation_space(self, observation):
+        """Handles the different ways of specifying an observation space."""
+
+        # Case 1: environment is fully observable.
+        if isinstance(observation, str) and observation == 'state':
+            obs_values = self.state_values
+
+        # Case 2: observation space is provided as a list.
+        elif isinstance(observation, list):
+            obs_values = copy(observation)
+            # Add default units when none is provided.
+            for idx, o in enumerate(obs_values):
+                if len(o) == 2:
+                    obs_values[idx] = tuple(list(o) + STATE_VARIABLES[o[0]][0])
+
+        # Case 3: observation space is provided as a callable object.
+        elif callable(observation):
+            obs_values = None
+            self.observation = observation
+
+        else:
+            raise ObsSpaceError()
+
+        # Transform the 'all' option into a list of bus/branch/device IDs.
+        if obs_values is not None:
+            for idx, o in enumerate(obs_values):
+                if isinstance(o[1], str) and o[1] == 'all':
+                    if 'bus' in o[0]:
+                        ids = list(self.simulator.buses.keys())
+                    elif 'dev' in o[0]:
+                        ids = list(self.simulator.devices.keys())
+                    elif 'des' in o[0]:
+                        ids = [i for i, d in self.simulator.devices.items() if isinstance(d, StorageUnit)]
+                    elif 'gen' in o[0]:
+                        ids = [i for i, d in self.simulator.devices.items() if isinstance(d, Generator) and not d.is_slack]
+                    elif 'branch' in o[0]:
+                        ids = list(self.simulator.branches.keys())
+                    elif o[0] == 'aux':
+                        ids = list(range(0, self.K))
+                    else:
+                        raise ObsNotSupportedError(o[0], STATE_VARIABLES.keys())
+
+                    obs_values[idx] = (o[0], ids, o[2])
+
+        return obs_values
+
+
+
+    def _construct_state(self):
+        """
+        Construct the state vector `s_t`.
+
+        Returns
+        -------
+        s_t : numpy.ndarray
+            The state vector
+        """
+        return self._extract_state_variables(self.state_values)
+
+    def _extract_state_variables(self, values):
+        """
+        Extract variables used in state and observation vectors from the simulator.
+
+        Parameters
+        ----------
+        values : list of tuple of (str, list, str)
+            The variables to extract as tuples, where each tuple (i, j, k) refers
+            to variable i at the nodes/branches/devices listed in j, using unit
+            k.
+
+        Returns
+        -------
+        numpy.ndarray
+            The vector of extracted state variables.
+        """
+
+        full_state = self.simulator.state
+
+        vars = []
+        for value in values:
+            if value[0] in full_state.keys():
+                o = full_state[value[0]][value[2]][value[1]]
+            elif value[0] == 'aux':
+                o = self.state[value[1] - self.K]
+            else:
+                raise ObsNotSupportedError(value[0], STATE_VARIABLES.keys())
+
+            vars.append(o)
+
+        return vars

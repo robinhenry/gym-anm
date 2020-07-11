@@ -2,7 +2,7 @@ import unittest
 import numpy.testing as npt
 import os
 
-from gym_anm.simulator.components import Load, Storage, Generator
+from gym_anm.simulator.components import Load, StorageUnit, Generator
 
 
 class TestDevices(unittest.TestCase):
@@ -15,10 +15,10 @@ class TestDevices(unittest.TestCase):
         slack_case = [0, 0, 0., 100, -100, 1, 100, -100, 0, 0, 0, 0, 0, 0, 0, 0]
         storage_case = [5, 4, 0, 5, -5, 1, 20, -20, 10, 20, -5, 5, -3, 1, 50, .9]
 
-        self.load = Load(1, 1, load_case)
-        self.gen = Generator(1, 1, gen_case)
-        self.slack = Generator(0, 0, slack_case)
-        self.storage = Storage(1, 2, storage_case)
+        self.load = Load(1, 1, )
+        self.gen = Generator(1, 1, )
+        self.slack = Generator(0, 0, )
+        self.storage = StorageUnit(1, 2, )
 
     def test_init_load(self):
         self.assertEqual(self.load.dev_id, 1)
@@ -63,7 +63,7 @@ class TestDevices(unittest.TestCase):
     def test_load_compute_pq(self):
         ps = [-10, 0, 1, 10]
         for p in ps:
-            self.load.compute_pq(p)
+            self.load.map_pq(p)
             self.assertEqual(self.load.q, p * 0.26)
 
     def test_gen_compute_pq(self):
@@ -73,7 +73,7 @@ class TestDevices(unittest.TestCase):
         q_desired = [0, .5, 1, 1.5, 1.8, 1.8]
 
         for i, p in enumerate(ps):
-            gen.compute_pq(p)
+            gen.map_pq(p)
             npt.assert_almost_equal(gen.p, p_desired[i])
             npt.assert_almost_equal(gen.q, q_desired[i])
 
@@ -83,11 +83,11 @@ class TestDevices(unittest.TestCase):
         desired = [(5, 2), (5, -3), (5, 5), (5, -5), (15, 3), (15, -4), (20, 1), (20, -1)]
 
         for point, des in zip(pq, desired):
-            su.compute_pq(*point)
+            su.map_pq(*point)
             npt.assert_almost_equal(su.p, des[0])
             npt.assert_almost_equal(su.q, des[1])
 
-            su.compute_pq(- point[0], point[1])
+            su.map_pq(- point[0], point[1])
             npt.assert_almost_equal(- su.p, des[0])
             npt.assert_almost_equal(su.q, des[1])
 

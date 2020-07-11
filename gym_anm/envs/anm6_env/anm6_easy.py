@@ -69,3 +69,4 @@ class ANM6Easy(ANM6):
             # Scenario 3.
             else:
                 yield case3
+
