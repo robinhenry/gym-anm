@@ -4,10 +4,10 @@ import os
 
 from websocket import create_connection
 from .servers import WsServer, HttpServer
-from .constants import RENDERING_FOLDER
+from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH
 
 
-def start(title, dev_type, p_min, p_max, s_rate, soc_max):
+def start(title, dev_type, p_min, p_max, s_rate, soc_min, soc_max):
     """
     Start visualizing the state of the environment in a new browser window.
 
@@ -22,8 +22,8 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_max):
         The minimum and maximum real power injection of each device (MW).
     s_rate : list of float
         The transmission line apparent power ratings (MVA).
-    soc_max : list of float
-        The maximum state of charge of each storage unit (MWh).
+    soc_min, soc_max : list of float
+        The minimum and maximum state of charge of each storage unit (MWh).
 
     Returns
     -------
@@ -39,8 +39,8 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_max):
     ws_server = WsServer()
 
     # Open a new browser window to display the visualization.
-    path = '/envs/anm6_env/rendering/'
-    webbrowser.open_new_tab(http_server.address + path)
+    p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
+    webbrowser.open_new_tab(p)
 
     ws = create_connection(ws_server.address)
 
@@ -65,6 +65,7 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_max):
     ws.close()
 
     return http_server, ws_server
+
 
 def update(ws_address, cur_time, p, s, soc, p_potential, costs):
     """

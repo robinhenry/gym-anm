@@ -35,13 +35,13 @@ def check_network_specs(network):
         raise DeviceSpecError('The slack bus ID of the slack device is %d but the actual slack bus has ID %d.' % (bus_of_dev, slack_bus))
 
     # Check buses have unique IDs.
-    bus_ids = network['bus'][BUS_H['BUS_ID']]
+    bus_ids = network['bus'][:, BUS_H['BUS_ID']]
     set_ids = set(bus_ids)
     if len(bus_ids) != len(set_ids):
         raise BusSpecError('The buses should all have unique IDs.')
 
     # Check devices have unique IDs.
-    dev_ids = network['device'][DEV_H['DEV_ID']]
+    dev_ids = network['device'][:, DEV_H['DEV_ID']]
     set_ids = set(dev_ids)
     if len(dev_ids) != len(set_ids):
         raise DeviceSpecError('The devices should all have unique IDs.')
@@ -50,7 +50,7 @@ def check_network_specs(network):
     set_branches = set()
     for br_spec in network['branch']:
         f_bus = br_spec[BRANCH_H['F_BUS']]
-        t_bus = br_spec['T_BUS']
+        t_bus = br_spec[BRANCH_H['T_BUS']]
         set_branches.add((f_bus, t_bus))
         set_branches.add((t_bus, f_bus))
     if len(set_branches) != 2 * network['branch'].shape[0]:

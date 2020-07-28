@@ -151,7 +151,7 @@ class HttpServer(object):
     def __init__(self):
         self.PORT = 8000
         self.HOST = '127.0.0.1'
-        self.address = self.HOST + ':' + str(self.PORT)
+        self.address = 'http://' + self.HOST + ':' + str(self.PORT)
         self.process = self._start_http_process()
 
     def _start_http_process(self):

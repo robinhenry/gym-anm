@@ -1,0 +1,4 @@
+..
+
+Background and notation
+=======================

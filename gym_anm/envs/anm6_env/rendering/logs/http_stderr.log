@@ -1,4 +1,4 @@
-127.0.0.1 - - [03/Mar/2020 11:25:26] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jul/2020 16:51:39] "GET /envs/anm6_env/rendering/ HTTP/1.1" 200 -
 Process http_server:
 Traceback (most recent call last):
   File "/Users/robin/anaconda3/envs/gym-anm/lib/python3.7/multiprocessing/process.py", line 297, in _bootstrap

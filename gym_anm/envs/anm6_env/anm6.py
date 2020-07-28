@@ -11,23 +11,16 @@ from gym_anm.envs.anm6_env.network import network
 
 class ANM6(ANMEnv):
     """
-    This class implements a 6-bus gym-anm environment.
+    The base class for a 6-bus and 7-device `gym-anm` environment.
 
     The structure of the electricity distribution network used for this
     environment is shown below:
 
-    Slack ---------------------------
+    Slack ----------------------------
             |            |           |
           -----       -------      -----
          |     |     |       |    |     |
         House  PV  Factory  Wind  EV   DES
-
-    This environment has an observation space containing the real and reactive
-    power injection, P and Q, of each device (7) and the state of charge (SoC)
-    of the DES unit => 15 dimensional space.
-
-    The interval of time between consecutive time steps are taken as 15
-    minutes, to mimic the management of real distribution networks.
 
     This environment supports rendering (web-based) through the functions
     render(), replay(), and close().
@@ -35,19 +28,22 @@ class ANM6(ANMEnv):
 
     metadata = {'render.modes': ['human', 'save']}
 
-    def __init__(self):
+    def __init__(self, observation, K, delta_t, gamma, lamb,
+                 aux_bounds=None, seed=None):
 
-        # Initialize environment.
-        seed = None
-        obs_values = ['P_DEV', 'Q_DEV', 'SOC']
-        delta_t = 15
+        super().__init__(network, observation, K, delta_t, gamma, lamb,
+                         aux_bounds, seed)
 
-        # Rendered values.
-        self.rendered_network_specs = ['DEV_TYPE', 'PMIN_DEV', 'PMAX_DEV', 'SMAX_BR', 'SOC_MAX']
-        self.rendered_state_values = ['P_DEV', 'S_FLOW', 'SOC']
+        # Time variables.
+        # self.timestep_length = dt.timedelta(minutes=int(60 * delta_t))
+        # self.year = 2020
 
-        super().__init__(network, obs_values, delta_t, seed)
+        # Specs of the network (used for rendering).
+        self.network_specs = self.simulator.get_rendering_specs()
 
+        # # Rendered values.
+        # self.rendered_network_specs = ['dev_type', 'dev_p', 'branch_s', 'des_soc']
+        # self.rendered_state_values = ['dev_p', 'branch_s', 'des_soc', 'gen_p_max']
 
     def render(self, mode='human', sleep_time=0.):
         """
@@ -61,7 +57,7 @@ class ANM6(ANMEnv):
             for later visualization using the function replay().
         sleep_time : float, optional
             The sleeping time between two visualization updates, only used if
-            mode == 'human'.
+            mode == 'human'. Default value is 0.
 
         Raises
         ------
@@ -74,35 +70,44 @@ class ANM6(ANMEnv):
         saving the history of interactions. If no call to close() is made,
         the history will not be saved.
 
+        Using mode == 'human' with `sleep_time` > 0 will pause the environment
+        during `sleep_time` seconds, which will significantly slow down agent-environment
+        interactions. It is therefore recommended not to render the environment during
+        training.
+
         See Also
         --------
         replay()
         """
 
         if self.render_mode is None:
-
             if mode in ['human', 'replay']:
                 pass
             elif mode == 'save':
                 self.render_history = None
             else:
-                raise NotImplementedError
+                raise NotImplementedError()
 
             # Render the initial image of the distribution network.
             self.render_mode = mode
-            specs = [list(self.network_specs[s]) for s in self.rendered_network_specs]
+            rendered_network_specs = ['dev_type', 'dev_p', 'branch_s', 'des_soc']
+            specs = {s : self.network_specs[s] for s in rendered_network_specs}
             self._init_render(specs)
 
             # Render the initial state.
             self.render(mode=mode, sleep_time=1.)
 
         else:
-            state_values = [list(self.state[s]) for s in self.rendered_state_values]
-            self._update_render(self.time - self.timestep_length,
-                                state_values,
-                                list(self.P_gen_potential),
-                                [self.e_loss, self.penalty],
-                                sleep_time=sleep_time)
+            full_state = self.simulator.state
+            dev_p = list(full_state['dev_p']['MW'].values())
+            branch_s = list(full_state['branch_s']['MVA'].values())
+            des_soc = list(full_state['des_soc']['MWh'].values())
+            gen_p_max = list(full_state['gen_p_max']['MW'].values())
+            costs = [self.e_loss, self.penalty]
+            cur_time = dt.datetime(2020, 1, 1, 1)
+
+            self._update_render(cur_time, dev_p, branch_s, des_soc, gen_p_max,
+                                costs, sleep_time)
 
     def _init_render(self, network_specs):
         """
@@ -121,18 +126,29 @@ class ANM6(ANMEnv):
 
         title = type(self).__name__
 
+        # Convert dict of network specs into lists.
+        dev_type = list(network_specs['dev_type'])
+        p_min, p_max = [], []
+        for i in network_specs['dev_p'].keys():
+            p_min.append(network_specs['dev_p'][i]['MW'][0])
+            p_max.append(network_specs['dev_p'][i]['MW'][1])
+        branch_rate = []
+        for br in network_specs['branch_s'].keys():
+            branch_rate.append(network_specs['branch_s'][br]['pu'][1])
+        soc_min, soc_max = [], []
+        for i in network_specs['des_soc'].keys():
+            soc_min.append(network_specs['des_soc'][i]['MWh'][0])
+            soc_max.append(network_specs['des_soc'][i]['MWh'][1])
+
         # Add the '-' to the displayed title.
         if 'Easy' in title:
             title = 'ANM6-Easy'
-        elif 'Hard' in title:
-            title = 'ANM6-Hard'
-        else:
-            print('Warning: the env title might not get rendered correctly.')
 
         if self.render_mode in ['human', 'replay']:
             rendering.write_html()
             self.http_server, self.ws_server = \
-                rendering.start(title, *network_specs)
+                rendering.start(title, dev_type, p_min, p_max, branch_rate, soc_min,
+                                soc_max)
 
         elif self.render_mode == 'save':
             s = pd.Series({'title': title, 'specs': network_specs})
@@ -141,8 +157,8 @@ class ANM6(ANMEnv):
         else:
             raise NotImplementedError
 
-    def _update_render(self, cur_time, state_values, P_potential, costs,
-                       sleep_time):
+    def _update_render(self, cur_time, dev_p, branch_s, des_soc, gen_p_max,
+                       costs, sleep_time):
         """
         Update the rendering of the environment state.
 
@@ -150,10 +166,15 @@ class ANM6(ANMEnv):
         ----------
         cur_time : datetime.datetime
             The time corresponding to the current time step.
-        state_values : list of list of float
-            The state values needed for rendering.
-        P_potential : list of float
-            The potential generation of each VRE before curtailment (MW).
+        dev_p  : list of float
+            The real power injection from each device (MW).
+        branch_s : list of float
+            The apparent power flow in each branch (MVA).
+        des_soc : list of float
+            The state of charge of each storage unit (MWh).
+        gen_p_max : list of float
+            The potential real power generation of each RER generator before
+            curtailment (MW).
         costs : list of float
             The total energy loss and the total penalty associated with operating
             constraints violation.
@@ -167,11 +188,8 @@ class ANM6(ANMEnv):
         """
 
         if self.render_mode in ['human', 'replay']:
-            rendering.update(self.ws_server.address,
-                             cur_time,
-                             *state_values,
-                             P_potential,
-                             costs)
+            rendering.update(self.ws_server.address, cur_time, dev_p, branch_s,
+                             des_soc, gen_p_max, costs)
             time.sleep(sleep_time)
 
         elif self.render_mode == 'save':

@@ -34,50 +34,21 @@ You can install `gym-anm` with:
 ```
 git clone https://github.com/robinhenry/gym-anm
 cd gym-anm
-pip install -e .
+pip install .
 ```
 
-### Testing
-
-We use the python [unittest](https://docs.python.org/3/library/unittest.html) 
-framework for testing. To run a full coverage of `gym-anm`, first install 
-[coverage](https://coverage.readthedocs.io/en/v4.5.x/install.html) with:
+### Quick Start
+You can now train your agents on `gym-anm` environments. For example:
 ```
-pip install coverage
-``` 
-and then, from the root project folder, run:
+import gym
+
+env = gym.make('gym_anm:ANM6-Easy-v0')
+o = env.reset()
+
+for i in range(100):
+    a = env.action_space.sample()
+    o, r, _, _ = env.step(a)
 ```
-coverage run -m tests
-coverage html
-```
-
-## General task<a name="general_task"></a>
-
-Each environment built on top of `gym-anm` implements the same general active 
-network management task (see 
-[`gym_anm/envs/anm_env.py`](gym_anm/envs/anm_env.py)) in a specific 
-electricity distribution network.
-The agent's goal consists in minimizing total energy losses while satisfying 
-operating network constraints. <br>
-
-The action space is continuous (see [`gym.spaces.Box`](https://github.com/openai/gym/blob/master/gym/spaces/box.py)) 
-and consists in setting, at each time step:
-* the maximum real power output from each renewable energy generator (also 
-known as the *curtailment value*),
-* the real power injection from each distributed energy storage unit,
-* the reactive power injection from each distributed energy storage unit.
-
-For more details, see the original publication [ADD LINK].
-
-## Environments
-
-Specific `gym-anm` environments can differ in terms of:
-* the topology and characteristics of the electricity distribution 
-network,
-* the observation space,
-* the modelling of the stochastic processes present in the system.
-
-For more information on building new environments, see [ADD LINK]. 
 
 ## Authors
 

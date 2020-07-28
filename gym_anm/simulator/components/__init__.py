@@ -1,4 +1,4 @@
 from .branch import TransmissionLine
 from .bus import Bus
-from .devices import Load, ClassicalGen, RenewableGen, StorageUnit, Generator
+from .devices import Load, ClassicalGen, RenewableGen, StorageUnit, Generator, Device
 from .units import convert_units

@@ -1,12 +1,13 @@
 from collections import OrderedDict
 import numpy as np
-import scipy.optimize as optimize
+import copy
+
 
 from gym_anm.simulator.components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
 from gym_anm.constants import DEV_H
 from gym_anm.simulator import check_network
-from gym_anm.simulator.components.errors import PFEError
+from gym_anm.simulator import solve_pfe
 
 
 class Simulator(object):
@@ -38,8 +39,11 @@ class Simulator(object):
         The number of load, non-slack generators, and DES devices.
     Y_bus : numpy.ndarray
         The (N_bus, N_bus) nodal admittance matrix of the network.
-    specs : dict of {str : list}
-        The operating characteristics of the network.
+    state_bounds : dict of {str : dict}
+        The lower and upper bounds that each electrical quantity may take. This
+        is a nested dictionary with keys [quantity][ID][unit], where quantity
+        is the electrical quantity of interest, ID is the unique bus/device/branch
+        ID and unit is the units in which to return the quantity.
     state : dict of {str : numpy.ndarray}
         The current state of the system.
 
@@ -80,11 +84,11 @@ class Simulator(object):
             self._load_case(network)
 
         # Number of elements in all sets.
-        self.N_bus = max([i for i in self.buses.keys()])
-        self.N_device = max([d for d in self.devices.keys()])
-        self.N_load = len([_ for d in self.devices.values() if isinstance(d, Load)])
-        self.N_non_slack_gen = len([_ for d in self.devices.values() if isinstance(d, Generator) and not d.is_slack])
-        self.N_des = len([_ for d in self.devices.values() if isinstance(d, StorageUnit)])
+        self.N_bus = len(self.buses)
+        self.N_device = len(self.devices)
+        self.N_load = len([0 for d in self.devices.values() if isinstance(d, Load)])
+        self.N_non_slack_gen = len([0 for d in self.devices.values() if isinstance(d, Generator) and not d.is_slack])
+        self.N_des = len([0 for d in self.devices.values() if isinstance(d, StorageUnit)])
 
         # Build the nodal admittance matrix.
         self.Y_bus = self._build_admittance_matrix()
@@ -127,7 +131,7 @@ class Simulator(object):
         baseMVA = network['baseMVA']
 
         buses = {}
-        for bus_spec in enumerate(network['bus']):
+        for bus_spec in network['bus']:
             bus = Bus(bus_spec)
             buses[bus.id] = bus
 
@@ -136,10 +140,10 @@ class Simulator(object):
 
         bus_ids = list(buses.keys())
 
-        branches = {}
+        branches = OrderedDict()  # order branches in the order they are provided.
         for br_spec in network['branch']:
             branch = TransmissionLine(br_spec, baseMVA, bus_ids)
-            branches[(branch.i_from, branch.i_to)] = branch
+            branches[(branch.f_bus, branch.t_bus)] = branch
 
         devices = {}
         for dev_spec in network['device']:
@@ -171,16 +175,16 @@ class Simulator(object):
         """
         Build the nodal admittance matrix of the network (in p.u.).
         """
-        Y_bus = np.zeros((self.N_bus, self.N_bus), dtype=np.complex)
+        n = max([i for i in self.buses.keys()])
+        Y_bus = np.zeros((n + 1, n + 1), dtype=np.complex)
 
         for (f, t), br in self.branches.items():
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
             Y_bus[f, t] = - br.series / np.conjugate(br.tap)
-            Y_bus[f, t] = - br.series / br.tap
+            Y_bus[t, f] = - br.series / br.tap
 
             # Increment diagonal element of the admittance matrix Y_bus.
-            Y_bus[f, f] += (br.series + br.shunt) \
-                                         / (np.absolute(br.tap) ** 2)
+            Y_bus[f, f] += (br.series + br.shunt) / (np.abs(br.tap) ** 2)
             Y_bus[t, t] += br.series + br.shunt
 
         return Y_bus
@@ -190,8 +194,9 @@ class Simulator(object):
         Compute the range of (P, Q) possible injections at each bus.
         """
 
-        P_min, P_max = {}, {}
-        Q_min, Q_max = {}, {}
+        P_min = {i:0 for i in self.buses.keys()}
+        P_max = copy.copy(P_min)
+        Q_min, Q_max = copy.copy(P_min), copy.copy(P_min)
 
         # Iterate over all devices connected to the power grid.
         for dev in self.devices.values():
@@ -212,7 +217,7 @@ class Simulator(object):
         """
         Reset the simulator.
 
-        The `init_state` vectors should have power injections in MW or MVAr and
+        The `init_state` vector should have power injections in MW or MVAr and
         state of charge in MWh.
 
         Parameters
@@ -246,10 +251,6 @@ class Simulator(object):
                     P_pot[dev_id] = P_max[gen_idx]
                     gen_idx += 1
 
-                elif isinstance(dev, StorageUnit):
-                    soc[dev_id] = soc[des_idx]
-                    des_idx += 1
-
         # 2. Set the initial SoC of each DES unit to either empty or full, so
         # that the corresponding power injection (given in `init_state`) will
         # be made possible by the simulator during the `transition` call.
@@ -264,63 +265,56 @@ class Simulator(object):
         _, _, _, _ = self.transition(P_load, P_pot, P_set_points, Q_set_points)
 
         # 4. Update the SoC of each DES unit to match the `initial_state`.
-        for dev_id, dev in self.devices.items():
+        soc_idx = 0
+        for dev in self.devices.values():
             if isinstance(dev, StorageUnit):
-                dev.soc = soc[dev_id]
+                dev.soc = soc[soc_idx] / self.baseMVA
+                soc_idx += 1
 
-    # def get_network_specs(self):
-    #     """
-    #     Summarize the characteristics of the distribution network.
-    #
-    #     All values are in p.u. (or p.u. per hour).
-    #
-    #     Returns
-    #     -------
-    #     specs : dict of {str: list}
-    #         A description of the operating range of the network. These values
-    #         can be used to normalize observation spaces.
-    #     """
-    #
-    #     # Bus specs.
-    #     P_min_bus, P_max_bus = {}, {}
-    #     Q_min_bus, Q_max_bus ={}, {}
-    #     V_min_bus, V_max_bus ={}, {}
-    #     for bus_id, bus in self.buses.items():
-    #         P_min_bus[bus_id] = bus.p_min
-    #         P_max_bus[bus_id] = bus.p_max
-    #         Q_min_bus[bus_id] = bus.q_min
-    #         Q_max_bus[bus_id] = bus.q_max
-    #         V_min_bus[bus_id] = bus.v_min
-    #         V_max_bus[bus_id] = bus.v_max
-    #
-    #     # Device specs.
-    #     P_min_dev, P_max_dev = {}, {}
-    #     Q_min_dev, Q_max_dev = {}, {}
-    #     soc_min, soc_max = {}, {}
-    #     for dev_id, dev in self.devices.items():
-    #         P_min_dev[dev_id] = dev.p_min
-    #         P_max_dev[dev_id] = dev.p_max
-    #         Q_min_dev[dev_id] = dev.q_min
-    #         Q_max_dev[dev_id] = dev.q_max
-    #         if isinstance(dev, StorageUnit):
-    #             soc_min[dev_id] = dev.soc_min
-    #             soc_max[dev_id] = dev.soc_max
-    #
-    #     # Branch specs.
-    #     S_min_br, S_max_br = {}, {}
-    #     for (i, j), br in self.branches.items():
-    #         S_min_br[(i, j)] = -br.rate
-    #         S_max_br[(i, j)] = br.rate
-    #
-    #     specs = {'bus_p_min': P_min_bus, 'bus_p_max': P_max_bus,
-    #              'bus_q_min': Q_min_bus, 'bus_q_max': Q_max_bus,
-    #              'bus_v_magn_min': V_min_bus, 'bus_v_magn_max': V_max_bus,
-    #              'dev_p_min': P_min_dev, 'dev_p_max': P_max_dev,
-    #              'dev_q_min': Q_min_dev, 'dev_q_max': Q_max_dev,
-    #              'soc_min': soc_min, 'soc_max': soc_max,
-    #              'branch_s_max': S_max_br}
-    #
-    #     return specs
+    def get_rendering_specs(self):
+        """
+        Summarize the specs of the distribution network (useful for rendering).
+
+        All values are in p.u. (or p.u. per hour for DES units). This method
+        differs from `get_state_space()` in that it returns the bounds that
+        should be respected for a successsful operation of the network, whereas
+        `get_state_space()` returns the range of values that state variables can
+        take. For example, this method will return the rate of a branch, whereas
+        `get_state_space()` will return an upper bound of `np.inf`, since branch
+        rates may be violated during the simulation.
+
+        Returns
+        -------
+        specs : dict of {str : dict}
+            A dictionary where keys are the names of the state variables (e.g.,
+            {'bus_p', 'bus_q', ...}) and the values are dictionary, indexed with
+            the device/branch/bus unique ID, that store dictionaries of
+            {units : (lower bound, upper bound)}.
+        """
+
+        dev_type = {}
+        for dev_id, dev in self.devices.items():
+            dev_type[dev_id] = dev.type
+
+        v_bus = {}
+        for bus_id, bus in self.buses.items():
+            v_bus[bus_id] = {'pu': (bus.v_min, bus.v_max),
+                             'kV': (bus.v_min * bus.baseKV, bus.v_max * bus.baseKV)}
+
+        branch_s = {}
+        for branch_id, branch in self.branches.items():
+            branch_s[branch_id] = {'MVA': (0, branch.rate * self.baseMVA),
+                                   'pu': (0, branch.rate)}
+
+        specs = {'bus_p': self.state_bounds['bus_p'],
+                 'bus_q': self.state_bounds['bus_q'],
+                 'dev_p': self.state_bounds['dev_p'],
+                 'dev_q': self.state_bounds['dev_q'],
+                 'bus_v': v_bus, 'dev_type': dev_type,
+                 'des_soc': self.state_bounds['des_soc'],
+                 'branch_s': branch_s}
+
+        return specs
 
     def get_action_space(self):
         """
@@ -328,7 +322,7 @@ class Simulator(object):
 
         This function returns the lower and upper bound of the action space `\mathcal A`
         available to the agent as dictionaries. The keys are the unique device IDs
-        and the values are a tuple of (upper bound, lower bound).
+        and the values are a tuple of (lower bound, upper bound).
 
         Returns
         -------
@@ -354,12 +348,12 @@ class Simulator(object):
         P_des_bounds, Q_des_bounds = {}, {}
         for dev_id, dev in self.devices.items():
             if isinstance(dev, Generator) and not dev.is_slack:
-                P_gen_bounds[dev_id] = (dev.p_max * self.baseMVA, dev.p_min * self.baseMVA)
-                Q_gen_bounds[dev_id] = (dev.q_max * self.baseMVA, dev.q_min * self.baseMVA)
+                P_gen_bounds[dev_id] = (dev.p_min * self.baseMVA, dev.p_max * self.baseMVA)
+                Q_gen_bounds[dev_id] = (dev.q_min * self.baseMVA, dev.q_max * self.baseMVA)
 
             elif isinstance(dev, StorageUnit):
-                P_des_bounds[dev_id] = (dev.p_max * self.baseMVA, dev.p_min * self.baseMVA)
-                Q_des_bounds[dev_id] = (dev.q_max * self.baseMVA, dev.q_min * self.baseMVA)
+                P_des_bounds[dev_id] = (dev.p_min * self.baseMVA, dev.p_max * self.baseMVA)
+                Q_des_bounds[dev_id] = (dev.q_min * self.baseMVA, dev.q_max * self.baseMVA)
 
         return P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds
 
@@ -381,19 +375,27 @@ class Simulator(object):
 
         # Bus bounds.
         bus_p, bus_q = {}, {}
-        bus_v_magn, bus_v_ang ={}, {}
-        bus_i_magn, bus_i_ang ={}, {}
+        bus_v_magn, bus_v_ang = {}, {}
+        bus_i_magn, bus_i_ang = {}, {}
         for bus_id, bus in self.buses.items():
             bus_p[bus_id] = {'MW': (bus.p_min * self.baseMVA, bus.p_max * self.baseMVA),
                              'pu': (bus.p_min, bus.p_max)}
-            bus_q[bus_id] = {'MW': (bus.q_min * self.baseMVA, bus.q_max * self.baseMVA),
+            bus_q[bus_id] = {'MVAr': (bus.q_min * self.baseMVA, bus.q_max * self.baseMVA),
                              'pu': (bus.q_min, bus.q_max)}
-            bus_v_magn[bus_id] = {'pu': (- np.inf, np.inf),
-                                  'kV': (- np.inf, np.inf)}
-            bus_v_ang[bus_id] = {'degree': (- 180, 180),
-                                 'rad': (- np.pi, np.pi)}
+            if bus.is_slack:
+                bus_v_magn[bus_id] = {'pu': (bus.v_slack, bus.v_slack),
+                                      'kV': (bus.v_slack * bus.baseKV, bus.v_slack * bus.baseKV)}
+                bus_v_ang[bus_id] = {'degree': (0, 0),
+                                     'rad': (0, 0)}
+            else:
+                bus_v_magn[bus_id] = {'pu': (- np.inf, np.inf),
+                                      'kV': (- np.inf, np.inf)}
+                bus_v_ang[bus_id] = {'degree': (- 180, 180),
+                                     'rad': (- np.pi, np.pi)}
             bus_i_magn[bus_id] = {'pu': (- np.inf, np.inf),
                                   'kA': (- np.inf, np.inf)}
+            bus_i_ang[bus_id] = {'degree': (- 180, 180),
+                                 'rad': (- np.pi, np.pi)}
 
         # Device bounds.
         dev_p, dev_q = {}, {}
@@ -420,8 +422,8 @@ class Simulator(object):
                                'pu': (- np.inf, np.inf)}
             branch_s[br_id] = {'MVA': (- np.inf, np.inf),
                                'pu': (- np.inf, np.inf)}
-            branch_i_magn = {'pu': (- np.inf, np.inf),
-                             'kA': (- np.inf, np.inf)}
+            branch_i_magn[br_id] = {'pu': (- np.inf, np.inf),
+                                    'kA': (- np.inf, np.inf)}
 
         specs = {'bus_p': bus_p, 'bus_q': bus_q,
                  'bus_v_magn': bus_v_magn, 'bus_v_ang': bus_v_ang,
@@ -497,16 +499,8 @@ class Simulator(object):
         # 4b. Compute the total (P, Q) injection at each bus.
         self._get_bus_total_injections()
 
-        # 4c. Solve the network equations and compute nodal V (p.u.), P (MW),
-        # and Q (MVAr) vectors.
-        self._solve_pfes()
-
-        # 5a. Compute branch I (p.u.), P (MW) and Q (MVAR) flows.
-        for branch in self.branches.values():
-            v_f = self.buses[branch.i_from]
-            v_t = self.buses[branch.i_to]
-            branch.compute_currents(v_f, v_t)
-            branch.compute_power_flows(v_f, v_t)
+        # 5. Solve the network equations and compute nodal V, P, and Q vectors.
+        solve_pfe.solve_pfe(self)
 
         # 6. Construct the new state of the network.
         self.state = self._gather_state()
@@ -527,108 +521,6 @@ class Simulator(object):
         for dev in self.devices.values():
             self.buses[dev.bus_id].p += dev.p
             self.buses[dev.bus_id].q += dev.q
-
-    def _solve_pfes(self):
-        """
-        Solve the power flow equations and return V, P, Q for each bus.
-
-        Raises
-        ------
-        ValueError
-            Raised if no solution is found.
-        """
-
-        P_bus, Q_bus = np.zeros(self.N_bus), np.zeros(self.N_bus)
-        V_init = np.array([1.] * self.N_bus + [0.] * self.N_bus)
-        v_slack, slack_id = None, None
-
-        for bus_id, bus in self.buses.items():
-            # Fix active power injections, excluding slack bus.
-            if not bus.is_slack:
-                P_bus[bus_id] = bus.p
-                Q_bus[bus_id] = bus.q
-
-            # Fix slack bus voltage to (v_slack * exp(j0)).
-            if bus.is_slack:
-                v_slack = bus.v_slack
-                slack_id = bus_id
-
-        # Solve the power flow equations of the network.
-        sol = optimize.root(self._power_flow_eqs, V_init,
-                          args=(self.Y_bus, P_bus, Q_bus, slack_id, v_slack),
-                          method='lm', options={'xtol': 1.0e-4})
-        if not sol.success:
-            raise PFEError('No solution to the PFEs: ', sol.message)
-        x = sol.x
-
-        # Re-create the complex bus voltage vector.
-        V = x[0:self.N_bus] + 1.j * x[self.N_bus:]
-
-        # Compute nodal current injections.
-        I = np.dot(self.Y_bus, V)
-
-        for bus_id, bus in self.buses.items():
-            # Update the complex bus voltage and current injections.
-            bus.v = V[bus_id]
-            bus.i = I[bus_id]
-
-            # Compute the power injections at the slack bus.
-            if bus.is_slack:
-                s = bus.v * np.conjugate(bus.i)
-                bus.p = s.real
-                bus.q = s.imag
-
-        return
-
-    def _power_flow_eqs(self, v, Y, P, Q, slack_id, v_slack):
-        """
-        Return the power flow equations to be solved.
-
-        Parameters
-        ----------
-        v : 1D numpy.ndarray
-            Initial bus voltage guess, where elements 0 to N-1 represent the
-            real part of the initial guess for nodal voltage, and the N to 2N-1
-            elements their corresponding imaginary parts (p.u.).
-        Y : 2D numpy.ndarray
-            The network bus admittance matrix (p.u.).
-        P : 1D numpy.ndarray
-            Fixed real power nodal injections (p.u.).
-        Q : 1D numpy.ndarray
-            Fixed reactive power nodal injections (p.u.).
-        slack_id : int
-            The unique bus ID of the slack bus.
-        v_slack : float
-            The fixed voltage magnitude at the slack bus (p.u.).
-
-        Returns
-        -------
-        2D numpy.ndarray
-            A vector of 4 expressions to find the roots of.
-        """
-
-        # Re-build complex nodal voltage array.
-        V = v[:self.N_bus] + 1.j * v[self.N_bus:]
-
-        # Create complex equations as a matrix product.
-        complex_rhs = V * np.conjugate(np.dot(Y, V))
-
-        # Equations involving real variables and real power injections (skip slack bus).
-        real_p = np.real(np.delete(complex_rhs, slack_id)) - np.delete(P, slack_id)
-
-        # Equations involving real variables and reactive power injections (skip slack bus).
-        real_q = np.imag(np.delete(complex_rhs, slack_id)) - np.delete(Q, slack_id)
-
-        # Equation fixing the voltage magnitude at the slack bus.
-        slack_magn = [np.absolute(V[slack_id]) - v_slack]
-
-        # Equation fixing the voltage phase angle to be 0.
-        slack_phase = [np.angle(V[slack_id])]
-
-        # Stack equations made of only real variables on top of each other.
-        real_equations = np.hstack((real_p, real_q, slack_magn, slack_phase))
-
-        return real_equations
 
     def _gather_state(self):
         """
@@ -756,9 +648,9 @@ class Simulator(object):
         for branch in self.branches.values():
             penalty += np.maximum(0, branch.s_apparent_max - branch.rate)
 
-        penalty *= self.delta_t
+        penalty *= self.delta_t * self.lamb
 
         # Compute the total reward.
-        reward = - (e_loss + self.lamb * penalty)
+        reward = - (e_loss + penalty)
 
         return reward, e_loss, penalty

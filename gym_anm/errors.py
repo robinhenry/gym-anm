@@ -21,6 +21,7 @@ class ObsNotSupportedError(ObsSpaceError):
 class UnitsNotSupportedError(ObsSpaceError):
     """Raised when the units specified for the observation vector is unsupported"""
 
-    def __init__(self, wanted, allowed):
+    def __init__(self, wanted, allowed, key):
         super().__init__('Observation unit unsupported. Desired: {} but we only'
-                         'support {}.'.format(wanted, allowed))
+                         'support {} for observation {}.'
+                         .format(wanted, allowed, key))

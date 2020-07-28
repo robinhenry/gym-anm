@@ -66,9 +66,27 @@ class Device(object):
         """
 
         # Components used by all types of devices.
-        self.dev_id = int(dev_spec[DEV_H['DEV_I']])
-        self.bus_id = int(dev_spec[DEV_H['BUS_I']])
-        self.type = int(dev_spec[DEV_H['DEV_TYPE']])
+        self.dev_id = dev_spec[DEV_H['DEV_ID']]
+        if self.dev_id is None:
+            raise DeviceSpecError('The device ID cannot be None.')
+        else:
+            self.dev_id = int(self.dev_id)
+
+        self.bus_id = dev_spec[DEV_H['BUS_ID']]
+        if self.bus_id is None or self.bus_id not in bus_ids:
+            raise DeviceSpecError('Device {} has unique bus ID = {} but should be in {}.'.format(
+                                   self.dev_id, self.bus_id, bus_ids))
+        else:
+            self.bus_id = int(self.bus_id)
+
+        self.type = dev_spec[DEV_H['DEV_TYPE']]
+        if self.type is None or self.type not in [-1, 0, 1, 2, 3]:
+            raise DeviceSpecError('The DEV_TYPE value for device %d should be in [-1, 0, 1, 2, 3].')
+
+        if self.type == 0:
+            self.is_slack = True
+        else:
+            self.is_slack = False
 
         # Components device-specific.
         self.qp_ratio = None
@@ -81,28 +99,14 @@ class Device(object):
         self.tau_1, self.tau_2, self.tau_3, self.tau_4 = None, None, None, None
         self.rho_1, self.rho_2, self.rho_3, self.rho_4 = None, None, None, None
 
-        if self.type == 0:
-            self.is_slack = True
-        else:
-            self.is_slack = False
-
-        self._check_generic_input_specs(bus_ids)
         self._check_type_specific_specs(dev_spec, baseMVA)
 
         self.p = None
         self.q = None
-        self.p_pot = None    # only for generators
         self.soc = None      # only for storage units
 
-    def _check_generic_input_specs(self, bus_ids):
-        if self.bus_id is None or self.bus_id not in bus_ids:
-            DeviceSpecError('Device {} has unique bus ID = {} but should be in {}.'.format(self.dev_id, self.bus_id, bus_ids))
-
-        if self.type is None or self.type not in [-1, 0, 1, 2, 3]:
-            DeviceSpecError('The DEV_TYPE value for device %d should be in [-1, 0, 1, 2, 3].')
-
     def _check_type_specific_specs(self, dev_spec, baseMVA):
-        raise NotImplementedError
+        pass
 
 
 class Load(Device):
@@ -117,11 +121,18 @@ class Load(Device):
 
     def _check_type_specific_specs(self, dev_spec, baseMVA):
 
+        if self.type != -1:
+            raise LoadSpecError('Trying to create a Load object for a device that has DEV_TYPE != -1.')
+
         self.qp_ratio = dev_spec[DEV_H['Q/P']]
         if self.qp_ratio is None:
             raise LoadSpecError('A fixed Q/P value must be provided for device (load) %d.' % (self.dev_id))
 
-        self.p_max = 0.
+        self.p_max = dev_spec[DEV_H['PMAX']]
+        if self.p_max is None:
+            self.p_max = 0.
+        elif self.p_max > 0.:
+            raise LoadSpecError('Trying to create a load with P_max > 0. Loads can only withdraw power from the grid.')
 
         self.p_min = dev_spec[DEV_H['PMIN']]
         if self.p_min is None:
@@ -130,7 +141,10 @@ class Load(Device):
         else:
             self.p_min /= baseMVA  # to p.u.
 
-        self.q_max = self.q_max * self.qp_ratio
+        if self.p_max < self.p_min:
+            raise LoadSpecError('Device %d has P_max < P_min.' % (self.dev_id))
+
+        self.q_max = self.p_max * self.qp_ratio
         self.q_min = self.p_min * self.qp_ratio
 
     def map_pq(self, p):
@@ -144,7 +158,7 @@ class Load(Device):
         """
 
         self.p  = np.clip(p, self.p_min, self.p_max)
-        self.q = p * self.qp_ratio
+        self.q = self.p * self.qp_ratio
 
 
 class Generator(Device):
@@ -156,24 +170,35 @@ class Generator(Device):
         # docstring inherited
 
         super().__init__(dev_spec, bus_ids, baseMVA)
+        self.p_pot = self.p_max
+
+    @property
+    def p_pot(self):
+        return self._p_pot
+
+    @p_pot.setter
+    def p_pot(self, value):
+        self._p_pot = np.clip(value, self.p_min, self.p_max)
 
     def _check_type_specific_specs(self, dev_spec, baseMVA):
 
         self.p_max = dev_spec[DEV_H['PMAX']]
         if self.p_max is None:
-            warn('The P_max value of device %d is set to infinity.' % (
-                self.dev_id))
             self.p_max = np.inf
-        elif self.p_max < 0:
+            warn('The P_max value of device %d is set to infinity.' % (self.dev_id))
+        elif self.p_max < 0 and not self.is_slack:
             raise GenSpecError(
                 'The PMAX value of device %d should be >= 0.' % (self.dev_id))
         else:
             self.p_max /= baseMVA  # to p.u.
 
-        self.p_min = dev_spec[DEV_H['PMIN']] / baseMVA
+        self.p_min = dev_spec[DEV_H['PMIN']]
         if self.p_min is None:
-            self.p_min = 0.
-        elif self.p_min < 0:
+            if self.is_slack:
+                self.p_min = - np.inf
+            else:
+                self.p_min = 0.
+        elif self.p_min < 0 and not self.is_slack:
             raise GenSpecError(
                 'The PMIN value of device %d should be >= 0.' % (self.dev_id))
         else:
@@ -184,16 +209,18 @@ class Generator(Device):
 
         self.q_max = dev_spec[DEV_H['QMAX']]
         if self.q_max is None:
-            warn('The Q_max value of device %d is set to infinity.' % (
-                self.dev_id))
             self.q_max = np.inf
+            if not self.is_slack:
+                warn('The Q_max value of device %d is set to infinity.' % (
+                    self.dev_id))
         else:
             self.q_max /= baseMVA  # to p.u.
 
         self.q_min = dev_spec[DEV_H['QMIN']]
         if self.q_min is None:
             self.q_min = - np.inf
-            warn('The Q_min value of device %d is set to - infinity.' % (self.dev_id))
+            if not self.is_slack:
+                warn('The Q_min value of device %d is set to - infinity.' % (self.dev_id))
         else:
             self.q_min /= baseMVA  # to p.u.
 
@@ -203,33 +230,37 @@ class Generator(Device):
         self.p_plus = dev_spec[DEV_H['P+']]
         if self.p_plus is None:
             self.p_plus = self.p_max
-        elif self.p_plus < self.p_min:
+        else:
+            self.p_plus /= baseMVA
+
+        if self.p_plus < self.p_min:
             raise GenSpecError('Device %d has P+ < PMIN' % (self.dev_id))
         elif self.p_plus > self.p_max:
             raise GenSpecError('Device %d has P+ > PMAX.' % (self.dev_id))
-        else:
-            self.p_plus /= baseMVA  # to p.u.
 
         self.p_minus = dev_spec[DEV_H['P-']]
         if self.p_minus is not None:
             warn('The P- value of device %d is going to be ignored.' % (
                 self.dev_id))
+            self.p_minus = None
 
         self.q_plus = dev_spec[DEV_H['Q+']]
         if self.q_plus is None:
             self.q_plus = self.q_max
-        elif self.q_plus > self.q_max:
-            raise GenSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
         else:
-            self.q_plus /= baseMVA  # to p.u.
+            self.q_plus /= baseMVA
+
+        if self.q_plus > self.q_max:
+            raise GenSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
 
         self.q_minus = dev_spec[DEV_H['Q-']]
         if self.q_minus is None:
             self.q_minus = self.q_min
-        elif self.q_minus < self.q_min:
-            raise GenSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
         else:
-            self.q_minus /= baseMVA  # to p.u.
+            self.q_minus /= baseMVA
+
+        if self.q_minus < self.q_min:
+            raise GenSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
 
         if self.q_plus < self.q_minus:
             raise GenSpecError('Device %d has Q+ < Q-.' % (self.dev_id))
@@ -361,22 +392,24 @@ class StorageUnit(Device):
         self.p_plus = dev_spec[DEV_H['P+']]
         if self.p_plus is None:
             self.p_plus = self.p_max
-        elif self.p_plus < self.p_min:
+        else:
+            self.p_plus /= baseMVA
+
+        if self.p_plus < self.p_min:
             raise StorageSpecError('Device %d has P+ < PMIN' % (self.dev_id))
         elif self.p_plus > self.p_max:
             raise StorageSpecError('Device %d has P+ > PMAX.' % (self.dev_id))
-        else:
-            self.p_plus /= baseMVA  # to p.u.
 
         self.p_minus = dev_spec[DEV_H['P-']]
         if self.p_minus is None:
             self.p_minus = self.p_min
-        elif self.p_minus < self.p_min:
+        else:
+            self.p_minus /= baseMVA
+
+        if self.p_minus < self.p_min:
             raise StorageSpecError('Device %d has P- < PMIN' % (self.dev_id))
         elif self.p_minus > self.p_max:
             raise StorageSpecError('Device %d has P- > PMAX' % (self.dev_id))
-        else:
-            self.p_minus /= baseMVA  # to p.u.
 
         if self.p_plus < self.p_minus:
             raise StorageSpecError('Device %d has P+ < P-.' % (self.dev_id))
@@ -384,21 +417,23 @@ class StorageUnit(Device):
         self.q_plus = dev_spec[DEV_H['Q+']]
         if self.q_plus is None:
             self.q_plus = self.q_max
-        elif self.q_plus > self.q_max:
-            raise StorageSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
         else:
-            self.q_plus /= baseMVA  # to p.u.
+            self.q_plus /= baseMVA
+
+        if self.q_plus > self.q_max:
+            raise StorageSpecError('Device %d has Q+ > QMAX.' % (self.dev_id))
 
         self.q_minus = dev_spec[DEV_H['Q-']]
         if self.q_minus is None:
             self.q_minus = self.q_min
-        elif self.q_minus < self.q_min:
-            raise DeviceSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
         else:
-            self.q_minus /= baseMVA  # to p.u.
+            self.q_minus /= baseMVA
+
+        if self.q_minus < self.q_min:
+            raise StorageSpecError('Device %d has Q- < QMIN.' % (self.dev_id))
 
         if self.q_plus < self.q_minus:
-            raise GenSpecError('Device %d has Q+ < Q-.' % (self.dev_id))
+            raise StorageSpecError('Device %d has Q+ < Q-.' % (self.dev_id))
 
         if self.p_max == self.p_plus:
             self.tau_1 = 0.

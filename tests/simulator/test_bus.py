@@ -1,8 +1,9 @@
 import unittest
-import numpy.testing as npt
 import os
+import numpy as np
 
 from gym_anm.simulator.components import Bus
+from gym_anm.simulator.components.errors import *
 
 class TestBus(unittest.TestCase):
 
@@ -10,28 +11,50 @@ class TestBus(unittest.TestCase):
         os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__)))))  # Set the working directory to the root.
 
-        self.slack = Bus([0, 3, 10, 1.04, 1.04])
-        self.pq = Bus([1, 1, 150, 1.1, 0.9])
+    def test_simple_bus(self):
+        spec = np.array([2, 1, 10, 1.5, 1.])
+        bus = Bus(spec)
 
-    def test_slack(self):
-        self.assertEqual(self.slack.id, 0)
-        self.assertEqual(self.slack.type, 3)
-        npt.assert_almost_equal(self.slack.v_max, 1.04)
-        npt.assert_almost_equal(self.slack.v_min, 1.04)
-        npt.assert_almost_equal(self.slack.baseKV, 10.)
-        self.assertTrue(self.slack.is_slack)
-        npt.assert_almost_equal(self.slack.v_slack, 1.04)
+        self.assertEqual(bus.id, spec[0])
+        self.assertEqual(bus.type, spec[1])
+        self.assertEqual(bus.baseKV, spec[2])
+        self.assertEqual(bus.v_max, spec[3])
+        self.assertEqual(bus.v_min, spec[4])
+        self.assertEqual(bus.is_slack, False)
 
-    def test_pq(self):
-        self.assertEqual(self.pq.id, 1)
-        self.assertEqual(self.pq.type, 1)
-        npt.assert_almost_equal(self.pq.v_max, 1.1)
-        npt.assert_almost_equal(self.pq.v_min, 0.9)
-        npt.assert_almost_equal(self.pq.baseKV, 150.)
-        self.assertFalse(self.pq.is_slack)
+    def test_simple_slack(self):
+        spec = np.array([2, 0, 10, 1.5, 1.])
+        bus = Bus(spec)
 
-        with self.assertRaises(AttributeError):
-            _ = self.pq.v_slack
+        self.assertEqual(bus.id, spec[0])
+        self.assertEqual(bus.type, spec[1])
+        self.assertEqual(bus.baseKV, spec[2])
+        self.assertEqual(bus.v_max, spec[3])
+        self.assertEqual(bus.v_min, spec[4])
+        self.assertEqual(bus.is_slack, True)
+
+    def test_bad_type(self):
+        spec = np.array([2, 2, 10, 1.5, 1.])
+
+        with self.assertRaises(BusSpecError):
+            bus = Bus(spec)
+
+    def test_negative_baskV(self):
+        spec = np.array([2, 1, -1, 1.5, 1.])
+
+        with self.assertRaises(BusSpecError):
+            bus = Bus(spec)
+
+    def test_negative_v_bounds(self):
+        spec = np.array([2, 1, 10, -1, 1.])
+        with self.assertRaises(BusSpecError):
+            bus = Bus(spec)
+
+    def test_infeasible_v_bounds(self):
+        spec = np.array([2, 1, 10, 0.5, 1])
+        with self.assertRaises(BusSpecError):
+            bus = Bus(spec)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,7 +2,7 @@
 headers_bus = ['BUS_ID', 'BUS_TYPE', 'BASE_KV', 'VMAX', 'VMIN']
 BUS_H = dict(zip(headers_bus, range(len(headers_bus))))
 
-headers_dev = ['BUS_ID', 'DEV_TYPE', 'Q/P', 'PMAX', 'PMIN', 'QMAX', 'QMIN',
+headers_dev = ['DEV_ID', 'BUS_ID', 'DEV_TYPE', 'Q/P', 'PMAX', 'PMIN', 'QMAX', 'QMIN',
                'P+', 'P-', 'Q+', 'Q-', 'SOC_MAX', 'SOC_MIN', 'EFF']
 DEV_H = dict(zip(headers_dev, range(len(headers_dev))))
 

@@ -38,7 +38,7 @@ class Bus(object):
             The corresponding bus row in the network file describing the network.
         """
 
-        self.id = int(bus_spec[BUS_H['BUS_I']])
+        self.id = int(bus_spec[BUS_H['BUS_ID']])
         self.type = int(bus_spec[BUS_H['BUS_TYPE']])
         self.baseKV = bus_spec[BUS_H['BASE_KV']]
         self.v_max = bus_spec[BUS_H['VMAX']]

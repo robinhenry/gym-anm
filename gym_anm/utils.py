@@ -1,8 +1,9 @@
 from gym_anm.constants import STATE_VARIABLES
-from gym_anm.errors import ArgsError, ObsNotSupportedError, UnitsNotSupportedError, ObsSpaceError
+from gym_anm.errors import ArgsError, ObsNotSupportedError, ObsSpaceError, UnitsNotSupportedError
 
 
-def check_env_args(K, delta_t, lamb, gamma, observation, state_bounds):
+def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
+                   state_bounds):
     """
     Raises an error if the arguments of the new environment do not match the
     requirements.
@@ -25,6 +26,12 @@ def check_env_args(K, delta_t, lamb, gamma, observation, state_bounds):
         that o_t = observation(s_t); or as a list of tuples (x, y, z) that
         refers to the electrical quantity x (str) at the nodes/branches/devices
         y (list) in unit z (str, optional).
+    aux_bounds : numpy.ndarray, optional
+            The bounds on the auxiliary internal variables as a 2D array where
+            element the k^th-1 auxiliary variable is bounded by
+            [aux_bounds[k, 0], aux_bounds[k, 1]]. This can be useful if auxiliary
+            variables are to be included in the observation vectors and a bounded
+            observation space is desired.
     state_bounds : dict of {str : dict}
         The bounds on the state variables of the distribution network.
     """
@@ -34,7 +41,7 @@ def check_env_args(K, delta_t, lamb, gamma, observation, state_bounds):
     if delta_t <= 0:
         raise ArgsError('The argument delta_t is %.2f but should be > 0.' % (delta_t))
     if lamb < 0:
-        raise ArgsError('The argument lamb is %d but should be > 0.' % (lamb))
+        raise ArgsError('The argument lamb is %d but should be >= 0.' % (lamb))
     if gamma < 0 or gamma > 1:
         raise ArgsError('The argument gamma is %.4f but should be in [0, 1].' % (gamma))
 
@@ -50,6 +57,13 @@ def check_env_args(K, delta_t, lamb, gamma, observation, state_bounds):
                         'either a list, a callable, or the string "state".'
                         .format(type(observation)))
 
+    # Check that aux_bounds is correctly specified.
+    if aux_bounds is not None:
+        if len(aux_bounds) != K:
+            raise ArgsError('The argument aux_bounds has length {} but the'
+                            'environment has K={} auxiliary variables.'
+                            .format(len(aux_bounds), K))
+
 
 def _check_observation_vars(observation, state_bounds):
     """
@@ -59,8 +73,7 @@ def _check_observation_vars(observation, state_bounds):
     ----------
     observation : list of tuples
         The observation space as a list of tuples (x, y, z), each of which
-        refers to
-        the electrical quantity x (str) at the nodes/branches/devices
+        refers to the electrical quantity x (str) at the nodes/branches/devices
         y (list) in unit z (str, optional).
     state_bounds : dict of {str : dict}
         The bounds on the state variables of the distribution network.
@@ -88,3 +101,9 @@ def _check_observation_vars(observation, state_bounds):
                                         .format(key, n))
         else:
             raise ObsSpaceError()
+
+        # Check that the unit specified is supported.
+        if len(obs) == 3:
+            units = obs[2]
+            if units not in STATE_VARIABLES[key]:
+                raise UnitsNotSupportedError(units, STATE_VARIABLES[key], key)

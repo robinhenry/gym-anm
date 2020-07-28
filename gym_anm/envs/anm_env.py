@@ -2,7 +2,6 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 import numpy as np
-import datetime as dt
 from copy import copy
 from warnings import warn
 
@@ -10,91 +9,66 @@ from gym_anm.simulator import Simulator
 from gym_anm.errors import ObsSpaceError, ObsNotSupportedError
 from gym_anm.utils import check_env_args
 from gym_anm.constants import STATE_VARIABLES
-from gym_anm.simulator.components import StorageUnit, Generator
+from gym_anm.simulator.components import StorageUnit, Generator, Load
 
 
 class ANMEnv(gym.Env):
     """
-    An gym environment simulating an electricity distribution network.
-
-    This environment was designed to train Reinforcement Learning agents to
-    perform well in Active Network Management (ANM) tasks in electricity
-    distribution networks, where Variable Renewable Energy (VRE) curtailment is
-    possible and distributed storage available.
+    The base class for `gym-anm` environments.
 
     Attributes
     ----------
-    action_space : gym.spaces.Tuple
-        The action space available to the agent interacting with the environment.
-    delta_t : int
-        The time interval between two consecutive time steps (minutes).
-    state_bounds : dict of {str : list}
-        The operating characteristics of the electricity network.
-    np_random : numpy.random.RandomState
-        The random state of the environment.
-    obs_values : list of str
-        The values to include in the observation space.
-    observation_space : gym.spaces.Tuple
-        The observation space available to the agent interacting with the
-        environment.
-    simulator : Simulator
+    K : int
+        The number of auxiliary variables.
+    gamma : float
+        The fixed discount factor in [0, 1].
+    lamb : int or float
+        The factor multiplying the penalty associated with violating
+        operational constraints (used in the reward signal).
+    delta_t : float
+        The interval of time between two consecutive time steps (fraction of
+        hour).
+    simulator : `Simulator`
         The electricity distribution network simulator.
-    timestep_length : datetime.timedelta
-        Equivalent to `delta_t`.
-    year : int
-        The year on which to base the time process.
-
-
-
-
-    svg_data : dict of {str : str}
-        A dictionary with keys {'network', 'labels'} and values storing the
-        paths to the corresponding files needed for the environment rendering.
-
-
-
-
-    state : dict of {str : array_like}
-        The current values of the state variables of the environment.
-    total_reward : float
-        The total reward accumulated so far.
-    obs : list of list of float
-        The current values of the state variables included in the observation
-        space.
-    time : datetime.datetime
-        The current time.
-    end_time : datetime.datetime
-        The end time of the episode.
-    init_soc : list of float
-        The initial state of charge of each storage unit.
+    state_values : list of tuple of str
+        The electrical quantities to include in the state vectors. Each tuple
+        (x, y, z) refers to quantity x at nodes/devices/branches y, using units z.
+    action_space : gym.spaces.Box
+        The action space from which the agent can select actions.
+    obs_values : list of str or None
+        Similarly to `state_values`, the values to include in the observation
+        vectors. If a customized observation() function is provided, obs_values
+        is None.
+    observation_space : gym.spaces.Box
+        The observation space from which observation vectors are constructed.
     done : bool
-        True if the episode is over, False otherwise.
+        Always False (continuing task).
     render_mode : str
-        The mode of the environment visualization.
-    render_history : pandas.DataFrame
-        The history of past states, used for later visualization.
-
-    generators
-    loads
+        The rendering mode. See `render()`.
+    timestep : int
+        The current timestep.
+    total_disc_return : float
+        The total discounted return.
+    state : numpy.ndarray
+        The current state vector `s_t`.
+    e_loss : float
+        The energy loss during the last transition (part of the reward signal).
+    penalty : float
+        The penalty associated with violating operational constraints during the
+        last transition (part of the reward signal).
+    np_random : numpy.random.RandomState
+        The random state/seed of the environment.
 
     Methods
     -------
-    init_vre()
-    init_load()
-
     reset()
         Reset the environment.
     step(action)
         Take a control action and compute the associated reward.
-    render(mode='human', sleep_time=0.1)
-        Update the environment' state rendering.
-    replay(path, sleep_time=0.1)
-        Render a previously stored state history.
-    close(path=None)
-        Stop rendering.
     """
 
-    def __init__(self, network, observation, K, delta_t, gamma, lamb, seed=None):
+    def __init__(self, network, observation, K, delta_t, gamma, lamb,
+                 aux_bounds=None, seed=None):
         """
         Parameters
         ----------
@@ -104,8 +78,8 @@ class ANMEnv(gym.Env):
             The observation space. It can be specified as "state" to construct a
             fully observable environment (o_t = s_t); as a callable function such
             that o_t = observation(s_t); or as a list of tuples (x, y, z) that
-            refers to the electrical quantity x (str) at the nodes/branches/devices
-            y (list) in unit z (str, optional).
+            refer to the electrical quantities x (str) at the nodes/branches/devices
+            y (list or 'all') in unit z (str, optional).
         K : int
             The number of auxiliary variables.
         delta_t : float
@@ -116,6 +90,12 @@ class ANMEnv(gym.Env):
         lamb : int or float
             The factor multiplying the penalty associated with violating
             operational constraints (used in the reward signal).
+        aux_bounds : numpy.ndarray, optional
+            The bounds on the auxiliary internal variables as a 2D array where
+            the k^th-1 auxiliary variable is bounded by
+            [aux_bounds[k, 0], aux_bounds[k, 1]]. This can be useful if auxiliary
+            variables are to be included in the observation vectors and a bounded
+            observation space is desired.
         seed : int, optional
             A random seed.
         """
@@ -124,18 +104,15 @@ class ANMEnv(gym.Env):
         self.gamma = gamma
         self.lamb = lamb
         self.delta_t = delta_t
+        self.aux_bounds = aux_bounds
 
         self.seed(seed)
-
-        # Time variables.
-        self.timestep_length = dt.timedelta(minutes=int(60 * delta_t))
-        self.year = 2020
 
         # Initialize the AC power grid simulator.
         self.simulator = Simulator(network, self.delta_t, self.lamb)
 
         # Check the arguments provided.
-        check_env_args(K, delta_t, lamb, gamma, observation,
+        check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
                        self.simulator.state_bounds)
 
         # Variables to include in state vectors.
@@ -151,9 +128,38 @@ class ANMEnv(gym.Env):
         self.observation_space = self.observation_bounds()
 
     def init_state(self):
+        """
+        Sample an initial state s_0.
+
+        For reproducibility, the RandomState `self.np_random` should be used to
+        generate random numbers.
+
+        Returns
+        -------
+        numpy.ndarray
+            An initial state vector s_0.
+        """
         raise NotImplementedError
 
     def next_vars(self, s_t):
+        """
+        Sample internal variables.
+
+        Parameters
+        ----------
+        s_t : numpy.ndarray
+            The current state vector `s_t`.
+
+        Returns
+        -------
+        numpy.ndarray
+            The internal variables for the next timestep, following the structure
+            [P_l, P_g^{(max)}, aux^{(k)}], where P_l contains the load
+            injections (ordered by device ID), P_g^{(max)} the maximum generation
+            from non-slack generators (ordered by device ID), and aux^{(k)} the
+            auxiliary variables. The vector shape should be
+            (N_load + (N_generators-1) + K,).
+        """
         raise NotImplementedError
 
     def observation_bounds(self):
@@ -163,8 +169,8 @@ class ANMEnv(gym.Env):
         If the observation space is specified as a callable object, then its
         bounds are set to (- np.inf, np.inf)^{N_o} by default (this is done
         during the `reset()` call, as the size of observation vectors is not
-        known before then. Alternatively, the user can specify its own bounds
-        by overwriting this function in the new environment.
+        known before then). Alternatively, the user can specify their own bounds
+        by overwriting this function in a subclass.
 
         Returns
         -------
@@ -183,17 +189,31 @@ class ANMEnv(gym.Env):
             bounds = self.simulator.state_bounds
             for key, nodes, unit in self.obs_values:
                 for n in nodes:
-                    lower_bounds.append(bounds[key][n][unit][0])
-                    upper_bounds.append(bounds[key][n][unit][1])
+                    if key == 'aux':
+                        if self.aux_bounds is not None:
+                            lower_bounds.append(self.aux_bounds[n][0])
+                            upper_bounds.append(self.aux_bounds[n][1])
+                        else:
+                            lower_bounds.append(-np.inf)
+                            upper_bounds.append(np.inf)
+                    else:
+                        lower_bounds.append(bounds[key][n][unit][0])
+                        upper_bounds.append(bounds[key][n][unit][1])
 
         space = spaces.Box(low=np.array(lower_bounds),
-                           high=np.array(upper_bounds))
+                           high=np.array(upper_bounds),
+                           dtype=np.float64)
 
         return space
 
     def reset(self):
         """
         Reset the environment.
+
+        If the observation space is provided as a callable object but the
+        `observation_bounds()` method is not overwritten, then the bounds on the
+        observation space are set to (- inf, inf) here (after the size of the
+        observation vectors is known).
 
         Returns
         -------
@@ -205,13 +225,17 @@ class ANMEnv(gym.Env):
         self.render_mode = None
         self.timestep = 0
         self.total_disc_return = 0.
+        self.e_loss = 0.
+        self.penalty = 0.
 
         # Initialize the state.
         self.state = self.init_state()
 
         # Apply the initial state to the simulator.
         self.simulator.reset(self.state)
-        self.state = self._construct_state()  # in case the original state was infeasible.
+
+        # Reconstruct the sate vector in case the original state was infeasible.
+        self.state = self._construct_state()
 
         # Construct the initial observation vector.
         obs = self.observation(self.state)
@@ -230,7 +254,7 @@ class ANMEnv(gym.Env):
         """
         Returns the observation vector corresponding to the current state `s_t`.
 
-        Alternatively, this function can be overwritten in custom environments.
+        Alternatively, this function can be overwritten in customized environments.
 
         Parameters
         ----------
@@ -242,11 +266,14 @@ class ANMEnv(gym.Env):
         numpy.ndarray
             The corresponding observation vector `o_t`.
         """
-        return self._extract_state_variables(self.obs_values)
+        obs = self._extract_state_variables(self.obs_values)
+        obs = np.clip(obs, self.observation_space.low,
+                      self.observation_space.high)
+        return obs
 
     def step(self, action):
         """
-        Take a control action and transition from a state s_t to a state s_{t+1}.
+        Take a control action and transition from state `s_t` to state `s_{t+1}`.
 
         Parameters
         ----------
@@ -260,8 +287,7 @@ class ANMEnv(gym.Env):
         reward : float
             The reward associated with the transition `r_t`.
         done : bool
-            True if the episode is over, False otherwise. Always False in
-            `gym-anm` environments.
+            Always False (continuing task).
         info : dict
             A dictionary with further information (used for debugging).
         """
@@ -272,22 +298,37 @@ class ANMEnv(gym.Env):
         # 1a. Sample the internal stochastic variables.
         vars = self.next_vars(self.state)
         P_load = vars[:self.simulator.N_load]
-        P_pot = vars[self.simulator.N_load: self.simulator.N_load + self.simulator.N_non_slack_gen]
+        P_pot = vars[self.simulator.N_load: self.simulator.N_load +
+                                            self.simulator.N_non_slack_gen]
         aux = vars[self.simulator.N_load + self.simulator.N_non_slack_gen:]
-        assert len(aux) == self.K
+        err_msg = 'Only {} auxiliary variables are generated, but K={} are ' \
+                  'expected.'.format(len(aux), self.K)
+        assert len(aux) == self.K, err_msg
+
+        # 1b. Convert internal variables to dictionaries.
+        load_idx, gen_idx = 0, 0
+        P_load_dict, P_pot_dict = {}, {}
+        for dev_id, dev in self.simulator.devices.items():
+            if isinstance(dev, Load):
+                P_load_dict[dev_id] = P_load[load_idx]
+                load_idx += 1
+            elif isinstance(dev, Generator) and not dev.is_slack:
+                P_pot_dict[dev_id] = P_pot[gen_idx]
+                gen_idx += 1
 
         # 2. Extract the different actions from the action vector.
         P_set_points = {}
         Q_set_points = {}
-        gen_slack_ids = [i for i, dev in self.simulator.devices
+        gen_non_slack_ids = [i for i, dev in self.simulator.devices.items()
                              if isinstance(dev, Generator) and not dev.is_slack]
-        des_ids = [i for i, dev in self.simulator.devices if isinstance(dev, StorageUnit)]
-        N_gen = len(gen_slack_ids)
+        des_ids = [i for i, dev in self.simulator.devices.items()
+                   if isinstance(dev, StorageUnit)]
+        N_gen = len(gen_non_slack_ids)
         N_des = len(des_ids)
 
-        for a, dev_id in zip(action[:N_gen], gen_slack_ids):
+        for a, dev_id in zip(action[:N_gen], gen_non_slack_ids):
             P_set_points[dev_id] = a
-        for a, dev_id in zip(action[N_gen: 2 * N_gen], gen_slack_ids):
+        for a, dev_id in zip(action[N_gen: 2 * N_gen], gen_non_slack_ids):
             Q_set_points[dev_id] = a
         for a, dev_id in zip(action[2 * N_gen: 2 * N_gen + N_des], des_ids):
             P_set_points[dev_id] = a
@@ -296,7 +337,8 @@ class ANMEnv(gym.Env):
 
         # 3. Apply the action in the simulator.
         _, r, self.e_loss, self.penalty = \
-            self.simulator.transition(P_load, P_pot, P_set_points, Q_set_points)
+            self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
+                                      Q_set_points)
 
         # 4. Construct the state and observation vector.
         self.state = self._construct_state()
@@ -311,12 +353,11 @@ class ANMEnv(gym.Env):
 
         return obs, r, self.done, {}
 
-
     def render(self, mode='human'):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def close(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def seed(self, seed=None):
         """Seed the random number generator. """
@@ -329,7 +370,7 @@ class ANMEnv(gym.Env):
 
         Returns
         -------
-        space : gym.spaces.Box
+        gym.spaces.Box
             The action space of the environment.
         """
 
@@ -337,21 +378,14 @@ class ANMEnv(gym.Env):
             self.simulator.get_action_space()
 
         lower_bounds, upper_bounds = [], []
-
-        for dev_id in sorted(P_gen_bounds.keys()):
-            upper_bounds.append(P_gen_bounds[dev_id][0])
-            lower_bounds.append(P_gen_bounds[dev_id][1])
-
-        for dev_id in sorted(Q_gen_bounds.keys()):
-            upper_bounds.append(Q_gen_bounds[dev_id][0])
-            lower_bounds.append(Q_gen_bounds[dev_id][1])
-
-        for dev_id in sorted(P_des_bounds.keys()):
-            upper_bounds.append(P_des_bounds[dev_id][0])
-            lower_bounds.append(Q_des_bounds[dev_id][1])
+        for x in [P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds]:
+            for dev_id in sorted(x.keys()):
+                lower_bounds.append(x[dev_id][0])
+                upper_bounds.append(x[dev_id][1])
 
         space = spaces.Box(low=np.array(lower_bounds),
-                           high=np.array(upper_bounds))
+                           high=np.array(upper_bounds),
+                           dtype=np.float64)
 
         return space
 
@@ -387,9 +421,11 @@ class ANMEnv(gym.Env):
                     elif 'dev' in o[0]:
                         ids = list(self.simulator.devices.keys())
                     elif 'des' in o[0]:
-                        ids = [i for i, d in self.simulator.devices.items() if isinstance(d, StorageUnit)]
+                        ids = [i for i, d in self.simulator.devices.items()
+                               if isinstance(d, StorageUnit)]
                     elif 'gen' in o[0]:
-                        ids = [i for i, d in self.simulator.devices.items() if isinstance(d, Generator) and not d.is_slack]
+                        ids = [i for i, d in self.simulator.devices.items()
+                               if isinstance(d, Generator) and not d.is_slack]
                     elif 'branch' in o[0]:
                         ids = list(self.simulator.branches.keys())
                     elif o[0] == 'aux':
@@ -400,8 +436,6 @@ class ANMEnv(gym.Env):
                     obs_values[idx] = (o[0], ids, o[2])
 
         return obs_values
-
-
 
     def _construct_state(self):
         """
@@ -420,7 +454,7 @@ class ANMEnv(gym.Env):
 
         Parameters
         ----------
-        values : list of tuple of (str, list, str)
+        values : list of tuples of (str, list, str)
             The variables to extract as tuples, where each tuple (i, j, k) refers
             to variable i at the nodes/branches/devices listed in j, using unit
             k.
@@ -435,13 +469,13 @@ class ANMEnv(gym.Env):
 
         vars = []
         for value in values:
-            if value[0] in full_state.keys():
-                o = full_state[value[0]][value[2]][value[1]]
-            elif value[0] == 'aux':
-                o = self.state[value[1] - self.K]
-            else:
-                raise ObsNotSupportedError(value[0], STATE_VARIABLES.keys())
+            for idx in value[1]:
+                if value[0] in full_state.keys():
+                    o = full_state[value[0]][value[2]][idx]
+                elif value[0] == 'aux':
+                    o = self.state[idx - self.K]
+                else:
+                    raise ObsNotSupportedError(value[0], STATE_VARIABLES.keys())
+                vars.append(o)
 
-            vars.append(o)
-
-        return vars
+        return np.array(vars)
