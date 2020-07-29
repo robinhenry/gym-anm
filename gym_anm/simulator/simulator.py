@@ -7,7 +7,7 @@ from gym_anm.simulator.components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
 from gym_anm.constants import DEV_H
 from gym_anm.simulator import check_network
-from gym_anm.simulator import solve_pfe
+from gym_anm.simulator import solve_load_flow
 
 
 class Simulator(object):
@@ -98,9 +98,6 @@ class Simulator(object):
 
         # Summarize the operating range of the network.
         self.state_bounds = self.get_state_space()
-
-        # Build PyPSA model.
-        self.pypsa_network = solve_pfe.build_pypsa_model(self)
 
         self.state = None
 
@@ -503,7 +500,7 @@ class Simulator(object):
         self._get_bus_total_injections()
 
         # 5. Solve the network equations and compute nodal V, P, and Q vectors.
-        solve_pfe.solve_pfe(self, self.pypsa_network)
+        solve_load_flow.solve_pfe_newton_raphson(self, xtol=1e-5)
 
         # 6. Construct the new state of the network.
         self.state = self._gather_state()

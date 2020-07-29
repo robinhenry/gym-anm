@@ -8,6 +8,8 @@ logging.getLogger('pypsa').setLevel(logging.WARNING)
 
 
 def build_pypsa_model(simulator):
+    """Build the PyPSA model of the network."""
+
     buses = simulator.buses
     branches = simulator.branches
     devices = simulator.devices
@@ -46,6 +48,7 @@ def build_pypsa_model(simulator):
 
 
 def solve_pfe(simulator, network):
+    """Solve the AC power flow equations using the PyPSA package."""
 
     # Add devices.
     for device in simulator.devices.values():
@@ -64,7 +67,7 @@ def solve_pfe(simulator, network):
         v = v_magn * np.exp(1.j * v_ang)
         V.append(v)
 
-        # Compute nodal current injections as I = YV.
+    # Compute nodal current injections as I = YV.
     I = np.dot(simulator.Y_bus, V)
 
     # Update simulator.

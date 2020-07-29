@@ -5,6 +5,7 @@ import logging
 
 from gym_anm.simulator import Simulator
 from gym_anm.simulator.solve_pfe import solve_pfe
+from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 
 class TestSimulatorTransition(unittest.TestCase):
@@ -43,10 +44,8 @@ class TestSimulatorTransition(unittest.TestCase):
             simulator.buses[1].p = simulator.devices[1].p
             simulator.buses[1].q = simulator.devices[1].q
 
-            # Solve power flow equations.
-            solve_pfe(simulator, simulator.pypsa_network)
-
-            # Check the solution.
+            # My own implementation.
+            solve_pfe_newton_raphson(simulator)
             self._check_pfe_solution(simulator)
 
     def test_3bus_4dev(self):
@@ -90,7 +89,7 @@ class TestSimulatorTransition(unittest.TestCase):
             simulator.buses[2].q = pq_ren[i, 1] + pq_des[i, 1]
 
             # Solve power flow equations.
-            solve_pfe(simulator, simulator.pypsa_network)
+            solve_pfe_newton_raphson(simulator)
 
             # Check the solution.
             self._check_pfe_solution(simulator)
@@ -141,7 +140,7 @@ class TestSimulatorTransition(unittest.TestCase):
                 simulator.buses[2].q = pq_ren[i, 1] + pq_des[i, 1]
 
                 # Solve power flow equations.
-                solve_pfe(simulator, simulator.pypsa_network)
+                solve_pfe_newton_raphson(simulator)
 
                 # Check the solution.
                 self._check_pfe_solution(simulator)
