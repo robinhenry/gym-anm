@@ -2,7 +2,6 @@ from collections import OrderedDict
 import numpy as np
 import copy
 
-
 from gym_anm.simulator.components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
 from gym_anm.constants import DEV_H
