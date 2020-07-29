@@ -44,7 +44,7 @@ class TestSimulatorTransition(unittest.TestCase):
             simulator.buses[1].q = simulator.devices[1].q
 
             # Solve power flow equations.
-            solve_pfe(simulator)
+            solve_pfe(simulator, simulator.pypsa_network)
 
             # Check the solution.
             self._check_pfe_solution(simulator)
@@ -90,7 +90,7 @@ class TestSimulatorTransition(unittest.TestCase):
             simulator.buses[2].q = pq_ren[i, 1] + pq_des[i, 1]
 
             # Solve power flow equations.
-            solve_pfe(simulator)
+            solve_pfe(simulator, simulator.pypsa_network)
 
             # Check the solution.
             self._check_pfe_solution(simulator)
@@ -98,7 +98,7 @@ class TestSimulatorTransition(unittest.TestCase):
     def test_3bus_4dev_1transformer(self):
         """Solve load flow with a off-nominal transformer."""
 
-        N_runs = 20
+        N_runs = 10
         for i in range(N_runs):
             tap = np.random.uniform(0.9, 1.1)
             shift = np.random.uniform(0, 50)
@@ -141,7 +141,7 @@ class TestSimulatorTransition(unittest.TestCase):
                 simulator.buses[2].q = pq_ren[i, 1] + pq_des[i, 1]
 
                 # Solve power flow equations.
-                solve_pfe(simulator)
+                solve_pfe(simulator, simulator.pypsa_network)
 
                 # Check the solution.
                 self._check_pfe_solution(simulator)

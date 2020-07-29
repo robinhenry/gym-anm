@@ -7,7 +7,7 @@ import logging
 logging.getLogger('pypsa').setLevel(logging.WARNING)
 
 
-def solve_pfe(simulator):
+def build_pypsa_model(simulator):
     buses = simulator.buses
     branches = simulator.branches
     devices = simulator.devices
@@ -35,21 +35,30 @@ def solve_pfe(simulator):
         if not device.is_slack:
             network.add('Load',
                         'dev {}'.format(device.dev_id),
-                        bus='bus {}'.format(device.bus_id),
-                        p_set=-device.p,
-                        q_set=-device.q)
+                        bus='bus {}'.format(device.bus_id))
         else:
             network.add('Generator',
                         'slack',
                         bus='bus {}'.format(device.bus_id),
                         control='Slack')
 
+    return network
+
+
+def solve_pfe(simulator, network):
+
+    # Add devices.
+    for device in simulator.devices.values():
+        if not device.is_slack:
+            network.loads.loc['dev {}'.format(device.dev_id), 'p_set'] = - device.p
+            network.loads.loc['dev {}'.format(device.dev_id), 'q_set'] = - device.q
+
     # Solve PFEs.
-    network.pf(x_tol=1e-6)
+    network.pf(x_tol=1e-5)
 
     # Construct V nodal vector.
     V = []
-    for bus in buses.values():
+    for bus in simulator.buses.values():
         v_magn = network.buses_t.v_mag_pu['bus {}'.format(bus.id)][0]
         v_ang = network.buses_t.v_ang['bus {}'.format(bus.id)][0]
         v = v_magn * np.exp(1.j * v_ang)
@@ -59,7 +68,7 @@ def solve_pfe(simulator):
     I = np.dot(simulator.Y_bus, V)
 
     # Update simulator.
-    for i, bus in enumerate(buses.values()):
+    for i, bus in enumerate(simulator.buses.values()):
         bus.v = V[i]
         bus.i = I[i]
 
@@ -69,10 +78,10 @@ def solve_pfe(simulator):
             bus.q = network.buses_t.q['bus {}'.format(bus.id)][0]
 
     # Update slack device injections.
-    for dev in devices.values():
+    for dev in simulator.devices.values():
         if dev.is_slack:
-            dev.p = buses[dev.bus_id].p
-            dev.q = buses[dev.bus_id].q
+            dev.p = simulator.buses[dev.bus_id].p
+            dev.q = simulator.buses[dev.bus_id].q
 
             # Warn the user if the slack generation constraints are violated.
             if dev.p > dev.p_max or dev.p < dev.p_min:
@@ -85,9 +94,9 @@ def solve_pfe(simulator):
                      '[%.d, %d].' % (dev.q, dev.q_min, dev.q_max))
 
     # Compute branch I_{ij}, P_{ij}, and Q_{ij} flows.
-    for branch in branches.values():
-        v_f = buses[branch.f_bus].v
-        v_t = buses[branch.t_bus].v
+    for branch in simulator.branches.values():
+        v_f = simulator.buses[branch.f_bus].v
+        v_t = simulator.buses[branch.t_bus].v
         branch.compute_currents(v_f, v_t)
         branch.compute_power_flows(v_f, v_t)
 

@@ -79,7 +79,7 @@ class Simulator(object):
         # Check the correctness of the input network file.
         check_network.check_network_specs(network)
 
-        # Load network network.
+        # Load network.
         self.baseMVA, self.buses, self.branches, self.devices = \
             self._load_case(network)
 
@@ -98,6 +98,9 @@ class Simulator(object):
 
         # Summarize the operating range of the network.
         self.state_bounds = self.get_state_space()
+
+        # Build PyPSA model.
+        self.pypsa_network = solve_pfe.build_pypsa_model(self)
 
         self.state = None
 
@@ -500,7 +503,7 @@ class Simulator(object):
         self._get_bus_total_injections()
 
         # 5. Solve the network equations and compute nodal V, P, and Q vectors.
-        solve_pfe.solve_pfe(self)
+        solve_pfe.solve_pfe(self, self.pypsa_network)
 
         # 6. Construct the new state of the network.
         self.state = self._gather_state()

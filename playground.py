@@ -1,6 +1,6 @@
-# from gym_anm.envs import ANM6Easy
-# import webbrowser
-# from tqdm import tqdm
+from gym_anm.envs import ANM6Easy
+import webbrowser
+from tqdm import tqdm
 
 
 def test_sever():
@@ -8,37 +8,23 @@ def test_sever():
     webbrowser.open_new_tab(p)
 
 
-def test_dependencies():
-    import gym
-    # import gym_anm
+def test_runtime():
+    import time
 
-    env = gym.make('gym_anm:ANM6-Easy-v0')
+    env = ANM6Easy()
     env.reset()
 
-    print('Environment reset and ready.')
-
-    T = 50
-    for i in range(T):
-        print(i)
+    T = int(1e2)
+    start = time.time()
+    for i in tqdm(range(T)):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
 
     print('Done with {} steps!'.format(T))
-
-
-def run():
-    env = ANM6Easy()
-    o = env.reset()
-
-    T = int(1e4)
-    for i in tqdm(range(T)):
-        a = env.action_space.sample()
-        o, r, done, info = env.step(a)
-        # env.render(mode='human', sleep_time=2)
-    print('Done with %d timesteps!' % T)
+    print('Average time per step is %.3f seconds.' % ((time.time() - start) / T))
 
 
 if __name__ == '__main__':
     # run()
     # test_sever()
-    test_dependencies()
+    test_runtime()
