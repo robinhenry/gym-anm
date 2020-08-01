@@ -6,7 +6,7 @@ jobs:
     strategy:
       max-parallel: 6
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
