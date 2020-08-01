@@ -1,7 +1,6 @@
 import webbrowser
 import json
 import os
-import time
 
 from websocket import create_connection
 from .servers import WsServer, HttpServer

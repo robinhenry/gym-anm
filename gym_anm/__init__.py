@@ -1,8 +1,10 @@
-from gym.envs.registration import register
 import os
 
-
+# Root folder path (used in rendering).
 ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__))
+
+from . import simulator, envs
+from gym.envs.registration import register
 
 register(
     id='ANM6Easy-v0',

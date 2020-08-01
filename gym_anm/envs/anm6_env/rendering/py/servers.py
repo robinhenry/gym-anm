@@ -8,7 +8,7 @@ from multiprocessing import Process
 from websocket_server import WebsocketServer
 
 from .constants import RENDERING_LOGS, RENDERING_RELATIVE_PATH
-from gym_anm import ROOT_FOLDER
+from ..... import ROOT_FOLDER
 
 
 class WsServer(object):
