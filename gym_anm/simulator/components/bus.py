@@ -1,5 +1,6 @@
-from gym_anm.constants import BUS_H
-from gym_anm.simulator.components.errors import BusSpecError
+from .constants import BUS_H
+from .errors import BusSpecError
+
 
 class Bus(object):
     """

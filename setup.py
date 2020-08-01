@@ -8,7 +8,7 @@ setup(name='gym_anm',
                   " Active Network Management tasks in "
                   "electricity networks.",
       author_email='robin@robinxhenry.com',
-      install_requires=['gym', 'pandas', 'websocket-client>=0.56.0',
+      install_requires=['gym', 'pandas', 'websocket-client==0.56.0',
                         'websocket-server==0.4', 'cvxpy==1.1.1'],
       python_requires='>=3.6',
       )

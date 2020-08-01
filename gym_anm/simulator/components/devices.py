@@ -2,8 +2,8 @@ import numpy as np
 import cvxpy as cp
 from logging import getLogger
 
-from gym_anm.constants import DEV_H
-from gym_anm.simulator.components.errors import DeviceSpecError, LoadSpecError, GenSpecError, StorageSpecError
+from .constants import DEV_H
+from .errors import DeviceSpecError, LoadSpecError, GenSpecError, StorageSpecError
 
 logger = getLogger(__file__)
 

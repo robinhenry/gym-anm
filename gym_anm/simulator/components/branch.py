@@ -1,7 +1,7 @@
 import numpy as np
 
-from gym_anm.simulator.components.errors import BranchSpecError
-from gym_anm.constants import BRANCH_H
+from .errors import BranchSpecError
+from .constants import BRANCH_H
 
 
 class TransmissionLine(object):

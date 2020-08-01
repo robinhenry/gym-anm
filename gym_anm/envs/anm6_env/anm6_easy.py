@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_anm.envs.anm6_env.anm6 import ANM6
+from .anm6 import ANM6
 
 
 class ANM6Easy(ANM6):

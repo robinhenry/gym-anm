@@ -1,7 +1,7 @@
 import numpy as np
 
-from gym_anm.constants import BUS_H, DEV_H, BRANCH_H
-from gym_anm.simulator.components.errors import BusSpecError, DeviceSpecError, BaseMVAError, BranchSpecError
+from .components.constants import BUS_H, DEV_H, BRANCH_H
+from .components.errors import BusSpecError, DeviceSpecError, BaseMVAError, BranchSpecError
 
 
 def check_network_specs(network):

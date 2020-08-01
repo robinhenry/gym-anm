@@ -1,5 +1,5 @@
-from gym_anm.constants import STATE_VARIABLES
-from gym_anm.errors import ArgsError, ObsNotSupportedError, ObsSpaceError, \
+from .simulator.components.constants import STATE_VARIABLES
+from .errors import ArgsError, ObsNotSupportedError, ObsSpaceError, \
     UnitsNotSupportedError
 
 

@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 
 from gym_anm.envs import ANMEnv
-from gym_anm.envs.anm6_env.rendering.py import rendering
-from gym_anm.envs.anm6_env.network import network
-from gym_anm.envs.anm6_env.utils import random_date
+from .rendering.py import rendering
+from .network import network
+from .utils import random_date
 
 
 class ANM6(ANMEnv):

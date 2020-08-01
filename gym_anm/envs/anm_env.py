@@ -8,7 +8,7 @@ from logging import getLogger
 from gym_anm.simulator import Simulator
 from gym_anm.errors import ObsSpaceError, ObsNotSupportedError
 from gym_anm.utils import check_env_args
-from gym_anm.constants import STATE_VARIABLES
+from gym_anm.simulator.components.constants import STATE_VARIABLES
 from gym_anm.simulator.components import StorageUnit, Generator, Load
 
 

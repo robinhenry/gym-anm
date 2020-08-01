@@ -4,11 +4,11 @@ import copy
 from scipy.sparse import csc_matrix
 from logging import getLogger
 
-from gym_anm.simulator.components import Load, TransmissionLine, \
+from .components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
-from gym_anm.constants import DEV_H
-from gym_anm.simulator import check_network
-from gym_anm.simulator import solve_load_flow
+from .components.constants import DEV_H
+from . import check_network
+from . import solve_load_flow
 
 
 logger = getLogger(__file__)

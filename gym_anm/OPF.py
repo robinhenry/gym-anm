@@ -23,10 +23,6 @@ def solve_OPF(Y_bus, full_state):
     # Assumption : lines are lossless.
     B_bus = np.imag(Y_bus)
 
-    # Power flow constraints.
-    A =
-    for (i, j) in branch_ids:
-
 
 
 

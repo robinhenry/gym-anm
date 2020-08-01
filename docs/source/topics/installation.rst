@@ -23,6 +23,7 @@ If you would like to run :code:`gym-anm` inside a conda environment, you can:
 2. Create a new environment :code:`my_env`: ::
 
     conda create --name my_env
+    conda activate my_end
 
 3. Install :code:`gym-anm`: ::
 

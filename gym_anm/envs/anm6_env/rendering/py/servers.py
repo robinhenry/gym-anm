@@ -3,13 +3,11 @@ import os
 import sys
 import io
 from contextlib import redirect_stdout
-
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
 
-from gym_anm import ROOT_FOLDER
-from .constants import RENDERING_LOGS
+from .constants import RENDERING_LOGS, ROOT_FOLDER
 
 
 class WsServer(object):

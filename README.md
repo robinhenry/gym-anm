@@ -26,7 +26,7 @@ started.
 
 ### Prerequisites
 
-A version of Python 3.5 or greater is required.
+A version of Python 3.6 or greater is required.
 
 ### Installing
 
