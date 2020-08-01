@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
+
 **Status:** Active (under active development, breaking changes may occur).
 
 
