@@ -1,7 +1,8 @@
 import json
 import os
 import sys
-import logging
+import io
+from contextlib import redirect_stdout
 
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
@@ -37,7 +38,6 @@ class WsServer(object):
         self.PORT = 9001
         self.HOST = '127.0.0.1'
         self.address = 'ws://' + self.HOST + ':' + str(self.PORT) + '/'
-        self.logging_level = logging.NOTSET
         self.clients = {}
         self.init_message = None
         self.init_client = None
@@ -59,18 +59,21 @@ class WsServer(object):
 
         return process
 
-
     def _start_server(self):
         """ Start the WebSocket server and keep it running. """
 
-        # server = WebsocketServer(self.PORT, self.HOST, self.logging_level)
         server = WebsocketServer(self.PORT, self.HOST)
 
         server.set_fn_client_left(self.client_left)
         server.set_fn_new_client(self.new_client)
         server.set_fn_message_received(self.msg_received)
 
-        server.run_forever()
+        f = io.StringIO()
+        with redirect_stdout(f):
+            server.run_forever()
+        with open(os.path.join(os.path.join(RENDERING_LOGS), 'ws_stdout.log'),
+                  'w') as file:
+            file.write(f.getvalue())
 
     def new_client(self, client, server):
         """
@@ -138,7 +141,7 @@ class HttpServer(object):
 
     Attributes
     ----------
-   PORT : int
+    PORT : int
         The port on which to listen.
     HOST : str
         The host used as server.
@@ -178,7 +181,7 @@ class HttpServer(object):
         sys.stderr = open(os.path.join(RENDERING_LOGS, "http_stderr.log"), "w")
 
         httpd = HTTPServer((self.HOST, self.PORT), SimpleHTTPRequestHandler)
-        print('\nServing visualization at : ' + self.HOST + ':'
-              + str(self.PORT) + '...\n')
+        print('\nRendering the environment at : ' + self.HOST + ':' +
+              str(self.PORT) + '...\n')
 
         httpd.serve_forever()

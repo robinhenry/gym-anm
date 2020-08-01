@@ -41,10 +41,19 @@ class ANM6(ANMEnv):
         self.date = None
         self.date_init = None
         self.year_count = 0
+        self.skipped_frames = None
 
-    def render(self, mode='human', sleep_time=0.):
+    def render(self, mode='human', skip_frames=0):
         """
         Render the current state of the environment.
+
+        Visualizing the agent-environment interactions in real-time (e.g.,
+        during training) is hard to follow and not very useful, as the state of
+        the distribution network changes too quickly (you can try with
+        `mode`='human' and `skip_frames=0`). Instead, setting `skip_frames`>0
+        will only update the rendering of the environment every `skip_frames`+1
+        steps (assuming `render(skip_frames)` is called after every step),
+        which will make it much easier to follow for the human eye.
 
         Parameters
         ----------
@@ -52,9 +61,10 @@ class ANM6(ANMEnv):
             The mode of rendering. If 'human', the environment is rendered while
             the agent interacts with it. If 'save', the state history is saved
             for later visualization using the function replay().
-        sleep_time : float, optional
-            The sleeping time between two visualization updates, only used if
-            mode == 'human'. Default value is 0.
+        skip_frames : int, optional
+            The number of frames (steps) to skip when rendering the environment.
+            For example, `skip_frames`=3 will update the rendering of the
+            environment every 4 calls to `render()`.
 
         Raises
         ------
@@ -63,14 +73,13 @@ class ANM6(ANMEnv):
 
         Notes
         -----
-        When using mode == 'save', do not forget to call close() to stop
+        1. The use of `mode`='human' and `skip_frames`>0 assumes that `render()`
+        is called after each step the agent takes in the environment.
+        The same behavior can be achieved with `skip_frames`=0 and calling
+        `render()` less frequently.
+        2. When using mode == 'save', do not forget to call close() to stop
         saving the history of interactions. If no call to close() is made,
         the history will not be saved.
-
-        Using mode == 'human' with `sleep_time` > 0 will pause the environment
-        during `sleep_time` seconds, which will significantly slow down agent-environment
-        interactions. It is therefore recommended not to render the environment during
-        training.
 
         See Also
         --------
@@ -94,10 +103,15 @@ class ANM6(ANMEnv):
 
             # Render the initial state.
             # NOTE: a sleep time of 2sec is hard-coded here, to make sure that
-            # the rendering initialization step is finished.
-            self.render(mode=mode, sleep_time=2.)
+            # the rendering initialization step is finished before moving on.
+            time.sleep(2.)
+            self.render(mode=mode, skip_frames=skip_frames)
 
         else:
+            self.skipped_frames = (self.skipped_frames + 1) % (skip_frames + 1)
+            if self.skipped_frames:
+                return
+
             full_state = self.simulator.state
             dev_p = list(full_state['dev_p']['MW'].values())
             dev_q = list(full_state['dev_q']['MVAr'].values())
@@ -109,8 +123,7 @@ class ANM6(ANMEnv):
             network_collapsed = not self.simulator.pfe_converged
 
             self._update_render(dev_p, dev_q, branch_s, des_soc,
-                                gen_p_max, bus_v_magn, costs, sleep_time,
-                                network_collapsed)
+                                gen_p_max, bus_v_magn, costs, network_collapsed)
             print('')
 
     def step(self, action):
@@ -126,6 +139,7 @@ class ANM6(ANMEnv):
 
     def reset(self, date_init=None):
         obs = super().reset()
+        self.skipped_frames = 0
 
         # Reset the date (for rendering).
         self.year_count = 0
@@ -202,7 +216,7 @@ class ANM6(ANMEnv):
             raise NotImplementedError
 
     def _update_render(self, dev_p, dev_q, branch_s, des_soc, gen_p_max,
-                       bus_v_magn, costs, sleep_time, network_collapsed):
+                       bus_v_magn, costs, network_collapsed):
         """
         Update the rendering of the environment state.
 
@@ -224,8 +238,6 @@ class ANM6(ANMEnv):
         costs : list of float
             The total energy loss and the total penalty associated with operating
             constraints violation.
-        sleep_time : float
-            The sleeping time between two visualization updates.
         network_collapsed : bool
             True if no load flow solution is found (possibly infeasible); False
             otherwise.
@@ -237,7 +249,6 @@ class ANM6(ANMEnv):
         """
 
         if self.render_mode in ['human', 'replay']:
-            time.sleep(sleep_time)
             rendering.update(self.ws_server.address, self.date, self.year_count,
                              dev_p, dev_q, branch_s, des_soc, gen_p_max,
                              bus_v_magn, costs, network_collapsed)

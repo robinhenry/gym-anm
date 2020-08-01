@@ -5,6 +5,27 @@ from scipy.sparse import csr_matrix, hstack as shstack, vstack as svstack
 
 
 def solve_pfe_newton_raphson(simulator, xtol=1e-5):
+    """
+    Solve load flow using the Newton-Raphson iterative algorithm.
+
+    Parameters
+    ----------
+    simulator : simulator.Simulator
+        The electricity network simulator.
+    xtol : float, optional
+        The desired tolerance in the solution.
+
+    This function directly updates all the bus and branch variables in the
+    `simulator` object.
+
+    Returns
+    -------
+    V : numpy.ndarray
+        The (N,) complex bus voltage vector.
+    stable : bool
+        True if the algorithm has converged for the desired tolerance; False
+        otherwise.
+    """
 
     # Collect P and Q nodal power injections (except slack bus).
     p, q = [], []
@@ -40,11 +61,11 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
         bus.v = V[i]
         bus.i = I[i]
 
-        # Update slack bus power injection.
+        # Update slack bus power injection (set to np.inf if nan).
         if bus.is_slack:
             s = V[0] * np.conj(I[0])
-            bus.p = s.real
-            bus.q = s.imag
+            bus.p = s.real if not np.isnan(s.real) else np.inf
+            bus.q = s.imag if not np.isnan(s.imag) else np.inf
 
     # Update slack device injections.
     for dev in simulator.devices.values():

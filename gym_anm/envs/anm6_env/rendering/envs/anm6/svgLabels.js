@@ -20,7 +20,6 @@ let svgReward = {
     'rectWidth': 93.8,
     'negColor': "#ff0000",
     'posColor': "#31b620",
-    'numPrecision': 4
 };
 
 let svgParams = {

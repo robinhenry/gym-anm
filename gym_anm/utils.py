@@ -1,5 +1,6 @@
 from gym_anm.constants import STATE_VARIABLES
-from gym_anm.errors import ArgsError, ObsNotSupportedError, ObsSpaceError, UnitsNotSupportedError
+from gym_anm.errors import ArgsError, ObsNotSupportedError, ObsSpaceError, \
+    UnitsNotSupportedError
 
 
 def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,

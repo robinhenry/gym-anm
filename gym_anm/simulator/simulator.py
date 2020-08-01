@@ -2,12 +2,16 @@ from collections import OrderedDict
 import numpy as np
 import copy
 from scipy.sparse import csc_matrix
+from logging import getLogger
 
 from gym_anm.simulator.components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
 from gym_anm.constants import DEV_H
 from gym_anm.simulator import check_network
 from gym_anm.simulator import solve_load_flow
+
+
+logger = getLogger(__file__)
 
 
 class Simulator(object):
@@ -230,6 +234,13 @@ class Simulator(object):
         ----------
         init_state : numpy.ndarray
             The initial state vector `s_0` of the environment.
+
+        Returns
+        -------
+        pfe_converged : bool
+            True if a feasible solution was reached (within the specified
+            tolerance) for the power flow equations. If False, it might indicate
+            that the network has collapsed (e.g., voltage collapse).
         """
 
         self.state = None
@@ -268,7 +279,8 @@ class Simulator(object):
                     dev.soc = dev.soc_max
 
         # 3. Compute all electrical quantities in the network.
-        _, _, _, _ = self.transition(P_load, P_pot, P_set_points, Q_set_points)
+        _, _, _, _, pfe_converged = \
+            self.transition(P_load, P_pot, P_set_points, Q_set_points)
 
         # 4. Update the SoC of each DES unit to match the `initial_state`.
         soc_idx = 0
@@ -276,6 +288,8 @@ class Simulator(object):
             if isinstance(dev, StorageUnit):
                 dev.soc = soc[soc_idx] / self.baseMVA
                 soc_idx += 1
+
+        return pfe_converged
 
     def get_rendering_specs(self):
         """
@@ -475,6 +489,10 @@ class Simulator(object):
             The total energy loss (MWh).
         penalty : float
             The total penalty due to violation of operating constraints.
+        pfe_converged : bool
+            True if a feasible solution was reached (within the specified
+            tolerance) for the power flow equations. If False, it might indicate
+            that the network has collapsed (e.g., voltage collapse).
         """
 
         for dev_id, dev in self.devices.items():
@@ -515,7 +533,7 @@ class Simulator(object):
         # 7. Compute the reward associated with the transition.
         reward, e_loss, penalty = self._compute_reward()
 
-        return self.state, reward, e_loss, penalty
+        return self.state, reward, e_loss, penalty, self.pfe_converged
 
     def _get_bus_total_injections(self):
         """
@@ -653,7 +671,7 @@ class Simulator(object):
                        + np.maximum(0, bus.v_min - v_magn)
 
         for branch in self.branches.values():
-            penalty += np.maximum(0, branch.s_apparent_max - branch.rate)
+            penalty += np.maximum(0, np.abs(branch.s_apparent_max) - branch.rate)
 
         penalty *= self.delta_t * self.lamb
 

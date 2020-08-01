@@ -1,6 +1,7 @@
 from gym_anm.envs import ANM6Easy
 import webbrowser
 from tqdm import tqdm
+import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 
@@ -15,17 +16,33 @@ def test_runtime():
     env = ANM6Easy()
     env.reset()
 
-    T = int(1e2)
+    rs = []
+    e_losses, penalties = [], []
+
+    T = int(1e3)
     start = time.time()
     for i in tqdm(range(T)):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
-        env.render(sleep_time=0.)
+        env.render(skip_frames=10)
+        if env.pfe_converged:
+            rs.append(r)
+            e_losses.append(env.e_loss)
+            penalties.append(env.penalty)
+
+        if i % 100 == 0:
+            print('Maximum reward: %.3f' % np.max(np.abs(rs)))
+            print('Maximum energy loss cost %.3f' % np.max(e_losses))
+            print('Maximum penalty %.3f' % np.max(penalties))
 
     env.close()
 
+    print('')
     print('Done with {} steps!'.format(T))
     print('Average time per step is %.3f seconds.' % ((time.time() - start) / T))
+    print('Maximum reward: %.3f' % np.max(rs))
+    print('Maximum energy loss cost %.3f' % np.max(e_losses))
+    print('Maximum penalty %.3f' % np.max(penalties))
 
 
 def test_limits():
@@ -48,7 +65,8 @@ def test_limits():
 
     print('')
 
+
 if __name__ == '__main__':
     # test_sever()
-    # test_runtime()
-    test_limits()
+    test_runtime()
+    # test_limits()

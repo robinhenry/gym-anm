@@ -39,7 +39,7 @@ class RewardSignal {
     svgNetwork.getElementById(svgReward.penaltyRect).setAttribute('width', widthPenalty);
 
     // Set the texts.
-    svgNetwork.getElementById(svgReward.energyLossTxt).innerHTML = (e_loss).toPrecision(svgReward.numPrecision);
-    svgNetwork.getElementById(svgReward.penaltyTxt).innerHTML = (penalty).toPrecision(svgReward.numPrecision);
+    svgNetwork.getElementById(svgReward.energyLossTxt).innerHTML = (e_loss).toFixed(2);
+    svgNetwork.getElementById(svgReward.penaltyTxt).innerHTML = (penalty).toFixed(2);
   }
 }

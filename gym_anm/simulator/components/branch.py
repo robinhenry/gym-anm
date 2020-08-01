@@ -1,5 +1,4 @@
 import numpy as np
-from warnings import warn
 
 from gym_anm.simulator.components.errors import BranchSpecError
 from gym_anm.constants import BRANCH_H

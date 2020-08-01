@@ -10,9 +10,9 @@ class ANM6Easy(ANM6):
         K = 1
         delta_t = 0.25         # 15 minutes between timesteps
         gamma = 0.995
-        lamb = 1000
+        lamb = 100
         aux_bounds = np.array([[0, 24 / delta_t - 1]])
-        costs_clipping = (1, 10000)
+        costs_clipping = (1, 100)
         super().__init__(observation, K, delta_t, gamma, lamb, aux_bounds,
                          costs_clipping)
 

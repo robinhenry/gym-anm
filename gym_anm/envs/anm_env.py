@@ -3,13 +3,16 @@ from gym import spaces
 from gym.utils import seeding
 import numpy as np
 from copy import copy
-from warnings import warn
+from logging import getLogger
 
 from gym_anm.simulator import Simulator
 from gym_anm.errors import ObsSpaceError, ObsNotSupportedError
 from gym_anm.utils import check_env_args
 from gym_anm.constants import STATE_VARIABLES
 from gym_anm.simulator.components import StorageUnit, Generator, Load
+
+
+logger = getLogger(__file__)
 
 
 class ANMEnv(gym.Env):
@@ -60,6 +63,9 @@ class ANMEnv(gym.Env):
         The clipping values for the costs (- rewards), where costs_clipping[0] is
         the clipping value for the absolute energy loss and costs_clipping[1] is
         the clipping value for the constraint violation penalty.
+    pfe_converged : bool
+        True if the last transition converged to a load flow solution (i.e.,
+        the network is stable); False otherwise.
     np_random : numpy.random.RandomState
         The random state/seed of the environment.
 
@@ -72,7 +78,7 @@ class ANMEnv(gym.Env):
     """
 
     def __init__(self, network, observation, K, delta_t, gamma, lamb,
-                 aux_bounds=None, costs_clipping=(None, None), seed=None):
+                 aux_bounds=None, costs_clipping=None, seed=None):
         """
         Parameters
         ----------
@@ -100,20 +106,29 @@ class ANMEnv(gym.Env):
             [aux_bounds[k, 0], aux_bounds[k, 1]]. This can be useful if auxiliary
             variables are to be included in the observation vectors and a bounded
             observation space is desired.
-        costs_clipping : tuple of float
-            The clipping values for the costs in the reward signal.
+        costs_clipping : tuple of float, optional
+            The clipping values for the costs in the reward signal, where element
+            0 is the clipping value for the energy loss cost and element 1 is the
+            clipping value for the constraint-violation penalty.
         seed : int, optional
             A random seed.
         """
+
+        self.seed(seed)
 
         self.K = K
         self.gamma = gamma
         self.lamb = lamb
         self.delta_t = delta_t
         self.aux_bounds = aux_bounds
-        self.costs_clipping = costs_clipping
 
-        self.seed(seed)
+        # Do not clip costs if unspecified.
+        if costs_clipping is None:
+            c1, c2 = np.inf, np.inf
+        else:
+            c1 = np.inf if costs_clipping[0] is None else costs_clipping[0]
+            c2 = np.inf if costs_clipping[1] is None else costs_clipping[1]
+        self.costs_clipping = (c1, c2)
 
         # Initialize the AC power grid simulator.
         self.simulator = Simulator(network, self.delta_t, self.lamb)
@@ -124,7 +139,8 @@ class ANMEnv(gym.Env):
 
         # Variables to include in state vectors.
         self.state_values = [('dev_p', 'all', 'MW'), ('dev_q', 'all', 'MVAr'),
-                             ('des_soc', 'all', 'MWh'), ('gen_p_max', 'all', 'MW'),
+                             ('des_soc', 'all', 'MWh'),
+                             ('gen_p_max', 'all', 'MW'),
                              ('aux', 'all', None)]
 
         # Build action space.
@@ -187,7 +203,7 @@ class ANMEnv(gym.Env):
         lower_bounds, upper_bounds = [], []
 
         if self.obs_values is None:
-            warn('The observation space is unbounded.')
+            logger.warning('The observation space is unbounded.')
             # In this case, the size of the obs space is obtained after the
             # environment has been reset. See `reset()`.
             return None
@@ -239,7 +255,11 @@ class ANMEnv(gym.Env):
         self.state = self.init_state()
 
         # Apply the initial state to the simulator.
-        self.simulator.reset(self.state)
+        self.pfe_converged = self.simulator.reset(self.state)
+        if not self.pfe_converged:
+            logger.warning('The load flow did not converge at timestep t={}. '
+                           'This might indicate that the network has collapsed'
+                           ' (e.g., voltage collapse).'.format(self.timestep))
 
         # Reconstruct the sate vector in case the original state was infeasible.
         self.state = self._construct_state()
@@ -343,9 +363,13 @@ class ANMEnv(gym.Env):
             Q_set_points[dev_id] = a
 
         # 3a. Apply the action in the simulator.
-        _, r, e_loss, penalty = \
+        _, r, e_loss, penalty, self.pfe_converged = \
             self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
                                       Q_set_points)
+        if not self.pfe_converged:
+            logger.warning('The load flow did not converge at timestep t={}. '
+                           'This might indicate that the network has collapsed'
+                           ' (e.g., voltage collapse).'.format(self.timestep))
 
         # 3b. Clip the reward.
         self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0,
