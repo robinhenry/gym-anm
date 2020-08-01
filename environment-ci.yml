@@ -1,6 +1,3 @@
 name: gym-anm-dev
-channels:
-  - defaults
-  - conda-forge
 dependencies:
   - pip

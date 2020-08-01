@@ -1,9 +1,5 @@
-[![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
-
-**Status:** Active (under active development, breaking changes may occur).
-
-
 # gym-anm
+[![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
 
 **gym-anm is an extension to the [OpenAI Gym](https://github.com/openai/gym) toolkit. It provides researchers 
 with a tool to build and train reinforcement learning agents in environments 
@@ -44,7 +40,7 @@ You can now train your agents on `gym-anm` environments. For example:
 ```
 import gym
 
-env = gym.make('gym_anm:ANM6-Easy-v0')
+env = gym.make('gym_anm:ANM6Easy-v0')
 o = env.reset()
 
 for i in range(100):
