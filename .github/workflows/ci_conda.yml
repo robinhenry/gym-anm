@@ -1,41 +1,33 @@
-#name: CI (conda)
-#on: [push]
-#
-#jobs:
-#  build:
-#    strategy:
-#      matrix:
-#        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-#        python-version: [3.5, 3.8]
-#    runs-on: ${{ matrix.os }}
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v2
-#      - name: Setup Miniconda
-#        uses: goanpeca/setup-miniconda@v1
-#        with:
-#          auto-update-conda: true
-#          auto-activate-base: false
-#          python-version: ${{ matrix.python-version }}
-#          channels: defaults,conda-forge
-#          environment-file: environment-ci.yml
-#          activate-environment: gym-anm-dev
-#      - name: Lint with flake8
-#        shell: pwsh
-#        run: |
-#          # stop the build if there are Python syntax errors or undefined names
-#          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#          # all Python files should follow PEP8 (except some notebooks, see setup.cfg)
-#          flake8 jupytext tests
-#          # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide
-#          flake8 . --count --exit-zero --max-complexity=10 --statistics
-#      - name: Install from source
-#        # This is required for the pre-commit tests
-#        shell: pwsh
-#        run: pip install .
-#      - name: Test with pytest
-#        shell: pwsh
-#        run: coverage run -m tests
-##      - name: Upload coverage
-##        uses: codecov/codecov-action@v1
-##        if: ${{ matrix.os != 'windows-latest' }}
+name: CI (conda)
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: [3.5, 3.8]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Miniconda
+        uses: goanpeca/setup-miniconda@v1
+        with:
+          auto-update-conda: true
+          auto-activate-base: false
+          python-version: ${{ matrix.python-version }}
+          channels: defaults,conda-forge
+          environment-file: environment-ci.yml
+          activate-environment: gym-anm-dev
+      - name: Install from source
+        shell: pwsh
+        run: pip install .
+      - name: Test with unittests
+        shell: pwsh
+        run: coverage run -m tests
+      - name: Upload coverage
+        uses: codecov/codecov-action@v1
+        if: ${{ matrix.os != 'windows-latest' }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
