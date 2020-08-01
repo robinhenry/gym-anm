@@ -4,7 +4,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from gym_anm.envs import ANMEnv
+from ..anm_env import ANMEnv
 from .rendering.py import rendering
 from .network import network
 from .utils import random_date

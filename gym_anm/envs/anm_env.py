@@ -5,11 +5,11 @@ import numpy as np
 from copy import copy
 from logging import getLogger
 
-from gym_anm.simulator import Simulator
-from gym_anm.errors import ObsSpaceError, ObsNotSupportedError
-from gym_anm.utils import check_env_args
-from gym_anm.simulator.components.constants import STATE_VARIABLES
-from gym_anm.simulator.components import StorageUnit, Generator, Load
+from ..simulator import Simulator
+from ..errors import ObsSpaceError, ObsNotSupportedError
+from ..utils import check_env_args
+from ..simulator.components.constants import STATE_VARIABLES
+from ..simulator.components import StorageUnit, Generator, Load
 
 
 logger = getLogger(__file__)

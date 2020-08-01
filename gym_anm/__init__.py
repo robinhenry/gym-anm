@@ -1,6 +1,8 @@
 from gym.envs.registration import register
-from . import simulator, envs, utils, errors
+import os
 
+
+ROOT_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
 register(
     id='ANM6Easy-v0',
