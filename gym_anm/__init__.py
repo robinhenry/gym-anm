@@ -1,5 +1,5 @@
 from gym.envs.registration import register
-from . import simulator, envs, errors, utils
+from . import simulator, envs, utils, errors
 
 
 register(
