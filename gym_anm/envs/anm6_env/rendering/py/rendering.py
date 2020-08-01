@@ -1,6 +1,7 @@
 import webbrowser
 import json
 import os
+import time
 
 from websocket import create_connection
 from .servers import WsServer, HttpServer
@@ -53,7 +54,6 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     webbrowser.open_new_tab(p)
 
     ws = create_connection(ws_server.address)
-
     message = json.dumps({'messageLabel': 'init',
                           'deviceType': dev_type,
                           'pMax': p_max,
@@ -120,6 +120,8 @@ def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential,
                           'vMagn' : bus_v_magn,
                           'reward': costs,
                           'networkCollapsed': network_collapsed})
+
+    # Send the message.
     ws.send(message)
     ws.close()
 

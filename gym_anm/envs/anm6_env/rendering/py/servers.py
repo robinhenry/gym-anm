@@ -7,7 +7,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
 
-from .constants import RENDERING_LOGS
+from .constants import RENDERING_LOGS, RENDERING_RELATIVE_PATH
 from gym_anm import ROOT_FOLDER
 
 
@@ -181,6 +181,6 @@ class HttpServer(object):
 
         httpd = HTTPServer((self.HOST, self.PORT), SimpleHTTPRequestHandler)
         print('\nRendering the environment at : ' + self.HOST + ':' +
-              str(self.PORT) + '...\n')
+              str(self.PORT) + '/' + RENDERING_RELATIVE_PATH + '...\n')
 
         httpd.serve_forever()

@@ -124,7 +124,6 @@ class ANM6(ANMEnv):
 
             self._update_render(dev_p, dev_q, branch_s, des_soc,
                                 gen_p_max, bus_v_magn, costs, network_collapsed)
-            print('')
 
     def step(self, action):
         obs, r, done, info = super().step(action)
