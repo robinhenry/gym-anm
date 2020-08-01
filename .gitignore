@@ -10,3 +10,4 @@ docs/build/
 gym_anm/rendering/logs/
 gym_anm.egg-info/
 gym_anm/envs/anm6_env/rendering/logs/*.log
+playgrounds/

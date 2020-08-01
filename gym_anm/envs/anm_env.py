@@ -366,6 +366,7 @@ class ANMEnv(gym.Env):
         _, r, e_loss, penalty, self.pfe_converged = \
             self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
                                       Q_set_points)
+
         if not self.pfe_converged:
             logger.warning('The load flow did not converge at timestep t={}. '
                            'This might indicate that the network has collapsed'
@@ -378,6 +379,8 @@ class ANMEnv(gym.Env):
         r = - (self.e_loss + self.penalty)
 
         # 4. Construct the state and observation vector.
+        for k in range(self.K):
+            self.state[k-self.K] = aux[k]
         self.state = self._construct_state()
         obs = self.observation(self.state)
 

@@ -2,7 +2,7 @@ import os
 from gym.envs.registration import register
 
 register(
-    id='ANM6-Easy-v0',
+    id='ANM6Easy-v0',
     entry_point='gym_anm.envs:ANM6Easy',
 )
 
