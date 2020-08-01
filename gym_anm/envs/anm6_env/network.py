@@ -47,7 +47,7 @@ import numpy as np
 network = {"baseMVA": 100.0}
 
 network["bus"] = np.array([
-    [0, 0, 132, 1.04, 1.04],
+    [0, 0, 132, 1., 1.],
     [1, 1, 33, 1.1, 0.9],
     [2, 1, 33, 1.1, 0.9],
     [3, 1, 33, 1.1, 0.9],
@@ -56,7 +56,7 @@ network["bus"] = np.array([
 ])
 
 network["device"] = np.array([
-    [0, 0, 0, None, 200, -200, None, None, None, None, None, None, None, None, None],
+    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],
     [1, 3, -1, 0.2, 0, -10,  None, None, None, None, None, None, None, None, None],
     [2, 3, 2, None, 30, 0, 30, -30, 20, None, 15, -15, None, None, None],
     [3, 4, -1, 0.2, 0, -30, None, None, None, None, None, None, None, None, None],

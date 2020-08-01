@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
+from scipy.sparse import csc_matrix
 
 from gym_anm.simulator import Simulator
 from tests.base_test import BaseTest
@@ -65,7 +66,8 @@ class TestSimulator(BaseTest):
         Y = np.array([[Y00, Y01, 0],
                       [Y10, Y11, Y12],
                       [0, Y21, Y22]])
-        npt.assert_allclose(Y, self.simulator.Y_bus, rtol=self.rtol)
+
+        npt.assert_allclose(Y, self.simulator.Y_bus.toarray(), rtol=self.rtol)
 
     def test_bus_bounds(self):
         true_bus_p_min = np.array([-10, -200, -50]) / self.baseMVA

@@ -13,12 +13,14 @@ let svgColors = {
 let svgReward = {
     'energyLossRect': 'rect5879',
     'penaltyRect': 'rect5903',
-    'energyLossMaxTxt': 'tspan5899',
-    'penaltyMaxTxt': 'tspan5911',
+    'energyLossMaxTxt': 'text3022',
+    'energyLossTxt': 'text3028',
+    'penaltyMaxTxt': 'text2992',
+    'penaltyTxt': 'text3034',
     'rectWidth': 93.8,
-    'energyLossMax': 25,
-    'penaltyMax': 1000,
-    'color': "#ff0000"
+    'negColor': "#ff0000",
+    'posColor': "#31b620",
+    'numPrecision': 4
 };
 
 let svgParams = {
@@ -27,25 +29,31 @@ let svgParams = {
     'iCurHeight': 24.6,
     'batteryHeight': 19.8,
     'colors': svgColors,
-    'pTextDecN': 1,
-    'iTextDecN': 0,
-    'socTextDecN': 1,
+    'pqNumPrecision': 3,
+    'iNumPrecision': 3,
+    'socNumPrecision': 3,
+    'vMagnNumPrecision': 3,
     'pUnits': 'MW',
+    'qUnits': 'MVAr',
     'socUnits': 'MWh',
+    'vMagnUnits': 'pu',
     'date': 'tspan5951',
     'time': 'tspan5955',
+    'yearCount': 'tspan1071',
     'reward': svgReward,
     'title': 'tspan5966',
+    'networkCollapsedCheckMark': 'text6301',
+    'networkCollapsedGroup': ['text1128', 'text6301']  //'rect6315'
 };
 
 let svgDevices = [
-    {'pMinTick': 'text1111', 'pMaxTick': 'text1119', 'pInjRect': 'rect964', 'pInjText': 'text1107', 'arrow': 'g2863'},
-    {'pMinTick': 'text1125', 'pMaxTick': 'text1129', 'pInjRect': 'rect1121', 'pInjText': 'text1183', 'arrow': 'g2899'},
-    {'pMinTick': 'text1135', 'pMaxTick': 'text1139', 'pInjRect': 'rect1131', 'pInjText': 'text1187', 'arrow': 'g2935', 'pPotential': 'rect6259'},
-    {'pMinTick': 'text1145', 'pMaxTick': 'text1149', 'pInjRect': 'rect1141', 'pInjText': 'text1191', 'arrow': 'g3007'},
-    {'pMinTick': 'text1155', 'pMaxTick': 'text1159', 'pInjRect': 'rect1151', 'pInjText': 'text1195', 'arrow': 'g2971', 'pPotential': 'rect6261'},
-    {'pMinTick': 'text1165', 'pMaxTick': 'text1169', 'pInjRect': 'rect1161', 'pInjText': 'text1199', 'arrow': 'g3079'},
-    {'pMinTick': 'text1175', 'pMaxTick': 'text1179', 'pInjRect': 'rect1171', 'pInjText': 'text1203', 'arrow': 'g3043'}
+    {'pMaxTick': 'text4219', 'qMaxTick': 'text4450', 'pInjRect': 'rect4223', 'qInjRect': 'rect4227', 'pInjText': 'text4267', 'qInjText': 'text4271', 'arrow': 'g2863'},
+    {'pMaxTick': 'text1129', 'qMaxTick': 'text4479', 'pInjRect': 'rect1121', 'qInjRect': 'rect1094', 'pInjText': 'text1183', 'qInjText': 'text1206', 'arrow': 'g2899'},
+    {'pMaxTick': 'text1223', 'qMaxTick': 'text4509', 'pInjRect': 'rect1227', 'qInjRect': 'rect1231', 'pInjText': 'text3968', 'qInjText': 'text3972', 'arrow': 'g2935', 'pPotential': 'rect4394'},
+    {'pMaxTick': 'text3978', 'qMaxTick': 'text4539', 'pInjRect': 'rect3982', 'qInjRect': 'rect3986', 'pInjText': 'text4038', 'qInjText': 'text4042', 'arrow': 'g3007'},
+    {'pMaxTick': 'text4048', 'qMaxTick': 'text4569', 'pInjRect': 'rect4052', 'qInjRect': 'rect4056', 'pInjText': 'text4081', 'qInjText': 'text4085', 'arrow': 'g2971', 'pPotential': 'rect4421'},
+    {'pMaxTick': 'text4103', 'qMaxTick': 'text4599', 'pInjRect': 'rect4107', 'qInjRect': 'rect4111', 'pInjText': 'text4129', 'qInjText': 'text4133', 'arrow': 'g3079'},
+    {'pMaxTick': 'text4177', 'qMaxTick': 'text4628', 'pInjRect': 'rect4181', 'qInjRect': 'rect4185', 'pInjText': 'text4201', 'qInjText': 'text4205', 'arrow': 'g3043'}
 ];
 
 let svgLines = [
@@ -57,5 +65,14 @@ let svgLines = [
 ];
 
 let svgStorageUnits = [
-  {'socMinTick': 'text1211', 'socMaxTick': 'text1215', 'socText': 'text1207', 'batteryRect': 'rect1607', 'arrow': 'g3043'}
+  {'socMaxTick': 'text1215', 'socText': 'text4215', 'batteryRect': 'rect1607', 'arrow': 'g3043'}
+];
+
+let svgBuses = [
+    {'vMagnText': 'text1153', 'brokenCross': ['path1131', 'path1133']},
+    {'vMagnText': 'text1159', 'brokenCross': ['path1123', 'path1125']},
+    {'vMagnText': 'text1165', 'brokenCross': ['path1105', 'path1108']},
+    {'vMagnText': 'text1077', 'brokenCross': ['path1098', 'path1100']},
+    {'vMagnText': 'text1141', 'brokenCross': ['path1107', 'path1109']},
+    {'vMagnText': 'text1147', 'brokenCross': ['path1115', 'path1117']}
 ];

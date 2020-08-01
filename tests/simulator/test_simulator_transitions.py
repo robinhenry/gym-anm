@@ -1,10 +1,8 @@
 import unittest
 import numpy.testing as npt
 import numpy as np
-import logging
 
 from gym_anm.simulator import Simulator
-from gym_anm.simulator.solve_pfe import solve_pfe
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 
@@ -228,7 +226,7 @@ class TestSimulatorTransition(unittest.TestCase):
         for bus in simulator.buses.values():
             I_true[bus.id] = bus.i
             V[bus.id] = bus.v
-        I = np.dot(simulator.Y_bus, V)
+        I = np.dot(simulator.Y_bus.toarray(), V)
         npt.assert_allclose(I_true.real, I.real, rtol=self.rtol)
         npt.assert_allclose(I_true.imag, I.imag, rtol=self.rtol)
 

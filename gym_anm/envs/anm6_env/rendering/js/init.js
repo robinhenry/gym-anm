@@ -6,6 +6,9 @@ let ws;
 /** The graph representing the network. */
 let graph;
 
+/** The reward visualization. */
+let reward;
+
 /*
  * Once the SVG file representing the network is loaded, store the content of
  * its document object in variable svgNetwork.
@@ -44,20 +47,27 @@ function init() {
 
       // Case 1: Initialize the web-based visualization.
       case 'init':
-        graph = new Graph(svgDevices, svgLines, svgStorageUnits, svgParams,
-                    messageJson.deviceType, messageJson.pMin, messageJson.pMax,
-                    messageJson.sRate, messageJson.socMin, messageJson.socMax);
+        graph = new Graph(svgDevices, svgLines, svgStorageUnits, svgBuses,
+                          svgParams,
+                          messageJson.deviceType, messageJson.pMax,
+                          messageJson.qMax, messageJson.sRate,
+                          messageJson.vMagnMin, messageJson.vMagnMax,
+                          messageJson.socMax);
         addTitle(svgParams, messageJson.title);
-        initReward(svgParams.reward);
+        reward = new RewardSignal(svgReward, messageJson.energyLossMax,
+            messageJson.penaltyMax);
         break;
 
       // Case 2: Update the visualization.
       case 'update':
-        graph.update(messageJson.pInjections, messageJson.sFlows,
-                     messageJson.socStorage, messageJson.pPotential);
+        graph.update(messageJson.pInjections, messageJson.qInjections,
+                     messageJson.sFlows, messageJson.socStorage,
+                     messageJson.pPotential, messageJson.vMagn);
         updateDate(svgParams, messageJson.time[0], messageJson.time[1]);
         updateTime(svgParams, messageJson.time[2], messageJson.time[3]);
-        updateReward(svgParams.reward, messageJson.reward[0], messageJson.reward[1]);
+        updateYearCount(svgParams, messageJson.yearCount);
+        reward.update(svgReward, messageJson.reward[0], messageJson.reward[1]);
+        networkCollapsed(svgParams, messageJson.networkCollapsed);
         break;
     }
   };

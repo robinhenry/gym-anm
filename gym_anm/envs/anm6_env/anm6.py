@@ -1,12 +1,13 @@
 import ast
 import datetime as dt
 import time
-
+import numpy as np
 import pandas as pd
 
 from gym_anm.envs import ANMEnv
 from gym_anm.envs.anm6_env.rendering.py import rendering
 from gym_anm.envs.anm6_env.network import network
+from gym_anm.envs.anm6_env.utils import random_date
 
 
 class ANM6(ANMEnv):
@@ -29,21 +30,17 @@ class ANM6(ANMEnv):
     metadata = {'render.modes': ['human', 'save']}
 
     def __init__(self, observation, K, delta_t, gamma, lamb,
-                 aux_bounds=None, seed=None):
+                 aux_bounds=None, costs_clipping=(None, None), seed=None):
 
         super().__init__(network, observation, K, delta_t, gamma, lamb,
-                         aux_bounds, seed)
+                         aux_bounds, costs_clipping, seed)
 
-        # Time variables.
-        # self.timestep_length = dt.timedelta(minutes=int(60 * delta_t))
-        # self.year = 2020
-
-        # Specs of the network (used for rendering).
+        # Rendering variables.
         self.network_specs = self.simulator.get_rendering_specs()
-
-        # # Rendered values.
-        # self.rendered_network_specs = ['dev_type', 'dev_p', 'branch_s', 'des_soc']
-        # self.rendered_state_values = ['dev_p', 'branch_s', 'des_soc', 'gen_p_max']
+        self.timestep_length = dt.timedelta(minutes=int(60 * delta_t))
+        self.date = None
+        self.date_init = None
+        self.year_count = 0
 
     def render(self, mode='human', sleep_time=0.):
         """
@@ -90,24 +87,60 @@ class ANM6(ANMEnv):
 
             # Render the initial image of the distribution network.
             self.render_mode = mode
-            rendered_network_specs = ['dev_type', 'dev_p', 'branch_s', 'des_soc']
+            rendered_network_specs = ['dev_type', 'dev_p', 'dev_q', 'branch_s',
+                                      'bus_v', 'des_soc']
             specs = {s : self.network_specs[s] for s in rendered_network_specs}
             self._init_render(specs)
 
             # Render the initial state.
-            self.render(mode=mode, sleep_time=1.)
+            # NOTE: a sleep time of 2sec is hard-coded here, to make sure that
+            # the rendering initialization step is finished.
+            self.render(mode=mode, sleep_time=2.)
 
         else:
             full_state = self.simulator.state
             dev_p = list(full_state['dev_p']['MW'].values())
+            dev_q = list(full_state['dev_q']['MVAr'].values())
             branch_s = list(full_state['branch_s']['MVA'].values())
             des_soc = list(full_state['des_soc']['MWh'].values())
             gen_p_max = list(full_state['gen_p_max']['MW'].values())
+            bus_v_magn = list(full_state['bus_v_magn']['pu'].values())
             costs = [self.e_loss, self.penalty]
-            cur_time = dt.datetime(2020, 1, 1, 1)
+            network_collapsed = not self.simulator.pfe_converged
 
-            self._update_render(cur_time, dev_p, branch_s, des_soc, gen_p_max,
-                                costs, sleep_time)
+            self._update_render(dev_p, dev_q, branch_s, des_soc,
+                                gen_p_max, bus_v_magn, costs, sleep_time,
+                                network_collapsed)
+            print('')
+
+    def step(self, action):
+        obs, r, done, info = super().step(action)
+
+        # Increment the date (for rendering).
+        self.date += self.timestep_length
+
+        # Increment the year count.
+        self.year_count = (self.date - self.date_init).days // 365
+
+        return obs, r, done, info
+
+    def reset(self, date_init=None):
+        obs = super().reset()
+
+        # Reset the date (for rendering).
+        self.year_count = 0
+        if date_init is None:
+            self.date_init = random_date(self.np_random, 2020)
+        else:
+            self.date_init = date_init
+        self.date = self.date_init
+
+        return obs
+
+    def _reset_date(self, date_init):
+        """Reset the date displayed in the visualization (and the year count)."""
+        self.date_init = date_init
+        self.date = date_init
 
     def _init_render(self, network_specs):
         """
@@ -127,28 +160,39 @@ class ANM6(ANMEnv):
         title = type(self).__name__
 
         # Convert dict of network specs into lists.
-        dev_type = list(network_specs['dev_type'])
-        p_min, p_max = [], []
+        dev_type = list(network_specs['dev_type'].values())
+        ps = []
+        qs = []
         for i in network_specs['dev_p'].keys():
-            p_min.append(network_specs['dev_p'][i]['MW'][0])
-            p_max.append(network_specs['dev_p'][i]['MW'][1])
+            p_min_max = [network_specs['dev_p'][i]['MW'][j] for j in [0, 1]]
+            ps.append(np.max(np.abs(p_min_max)))
+            q_min_max = [network_specs['dev_q'][i]['MVAr'][j] for j in [0, 1]]
+            qs.append(np.max(np.abs(q_min_max)))
         branch_rate = []
         for br in network_specs['branch_s'].keys():
-            branch_rate.append(network_specs['branch_s'][br]['pu'][1])
-        soc_min, soc_max = [], []
+            branch_rate.append(network_specs['branch_s'][br]['MVA'][1])
+        bus_v_min, bus_v_max = [], []
+        for i in network_specs['bus_v'].keys():
+            bus_v_min.append(network_specs['bus_v'][i]['pu'][0])
+            bus_v_max.append(network_specs['bus_v'][i]['pu'][1])
+        soc_max = []
         for i in network_specs['des_soc'].keys():
-            soc_min.append(network_specs['des_soc'][i]['MWh'][0])
             soc_max.append(network_specs['des_soc'][i]['MWh'][1])
 
         # Add the '-' to the displayed title.
         if 'Easy' in title:
             title = 'ANM6-Easy'
 
+        # Set default costs range if not specified.
+        c1 = 100 if self.costs_clipping[0] is None else self.costs_clipping[0]
+        c2 = 10000 if self.costs_clipping[1] is None else self.costs_clipping[1]
+        costs_range = (c1, c2)
+
         if self.render_mode in ['human', 'replay']:
             rendering.write_html()
             self.http_server, self.ws_server = \
-                rendering.start(title, dev_type, p_min, p_max, branch_rate, soc_min,
-                                soc_max)
+                rendering.start(title, dev_type, ps, qs, branch_rate,
+                                bus_v_min, bus_v_max, soc_max, costs_range)
 
         elif self.render_mode == 'save':
             s = pd.Series({'title': title, 'specs': network_specs})
@@ -157,17 +201,17 @@ class ANM6(ANMEnv):
         else:
             raise NotImplementedError
 
-    def _update_render(self, cur_time, dev_p, branch_s, des_soc, gen_p_max,
-                       costs, sleep_time):
+    def _update_render(self, dev_p, dev_q, branch_s, des_soc, gen_p_max,
+                       bus_v_magn, costs, sleep_time, network_collapsed):
         """
         Update the rendering of the environment state.
 
         Parameters
         ----------
-        cur_time : datetime.datetime
-            The time corresponding to the current time step.
         dev_p  : list of float
             The real power injection from each device (MW).
+        dev_q : list of float
+            The reactive power injection from each device (MW).
         branch_s : list of float
             The apparent power flow in each branch (MVA).
         des_soc : list of float
@@ -175,11 +219,16 @@ class ANM6(ANMEnv):
         gen_p_max : list of float
             The potential real power generation of each RER generator before
             curtailment (MW).
+        bus_v_magn : list of float
+            The voltage magnitude of each bus (pu).
         costs : list of float
             The total energy loss and the total penalty associated with operating
             constraints violation.
         sleep_time : float
             The sleeping time between two visualization updates.
+        network_collapsed : bool
+            True if no load flow solution is found (possibly infeasible); False
+            otherwise.
 
         Raises
         ------
@@ -188,9 +237,10 @@ class ANM6(ANMEnv):
         """
 
         if self.render_mode in ['human', 'replay']:
-            rendering.update(self.ws_server.address, cur_time, dev_p, branch_s,
-                             des_soc, gen_p_max, costs)
             time.sleep(sleep_time)
+            rendering.update(self.ws_server.address, self.date, self.year_count,
+                             dev_p, dev_q, branch_s, des_soc, gen_p_max,
+                             bus_v_magn, costs, network_collapsed)
 
         elif self.render_mode == 'save':
             d = {'time': self.time,

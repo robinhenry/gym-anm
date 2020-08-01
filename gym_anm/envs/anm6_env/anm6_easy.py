@@ -1,19 +1,22 @@
 import numpy as np
+
 from gym_anm.envs.anm6_env.anm6 import ANM6
 
 
 class ANM6Easy(ANM6):
 
     def __init__(self):
-
         observation = 'state'  # fully observable environment
         K = 1
         delta_t = 0.25         # 15 minutes between timesteps
         gamma = 0.995
         lamb = 1000
         aux_bounds = np.array([[0, 24 / delta_t - 1]])
-        super().__init__(observation, K, delta_t, gamma, lamb, aux_bounds)
+        costs_clipping = (1, 10000)
+        super().__init__(observation, K, delta_t, gamma, lamb, aux_bounds,
+                         costs_clipping)
 
+        # Consumption and maximum generation 24-hour time series.
         self.P_loads = _get_load_time_series()
         self.P_maxs = _get_gen_time_series()
 
@@ -59,6 +62,14 @@ class ANM6Easy(ANM6):
         vars.append(aux)
 
         return np.array(vars)
+
+    def reset(self, date_init=None):
+        super().reset()
+
+        # Reset the time of the day based on the auxiliary variable.
+        date = self.date
+        new_date = self.date + self.state[-1] * self.timestep_length
+        super()._reset_date(new_date)
 
 
 def _get_load_time_series():

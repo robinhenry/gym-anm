@@ -56,6 +56,10 @@ class ANMEnv(gym.Env):
     penalty : float
         The penalty associated with violating operational constraints during the
         last transition (part of the reward signal).
+    costs_clipping : tuple of float
+        The clipping values for the costs (- rewards), where costs_clipping[0] is
+        the clipping value for the absolute energy loss and costs_clipping[1] is
+        the clipping value for the constraint violation penalty.
     np_random : numpy.random.RandomState
         The random state/seed of the environment.
 
@@ -68,7 +72,7 @@ class ANMEnv(gym.Env):
     """
 
     def __init__(self, network, observation, K, delta_t, gamma, lamb,
-                 aux_bounds=None, seed=None):
+                 aux_bounds=None, costs_clipping=(None, None), seed=None):
         """
         Parameters
         ----------
@@ -96,6 +100,8 @@ class ANMEnv(gym.Env):
             [aux_bounds[k, 0], aux_bounds[k, 1]]. This can be useful if auxiliary
             variables are to be included in the observation vectors and a bounded
             observation space is desired.
+        costs_clipping : tuple of float
+            The clipping values for the costs in the reward signal.
         seed : int, optional
             A random seed.
         """
@@ -105,6 +111,7 @@ class ANMEnv(gym.Env):
         self.lamb = lamb
         self.delta_t = delta_t
         self.aux_bounds = aux_bounds
+        self.costs_clipping = costs_clipping
 
         self.seed(seed)
 
@@ -335,10 +342,16 @@ class ANMEnv(gym.Env):
         for a, dev_id in zip(action[2 * N_gen + N_des:], des_ids):
             Q_set_points[dev_id] = a
 
-        # 3. Apply the action in the simulator.
-        _, r, self.e_loss, self.penalty = \
+        # 3a. Apply the action in the simulator.
+        _, r, e_loss, penalty = \
             self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
                                       Q_set_points)
+
+        # 3b. Clip the reward.
+        self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0,
+                                                self.costs_clipping[0])
+        self.penalty = np.clip(penalty, 0, self.costs_clipping[1])
+        r = - (self.e_loss + self.penalty)
 
         # 4. Construct the state and observation vector.
         self.state = self._construct_state()

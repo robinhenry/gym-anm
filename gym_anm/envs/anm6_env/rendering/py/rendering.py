@@ -7,7 +7,8 @@ from .servers import WsServer, HttpServer
 from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH
 
 
-def start(title, dev_type, p_min, p_max, s_rate, soc_min, soc_max):
+def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max,
+          costs_range):
     """
     Start visualizing the state of the environment in a new browser window.
 
@@ -18,12 +19,21 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_min, soc_max):
         environment.
     dev_type : list of int
         The type of each device connected to the network.
-    p_min, p_max : list of float
-        The minimum and maximum real power injection of each device (MW).
+    p_max : list of float
+        The maximum absolute real power injection of each device (MW).
+    q_max : list of float
+        The maximum absolute reactive power injection of each device (MVAr).
     s_rate : list of float
         The transmission line apparent power ratings (MVA).
-    soc_min, soc_max : list of float
-        The minimum and maximum state of charge of each storage unit (MWh).
+    v_magn_min : list of float
+        The minimum voltage magnitude allowed at each bus (pu).
+    v_magn_max : list of float
+        The maximum voltage magnitude allowed at each bus (pu).
+    soc_max : list of float
+        The maximum state of charge of each storage unit (MWh).
+    costs_range : tuple of int
+        The maximum absolute energy loss costs_clipping[0] and the maximum
+        constraints violation penalty (parts of the reward function).
 
     Returns
     -------
@@ -44,21 +54,16 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_min, soc_max):
 
     ws = create_connection(ws_server.address)
 
-    # Clip slack device power injection visualization at 0.
-    p_min_abs = [0.] + p_min[1:]
-
-    # Clip storage units power injection visualization at 0.
-    for i in range(len(p_min_abs)):
-        if dev_type[i] == 4:
-            p_min_abs[i] = 0.
-
     message = json.dumps({'messageLabel': 'init',
                           'deviceType': dev_type,
-                          'pMin': p_min_abs,
                           'pMax': p_max,
+                          'qMax': q_max,
                           'sRate': s_rate,
-                          'socMin': [0.] * len(soc_max),
+                          'vMagnMin': v_magn_min,
+                          'vMagnMax': v_magn_max,
                           'socMax': soc_max,
+                          'energyLossMax': costs_range[0],
+                          'penaltyMax': costs_range[1],
                           'title': title},
                          separators=(',', ':'))
     ws.send(message)
@@ -67,7 +72,8 @@ def start(title, dev_type, p_min, p_max, s_rate, soc_min, soc_max):
     return http_server, ws_server
 
 
-def update(ws_address, cur_time, p, s, soc, p_potential, costs):
+def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential,
+           bus_v_magn, costs, network_collapsed):
     """
     Update the visualization of the environment.
 
@@ -77,8 +83,12 @@ def update(ws_address, cur_time, p, s, soc, p_potential, costs):
         The address of the listening WebSocket server.
     cur_time : datetime.datetime
         The time corresponding to the state of the network.
+    year_count : int
+        The number of full years passed since the last reset of the environment.
     p  : list of float
         The real power injection from each device (MW).
+    q : list of float
+        The reactive power injection from each device (MVAr).
     s : list of float
         The apparent power flow in each branch (MVA).
     soc : list of float
@@ -86,9 +96,14 @@ def update(ws_address, cur_time, p, s, soc, p_potential, costs):
     p_potential : list of float
         The potential real power generation of each VRE device before curtailment
         (MW).
+    bus_v_magn : list of float
+        The voltage magnitude of each bus (pu).
     costs : list of float
         The total energy loss and the total penalty associated with operating
         constraints violation.
+    network_collapsed : bool
+        True if no load flow solution is found (possibly infeasible); False
+        otherwise.
     """
 
     ws = create_connection(ws_address)
@@ -96,13 +111,20 @@ def update(ws_address, cur_time, p, s, soc, p_potential, costs):
     time_array = [cur_time.month, cur_time.day, cur_time.hour, cur_time.minute]
     message = json.dumps({'messageLabel': 'update',
                           'time': time_array,
+                          'yearCount': year_count,
                           'pInjections': p,
+                          'qInjections': q,
                           'sFlows': s,
                           'socStorage': soc,
                           'pPotential': p_potential,
-                          'reward': costs})
+                          'vMagn' : bus_v_magn,
+                          'reward': costs,
+                          'networkCollapsed': network_collapsed})
     ws.send(message)
     ws.close()
+
+    return
+
 
 def close(http_server, ws_server):
     """
@@ -135,16 +157,16 @@ def write_html():
     <script src="js/graph.js"></script>
     <script src="js/dateTime.js"></script>
     <script src="js/reward.js"></script>
-    <script src="js/title.js"></script>
+    <script src="js/text.js"></script>
     <script src="envs/anm6/svgLabels.js"></script>
-    <title>SmartGrid-gym</title>
+    <title>gym-anm:ANM6</title>
 </head>
 
 <body onload="init();">
 
     <header></header>
 
-    <object id="svg-network" data="envs/anm6/network.svg"
+    <object id="svg-network" data="envs/anm6/network_2.svg"
             type="image/svg+xml" class="network">
     </object>
 

@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import numpy as np
 import copy
+from scipy.sparse import csc_matrix
 
 from gym_anm.simulator.components import Load, TransmissionLine, \
     ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
@@ -36,8 +37,9 @@ class Simulator(object):
         The number of buses and electrical devices in the network.
     N_load, N_non_slack_gen, N_des : int
         The number of load, non-slack generators, and DES devices.
-    Y_bus : numpy.ndarray
-        The (N_bus, N_bus) nodal admittance matrix of the network.
+    Y_bus : scipy.sparse.csc_matrix
+        The (N_bus, N_bus) nodal admittance matrix of the network as a sparse
+        matrix.
     state_bounds : dict of {str : dict}
         The lower and upper bounds that each electrical quantity may take. This
         is a nested dictionary with keys [quantity][ID][unit], where quantity
@@ -45,6 +47,9 @@ class Simulator(object):
         ID and unit is the units in which to return the quantity.
     state : dict of {str : numpy.ndarray}
         The current state of the system.
+    pfe_converged : bool
+        True if the load flow converged; otherwise False (possibly infeasible
+        problem).
 
     Methods
     -------
@@ -99,6 +104,7 @@ class Simulator(object):
         self.state_bounds = self.get_state_space()
 
         self.state = None
+        self.pfe_converged = None
 
     def _load_case(self, network):
         """
@@ -177,6 +183,7 @@ class Simulator(object):
         n = max([i for i in self.buses.keys()])
         Y_bus = np.zeros((n + 1, n + 1), dtype=np.complex)
 
+        data, rows, cols, = [], [], []
         for (f, t), br in self.branches.items():
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
             Y_bus[f, t] = - br.series / np.conjugate(br.tap)
@@ -186,7 +193,7 @@ class Simulator(object):
             Y_bus[f, f] += (br.series + br.shunt) / (np.abs(br.tap) ** 2)
             Y_bus[t, t] += br.series + br.shunt
 
-        return Y_bus
+        return csc_matrix(Y_bus)
 
     def _compute_bus_bounds(self):
         """
@@ -499,7 +506,8 @@ class Simulator(object):
         self._get_bus_total_injections()
 
         # 5. Solve the network equations and compute nodal V, P, and Q vectors.
-        solve_load_flow.solve_pfe_newton_raphson(self, xtol=1e-5)
+        _, self.pfe_converged = \
+            solve_load_flow.solve_pfe_newton_raphson(self, xtol=1e-5)
 
         # 6. Construct the new state of the network.
         self.state = self._gather_state()

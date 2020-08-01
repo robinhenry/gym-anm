@@ -1,3 +1,4 @@
+"use strict";
 
 let months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
               'August', 'September', 'October', 'November', 'December'];
@@ -24,4 +25,9 @@ function updateTime(svgParams, hour, min) {
 
   svgNetwork.getElementById(svgParams.time).innerHTML =
       new_hour + ':' + new_min;
+}
+
+function updateYearCount(svgParams, yearCount) {
+  svgNetwork.getElementById(svgParams.yearCount).innerHTML = 'Year count: ' + yearCount;
+
 }

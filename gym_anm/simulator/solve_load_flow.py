@@ -1,12 +1,7 @@
 import numpy as np
-import logging
 from numpy.linalg import norm
 from scipy.sparse.linalg import spsolve
-from scipy.sparse import csr_matrix, hstack as shstack, vstack as svstack, csc_matrix
-from warnings import warn
-
-
-logger = logging.getLogger(__name__)
+from scipy.sparse import csr_matrix, hstack as shstack, vstack as svstack
 
 
 def solve_pfe_newton_raphson(simulator, xtol=1e-5):
@@ -27,16 +22,18 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
     v_guess = np.array(v_guess)
 
     # Solve power flow equations using Netwon-Raphson method.
-    Y = csc_matrix(simulator.Y_bus)
     v, n_iter, diff, converged = \
         _newton_raphson_sparse(v_guess, np.array(p), np.array(q),
-                               Y, x_tol=xtol)
+                               simulator.Y_bus, x_tol=xtol)
+
+    # Check if a stable solution has been reached.
+    stable = True if diff <= xtol else False
 
     # Reconstruct complex V nodal vector.
     V = _construct_v_from_guess(v)
 
     # Compute nodal current injections as I = YV.
-    I = np.dot(simulator.Y_bus, V)
+    I = np.dot(simulator.Y_bus.toarray(), V)
 
     # Update simulator.
     for i, bus in enumerate(simulator.buses.values()):
@@ -55,16 +52,6 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
             dev.p = simulator.buses[dev.bus_id].p
             dev.q = simulator.buses[dev.bus_id].q
 
-            # Warn the user if the slack generation constraints are violated.
-            if dev.p > dev.p_max or dev.p < dev.p_min:
-                warn('The solution to the PFEs has the slack generator '
-                     'inject P=%.2f p.u., outside of its operating range '
-                     '[%.d, %d].' % (dev.p, dev.p_min, dev.p_max))
-            if dev.q > dev.q_max or dev.q < dev.q_min:
-                warn('The solution to the PFEs has the slack generator '
-                     'inject Q=%.2f p.u., outside of its operating range '
-                     '[%.d, %d].' % (dev.q, dev.q_min, dev.q_max))
-
     # Compute branch I_{ij}, P_{ij}, and Q_{ij} flows.
     for branch in simulator.branches.values():
         v_f = simulator.buses[branch.f_bus].v
@@ -72,7 +59,7 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
         branch.compute_currents(v_f, v_t)
         branch.compute_power_flows(v_f, v_t)
 
-    return V
+    return V, stable
 
 
 def _f(guess, p, q, Y):
@@ -92,8 +79,8 @@ def _f(guess, p, q, Y):
     q : numpy.ndarray
         The vector of nodal reactive power injections of size (N-1), excluding
         the slack bus.
-    Y : numpy.ndarray
-        The nodal admittance matrix of shape (N, N).
+    Y : scipy.sparse.csc_matrix
+        The nodal admittance matrix of shape (N, N) as a sparse matrix.
 
     Returns
     -------
@@ -125,8 +112,8 @@ def _dfdx(guess, Y):
         [0,...,N-2] are the nodal voltage angles \theta_i and [N-1,...,2(N-1)]
         the nodal voltage magnitudes |V_i|. The slack bus variables are
         excluded.
-    Y : numpy.ndarray
-        The nodal admittance matrix of shape (N, N).
+    Y : scipy.sparse.csc_matrix
+        The nodal admittance matrix of shape (N, N) as a sparse matrix.
 
     Returns
     -------
@@ -205,28 +192,16 @@ def _newton_raphson_sparse(v_guess, p, q, Y, x_tol=1e-10, lim_iter=100):
         True if the algorithm converged; False otherwise.
     """
 
-    converged = False
     n_iter = 0
     F = _f(v_guess, p, q, Y)
     diff = norm(F, np.Inf)
 
-    logger.debug("Error at iteration %d: %f", n_iter, diff)
-
     while diff > x_tol and n_iter < lim_iter:
-
-        n_iter +=1
-
+        n_iter += 1
         v_guess = v_guess - spsolve(_dfdx(v_guess, Y), F)
-
         F = _f(v_guess, p, q, Y)
-        diff = norm(F,np.Inf)
+        diff = norm(F, np.Inf)
 
-        logger.debug("Error at iteration %d: %f", n_iter, diff)
-
-    if diff > x_tol:
-        logger.warning("Warning, we didn't reach the required tolerance within "
-                       "%d iterations, error is at %f.", n_iter, diff)
-    elif not np.isnan(diff):
-        converged = True
+    converged = False if np.isnan(diff) else True
 
     return v_guess, n_iter, diff, converged
