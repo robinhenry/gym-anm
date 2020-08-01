@@ -6,7 +6,7 @@ jobs:
     strategy:
       max-parallel: 6
       matrix:
-        python-version: [3.6]
+        python-version: [3.6, 3.7, 3.8]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,14 +19,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .
-#      - name: Lint with flake8
-#        run: |
-#          # stop the build if there are Python syntax errors or undefined names
-#          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#          # all Python files should follow PEP8 (except some notebooks, see setup.cfg)
-#          flake8 jupytext tests
-#          # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide
-#          flake8 . --count --exit-zero --max-complexity=10 --statistics
       - name: Install testing dependencies
         run: pip install coverage
       - name: Install from source (required for the pre-commit tests)
@@ -35,3 +27,5 @@ jobs:
         run: coverage run -m tests
       - name: Upload coverage
         uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
