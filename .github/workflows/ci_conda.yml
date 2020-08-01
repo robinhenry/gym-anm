@@ -1,4 +1,4 @@
-name: CI (conda)
+name: Tests conda
 on: [push]
 
 jobs:

@@ -1,13 +1,15 @@
 # gym-anm
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
+![CI (pip)](https://github.com/robinhenry/gym-anm/workflows/CI%20(pip)/badge.svg)
+![CI (conda)](https://github.com/robinhenry/gym-anm/workflows/CI%20(conda)/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 **gym-anm is an extension to the [OpenAI Gym](https://github.com/openai/gym) toolkit. It provides researchers 
 with a tool to build and train reinforcement learning agents in environments 
 modelling active network management tasks for electricity distribution 
 networks.**
   <br>
-  
-[![Build Status](https://travis-ci.com/robinhenry/gym-anm.svg?token=y9jBzyzxgcYYHdKPqW9q&branch=master)](https://travis-ci.com/robinhenry/gym-anm)
   
 Each `gym-anm` environment implements the same [general task](#general_task).
  
