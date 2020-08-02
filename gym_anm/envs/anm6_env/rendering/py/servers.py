@@ -49,14 +49,7 @@ class WsServer(object):
         self.init_message = None
         self.init_client = None
 
-        # Only start the websocket server if it is not already running.
-        try:
-            ws = websocket.WebSocket()
-            ws.connect(self.address)
-            print('Ws connection status: ' + str(ws.connected))
-            self.process = None
-        except ConnectionRefusedError:
-            self.process = self._start_process()
+        self.process = self._start_process()
 
     def _start_process(self):
         """

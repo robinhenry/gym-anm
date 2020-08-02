@@ -66,7 +66,8 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
                 raise e
 
     # Open a new browser window to display the visualization. Keep trying until
-    # the status page becomes == 200 (i.e., the server is running).
+    # the status page becomes == 200 (i.e., the server is running). Timeout after
+    # 10 seconds.
     p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
     timeout = time.time() + 10
     while True:
@@ -128,7 +129,6 @@ def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential,
         True if no load flow solution is found (possibly infeasible); False
         otherwise.
     """
-
     ws = create_connection(ws_address)
 
     time_array = [cur_time.month, cur_time.day, cur_time.hour, cur_time.minute]
@@ -163,11 +163,8 @@ def close(http_server, ws_server):
         The WebSocket server used for message exchanges between the environment
         and the visualization.
     """
-
     http_server.process.terminate()
-
-    if ws_server is not None:
-        ws_server.process.terminate()
+    ws_server.process.terminate()
 
 
 def write_html():

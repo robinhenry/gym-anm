@@ -1,5 +1,4 @@
 from gym_anm.envs import ANM6Easy
-import webbrowser
 from tqdm import tqdm
 import time
 import numpy as np
