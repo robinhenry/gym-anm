@@ -4,7 +4,7 @@ import os
 
 from websocket import create_connection
 from .servers import WsServer, HttpServer
-from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH
+from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH, RENDERING_LOGS
 
 
 def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max,
@@ -43,6 +43,10 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
         The WebSocket server used for message exchanges between the environment
         and the visualization.
     """
+
+    # Create log directory.
+    if not os.path.exists(RENDERING_LOGS):
+        os.makedirs(RENDERING_LOGS)
 
     # Initialize the servers.
     http_server = HttpServer()
