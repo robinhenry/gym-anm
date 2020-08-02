@@ -7,7 +7,6 @@ from contextlib import redirect_stdout
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
-import websocket
 
 from .constants import RENDERING_LOGS, RENDERING_RELATIVE_PATH
 from ..... import ROOT_FOLDER
@@ -20,9 +19,9 @@ class WsServer(object):
     Attributes
     ----------
     PORT : int
-        The port on which to listen.
+        The port on which to listen. Default is 9001.
     HOST : str
-        The host used as server.
+        The host used as server. Default is '127.0.0.1'.
     address : str
         The full hosting address to connect to the server.
     clients : dict of {int : dict}
@@ -140,7 +139,8 @@ class WsServer(object):
         try:
             self.clients.pop(client['id'])
         except:
-            print("Error in removing client %s" % client['id'])
+            if client is not None:
+                print("Error in removing client %s" % client['id'])
 
 
 class HttpServer(object):

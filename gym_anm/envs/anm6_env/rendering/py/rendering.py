@@ -53,6 +53,11 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     # Initialize the servers.
     http_server = HttpServer()
     ws_server = WsServer()
+    print('HTTP server: ' + http_server.address)
+    print('WS Server: ' + ws_server.address)
+
+    # Write html file.
+    write_html(ws_server.address)
 
     # Keep trying to connect to the websocket server (because it might not have
     # been fully initialized yet). Timeout after 15 seconds.
@@ -167,7 +172,7 @@ def close(http_server, ws_server):
     ws_server.process.terminate()
 
 
-def write_html():
+def write_html(address):
     """
     Update the index.html file used for rendering the environment state.
     """
@@ -176,6 +181,7 @@ def write_html():
 <html>
 <head>
     <link rel="stylesheet" href="css/styles.css">
+    <script>var wsServerAddress = "{}";</script>
     <script src="js/init.js"></script>
     <script src="js/devices.js"></script>
     <script src="js/graph.js"></script>
@@ -197,7 +203,7 @@ def write_html():
 </body>
 </html>
 
-    """
+    """.format(address)
 
     html_file = os.path.join(RENDERING_FOLDER, 'index.html')
 

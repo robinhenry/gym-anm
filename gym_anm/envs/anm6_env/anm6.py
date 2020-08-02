@@ -199,7 +199,6 @@ class ANM6(ANMEnv):
         costs_range = (c1, c2)
 
         if self.render_mode in ['human', 'replay']:
-            rendering.write_html()
             self.http_server, self.ws_server = \
                 rendering.start(title, dev_type, ps, qs, branch_rate,
                                 bus_v_min, bus_v_max, soc_max, costs_range)

@@ -27,8 +27,9 @@ window.addEventListener("load", function() {
  */
 function init() {
 
-  // Initialize the connection to Web Socket server.
-  ws = new WebSocket("ws://127.0.0.1:9001/");
+  // Initialize the connection to Web Socket server (wsServerAddress is
+  // provided in index.html).
+  ws = new WebSocket(wsServerAddress);
 
   /**
    * What to do when the connection with the WebSocket server is established.
