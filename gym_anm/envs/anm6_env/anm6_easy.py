@@ -64,13 +64,14 @@ class ANM6Easy(ANM6):
         return np.array(vars)
 
     def reset(self, date_init=None):
-        super().reset()
+        obs = super().reset()
 
         # Reset the time of the day based on the auxiliary variable.
         date = self.date
         new_date = self.date + self.state[-1] * self.timestep_length
-        super()._reset_date(new_date)
+        super().reset_date(new_date)
 
+        return obs
 
 def _get_load_time_series():
     """Return the fixed 24-hour time-series for the load injections."""

@@ -146,7 +146,7 @@ class ANM6(ANMEnv):
 
         return obs
 
-    def _reset_date(self, date_init):
+    def reset_date(self, date_init):
         """Reset the date displayed in the visualization (and the year count)."""
         self.date_init = date_init
         self.date = date_init
