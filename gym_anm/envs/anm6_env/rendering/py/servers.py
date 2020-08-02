@@ -195,9 +195,6 @@ class HttpServer(object):
         sys.stderr = open(os.path.join(RENDERING_LOGS, "http_stderr.log"), "w")
 
         httpd = HTTPServer((self.HOST, self.PORT), SimpleHTTPRequestHandler)
-        print('\nRendering the environment at : ' + self.HOST + ':' +
-              str(self.PORT) + '/' + RENDERING_RELATIVE_PATH + '...\n')
-
         httpd.serve_forever()
 
 
