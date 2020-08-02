@@ -41,6 +41,7 @@ pip install .
 You can now train your agents on `gym-anm` environments. For example:
 ```
 import gym
+import time
 
 env = gym.make('gym_anm:ANM6Easy-v0')
 o = env.reset()
@@ -48,6 +49,8 @@ o = env.reset()
 for i in range(100):
     a = env.action_space.sample()
     o, r, _, _ = env.step(a)
+    env.render()
+    time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
 ```
 
 ## Authors
