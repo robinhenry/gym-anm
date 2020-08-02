@@ -6,11 +6,6 @@ import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 
-def test_sever():
-    p = 'http://127.0.0.1:8000/envs/anm6_env/rendering/'
-    webbrowser.open_new_tab(p)
-
-
 def test_runtime():
     env = ANM6Easy()
     env.reset()

@@ -2,15 +2,14 @@ import time
 from gym_anm.envs import ANM6Easy
 import os
 import sys
-from gym_anm.envs.anm6_env.rendering.py.servers import HttpServer
+from gym_anm.envs.anm6_env.rendering.py.servers import WsServer
 from gym_anm import ROOT_FOLDER
 import webbrowser
 import requests
 
 
 def start_http_server():
-    http = HttpServer()
-    a = http.address + '/envs/anm6_env/rendering/'
+    ws_server = WsServer()
 
     # Wait until server is fully started.
     while True:

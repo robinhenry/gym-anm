@@ -6,6 +6,7 @@ from contextlib import redirect_stdout
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
+import websocket
 
 from .constants import RENDERING_LOGS, RENDERING_RELATIVE_PATH
 from ..... import ROOT_FOLDER
@@ -41,7 +42,14 @@ class WsServer(object):
         self.init_message = None
         self.init_client = None
 
-        self.process = self._start_process()
+        # Only start the websocket server if it is not already running.
+        try:
+            ws = websocket.WebSocket()
+            ws.connect(self.address)
+            print('Ws connection status: ' + str(ws.connected))
+            self.process = None
+        except ConnectionRefusedError:
+            self.process = self._start_process()
 
     def _start_process(self):
         """
@@ -61,12 +69,13 @@ class WsServer(object):
     def _start_server(self):
         """ Start the WebSocket server and keep it running. """
 
+        # Create websocket server.
         server = WebsocketServer(self.PORT, self.HOST)
-
         server.set_fn_client_left(self.client_left)
         server.set_fn_new_client(self.new_client)
         server.set_fn_message_received(self.msg_received)
 
+        # Run forever and redirect stdout to .log file.
         f = io.StringIO()
         with redirect_stdout(f):
             server.run_forever()
