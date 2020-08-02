@@ -40,7 +40,7 @@ let svgParams = {
     'time': 'tspan5955',
     'yearCount': 'tspan1071',
     'reward': svgReward,
-    'title': 'tspan5966',
+    'title': 'text5968',
     'networkCollapsedCheckMark': 'text6301',
     'networkCollapsedGroup': ['text1128', 'text6301']  //'rect6315'
 };

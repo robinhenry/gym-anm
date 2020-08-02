@@ -1,6 +1,5 @@
 import ast
 import datetime as dt
-import time
 import numpy as np
 import pandas as pd
 
@@ -167,12 +166,12 @@ class ANM6(ANMEnv):
             If the rendering mode is non-valid.
         """
 
+        # Set visualization title to class name.
         title = type(self).__name__
 
         # Convert dict of network specs into lists.
         dev_type = list(network_specs['dev_type'].values())
-        ps = []
-        qs = []
+        ps, qs = [], []
         for i in network_specs['dev_p'].keys():
             p_min_max = [network_specs['dev_p'][i]['MW'][j] for j in [0, 1]]
             ps.append(np.max(np.abs(p_min_max)))
@@ -188,10 +187,6 @@ class ANM6(ANMEnv):
         soc_max = []
         for i in network_specs['des_soc'].keys():
             soc_max.append(network_specs['des_soc'][i]['MWh'][1])
-
-        # Add the '-' to the displayed title.
-        if 'Easy' in title:
-            title = 'ANM6-Easy'
 
         # Set default costs range if not specified.
         c1 = 100 if self.costs_clipping[0] is None else self.costs_clipping[0]
