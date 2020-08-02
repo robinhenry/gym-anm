@@ -54,25 +54,21 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     http_server = HttpServer()
     ws_server = WsServer()
 
-    # Open a new browser window to display the visualization.
-    p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
-    webbrowser.open_new_tab(p)
-
-    # time.sleep(3)  # To make sure the WS server has started.
-    # Keep trying to connect (because the server might not have properly started
-    # yet).
-    start = time.time()
-    timeout = start + 10  # timeout if server does not respond after 10s
+    # Keep trying to connect to the websocket server (because it might not have
+    # been fully initialized yet). Timeout after 15 seconds.
+    timeout = time.time() + 15
     while True:
         try:
             ws = create_connection(ws_server.address)
-            print('Connected after %.2f seconds!' % (time.time() - start))
             break
         except ConnectionRefusedError:
-            # print('Connection to ws server failed.')
             pass
         if time.time() > timeout:
             break
+
+    # Open a new browser window to display the visualization.
+    p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
+    webbrowser.open_new_tab(p)
 
     message = json.dumps({'messageLabel': 'init',
                           'deviceType': dev_type,
