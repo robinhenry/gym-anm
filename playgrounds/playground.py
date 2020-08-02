@@ -1,5 +1,4 @@
 from gym_anm.envs import ANM6Easy
-from tqdm import tqdm
 import time
 import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
@@ -14,7 +13,7 @@ def test_runtime():
 
     T = int(1e3)
     start = time.time()
-    for i in tqdm(range(T)):
+    for i in range(T):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
         env.render(skip_frames=0)

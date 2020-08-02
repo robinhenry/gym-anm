@@ -54,10 +54,10 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     http_server = HttpServer()
     ws_server = WsServer()
 
-    print('#######################')
+    print('\n#######################')
     a = http_server.address + '/' + RENDERING_RELATIVE_PATH
-    print('\nRendering the environment at : ' + a)
-    print('#######################')
+    print('Rendering the environment at : ' + a)
+    print('#######################\n')
 
     # Write html file.
     write_html(ws_server.address)
