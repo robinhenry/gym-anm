@@ -3,6 +3,7 @@ import json
 import os
 
 from websocket import create_connection
+import time
 from .servers import WsServer, HttpServer
 from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH, RENDERING_LOGS
 
@@ -56,6 +57,7 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
     webbrowser.open_new_tab(p)
 
+    time.sleep(3)  # To make sure the WS server has started.
     ws = create_connection(ws_server.address)
     message = json.dumps({'messageLabel': 'init',
                           'deviceType': dev_type,
