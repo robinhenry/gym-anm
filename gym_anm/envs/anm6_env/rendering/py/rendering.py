@@ -1,10 +1,10 @@
 import webbrowser
 import json
 import os
-import websocket
-
+import requests
 from websocket import create_connection
 import time
+
 from .servers import WsServer, HttpServer
 from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH, RENDERING_LOGS
 
@@ -61,13 +61,21 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
         try:
             ws = create_connection(ws_server.address)
             break
-        except ConnectionRefusedError:
-            pass
-        if time.time() > timeout:
-            break
+        except ConnectionRefusedError as e:
+            if time.time() > timeout:
+                raise e
 
-    # Open a new browser window to display the visualization.
+    # Open a new browser window to display the visualization. Keep trying until
+    # the status page becomes == 200 (i.e., the server is running).
     p = os.path.join(http_server.address, RENDERING_RELATIVE_PATH)
+    timeout = time.time() + 10
+    while True:
+        page = requests.get(p)
+        print('Status code: ' + str(page.status_code))
+        if page.status_code == 200:
+            break
+        elif time.time() > timeout:
+            raise ConnectionError('Connection to HTTP server timeout.')
     webbrowser.open_new_tab(p)
 
     message = json.dumps({'messageLabel': 'init',
