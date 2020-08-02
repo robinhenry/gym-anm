@@ -48,7 +48,7 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
                                simulator.Y_bus, x_tol=xtol)
 
     # Check if a stable solution has been reached.
-    stable = True if diff <= xtol else False
+    stable = True if converged and diff <= xtol else False
 
     # Reconstruct complex V nodal vector.
     V = _construct_v_from_guess(v)
