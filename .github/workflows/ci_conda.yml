@@ -1,5 +1,5 @@
 name: Tests conda
-on: [push]
+#on: [push]
 
 jobs:
   build:
