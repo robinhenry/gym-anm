@@ -104,7 +104,7 @@ class ANM6(ANMEnv):
             # Render the initial state.
             # NOTE: a sleep time of 2sec is hard-coded here, to make sure that
             # the rendering initialization step is finished before moving on.
-            time.sleep(2.)
+            # time.sleep(2.)
             self.render(mode=mode, skip_frames=skip_frames)
 
         else:

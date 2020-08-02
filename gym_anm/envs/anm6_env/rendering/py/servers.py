@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import io
+import socket
 from contextlib import redirect_stdout
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
@@ -35,8 +36,14 @@ class WsServer(object):
     """
 
     def __init__(self):
-        self.PORT = 9001
         self.HOST = '127.0.0.1'
+
+        # Default port is 9001, otherwise let the OS choose.
+        if _is_port_in_use(self.HOST, 9001):
+            self.PORT = _select_random_free_port()
+        else:
+            self.PORT = 9001
+
         self.address = 'ws://' + self.HOST + ':' + str(self.PORT) + '/'
         self.clients = {}
         self.init_message = None
@@ -150,9 +157,9 @@ class HttpServer(object):
     Attributes
     ----------
     PORT : int
-        The port on which to listen.
+        The port on which to listen. Default is 8000.
     HOST : str
-        The host used as server.
+        The host used as server. Default is '127.0.0.1'.
     address : str
         The full hosting address to connect to the server.
     process : multiprocessing.Process
@@ -160,8 +167,14 @@ class HttpServer(object):
     """
 
     def __init__(self):
-        self.PORT = 8000
         self.HOST = '127.0.0.1'
+
+        # Default port is 8000, otherwise let the OS choose.
+        if _is_port_in_use(self.HOST, 8000):
+            self.PORT = _select_random_free_port()
+        else:
+            self.PORT = 8000
+
         self.address = 'http://' + self.HOST + ':' + str(self.PORT)
         self.process = self._start_http_process()
 
@@ -193,3 +206,16 @@ class HttpServer(object):
               str(self.PORT) + '/' + RENDERING_RELATIVE_PATH + '...\n')
 
         httpd.serve_forever()
+
+
+def _is_port_in_use(host, port):
+    """Check if a port is already being used."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex((host, port)) == 0
+
+
+def _select_random_free_port():
+    """Let the OS select an unused port."""
+    soc = socket.socket()
+    soc.bind(('', 0))
+    return soc.getsockname()[1]

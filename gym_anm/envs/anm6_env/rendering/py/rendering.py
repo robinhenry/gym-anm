@@ -71,7 +71,6 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     timeout = time.time() + 10
     while True:
         page = requests.get(p)
-        print('Status code: ' + str(page.status_code))
         if page.status_code == 200:
             break
         elif time.time() > timeout:
