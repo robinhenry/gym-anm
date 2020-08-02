@@ -10,7 +10,6 @@ from .components.constants import DEV_H
 from . import check_network
 from . import solve_load_flow
 
-
 logger = getLogger(__file__)
 
 

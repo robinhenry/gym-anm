@@ -2,6 +2,8 @@ from gym_anm.envs import ANM6Easy
 import time
 import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
+from scipy.sparse.linalg import MatrixRankWarning
+import warnings
 
 
 def test_runtime():
@@ -11,13 +13,13 @@ def test_runtime():
     rs = []
     e_losses, penalties = [], []
 
-    T = int(1e3)
+    T = int(1e4)
     start = time.time()
     for i in range(T):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
-        env.render(skip_frames=0)
-        time.sleep(1)
+        # env.render(skip_frames=0)
+        # time.sleep(1)
         if env.pfe_converged:
             rs.append(r)
             e_losses.append(env.e_loss)

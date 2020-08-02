@@ -4,6 +4,8 @@ from gym.utils import seeding
 import numpy as np
 from copy import copy
 from logging import getLogger
+import warnings
+from scipy.sparse.linalg import MatrixRankWarning
 
 from ..simulator import Simulator
 from ..errors import ObsSpaceError, ObsNotSupportedError
@@ -255,7 +257,9 @@ class ANMEnv(gym.Env):
         self.state = self.init_state()
 
         # Apply the initial state to the simulator.
-        self.pfe_converged = self.simulator.reset(self.state)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', MatrixRankWarning)
+            self.pfe_converged = self.simulator.reset(self.state)
         if not self.pfe_converged:
             logger.warning('The load flow did not converge at timestep t={}. '
                            'This might indicate that the network has collapsed'
@@ -363,9 +367,11 @@ class ANMEnv(gym.Env):
             Q_set_points[dev_id] = a
 
         # 3a. Apply the action in the simulator.
-        _, r, e_loss, penalty, self.pfe_converged = \
-            self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
-                                      Q_set_points)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', MatrixRankWarning)
+            _, r, e_loss, penalty, self.pfe_converged = \
+                self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
+                                          Q_set_points)
 
         if not self.pfe_converged:
             logger.warning('The load flow did not converge at timestep t={}. '
