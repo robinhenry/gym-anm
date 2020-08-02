@@ -61,13 +61,16 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     # time.sleep(3)  # To make sure the WS server has started.
     # Keep trying to connect (because the server might not have properly started
     # yet).
-    timeout = time.time() + 10  # timeout if server does not respond after 10s
+    start = time.time()
+    timeout = start + 10  # timeout if server does not respond after 10s
     while True:
         try:
             ws = create_connection(ws_server.address)
+            print('Connected after %.2f seconds!' % (time.time() - start))
             break
         except ConnectionRefusedError:
-            print('Connection to ws server failed.')
+            # print('Connection to ws server failed.')
+            pass
         if time.time() > timeout:
             break
 
