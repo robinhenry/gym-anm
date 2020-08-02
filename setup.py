@@ -13,6 +13,6 @@ setup(name='gym_anm',
       author_email='robin@robinxhenry.com',
       packages=['gym_anm'],
       install_requires=['gym', 'pandas', 'websocket-client==0.56.0',
-                        'websocket-server==0.4', 'cvxpy==1.1.1', 'requests'],
+                        'websocket-server==0.4', 'cvxpy>=1.1.1', 'requests'],
       python_requires='>=3.6'
       )

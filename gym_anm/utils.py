@@ -1,3 +1,5 @@
+import os
+
 from .simulator.components.constants import STATE_VARIABLES
 from .errors import ArgsError, ObsNotSupportedError, ObsSpaceError, \
     UnitsNotSupportedError
@@ -108,3 +110,7 @@ def _check_observation_vars(observation, state_bounds):
             units = obs[2]
             if units not in STATE_VARIABLES[key]:
                 raise UnitsNotSupportedError(units, STATE_VARIABLES[key], key)
+
+
+def get_package_root():
+    return os.path.dirname(os.path.abspath(__file__))

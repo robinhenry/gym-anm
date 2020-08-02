@@ -8,8 +8,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from multiprocessing import Process
 from websocket_server import WebsocketServer
 
-from .constants import RENDERING_LOGS, RENDERING_RELATIVE_PATH
-from ..... import ROOT_FOLDER
+from .constants import RENDERING_LOGS, ROOT_FOLDER
 
 
 class WsServer(object):
