@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
-from scipy.sparse import csc_matrix
 
 from gym_anm.simulator import Simulator
 from tests.base_test import BaseTest

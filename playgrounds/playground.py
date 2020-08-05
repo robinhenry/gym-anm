@@ -2,8 +2,6 @@ from gym_anm.envs import ANM6Easy
 import time
 import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
-from scipy.sparse.linalg import MatrixRankWarning
-import warnings
 
 
 def test_runtime():
@@ -18,8 +16,8 @@ def test_runtime():
     for i in range(T):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
-        # env.render(skip_frames=0)
-        # time.sleep(1)
+        env.render(skip_frames=0)
+        time.sleep(.5)
         if env.pfe_converged:
             rs.append(r)
             e_losses.append(env.e_loss)
@@ -62,6 +60,5 @@ def test_limits():
 
 
 if __name__ == '__main__':
-    # test_sever()
-    test_runtime()
-    # test_limits()
+    # test_runtime()
+    test_limits()

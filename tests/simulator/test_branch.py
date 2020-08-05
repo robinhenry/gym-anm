@@ -1,6 +1,5 @@
 import numpy as np
 import unittest
-import os
 
 from gym_anm.simulator.components import TransmissionLine
 from gym_anm.simulator.components.errors import BranchSpecError
@@ -8,9 +7,6 @@ from gym_anm.simulator.components.errors import BranchSpecError
 
 class TestBranch(unittest.TestCase):
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))  # Set the working directory to the root.
-
         self.baseMVA = 10
         self.bus_ids = [1, 2]
 

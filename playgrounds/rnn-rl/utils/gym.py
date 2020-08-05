@@ -24,7 +24,8 @@ class EnvMask():
         return np.zeros(y.shape), r, d, info
 
     def reset(self):
-        return self.env.reset()
+        a = self.env.reset()
+        return a
 
     def render(self, mode='human'):
         return self.env.render(mode=mode)

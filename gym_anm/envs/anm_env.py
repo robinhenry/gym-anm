@@ -2,8 +2,8 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 import numpy as np
-from copy import copy
 from logging import getLogger
+from copy import deepcopy
 import warnings
 from scipy.sparse.linalg import MatrixRankWarning
 
@@ -144,6 +144,7 @@ class ANMEnv(gym.Env):
                              ('des_soc', 'all', 'MWh'),
                              ('gen_p_max', 'all', 'MW'),
                              ('aux', 'all', None)]
+        self.state_values = self._expand_all_ids(self.state_values)
 
         # Build action space.
         self.action_space = self._build_action_space()
@@ -440,11 +441,11 @@ class ANMEnv(gym.Env):
 
         # Case 1: environment is fully observable.
         if isinstance(observation, str) and observation == 'state':
-            obs_values = self.state_values
+            obs_values = deepcopy(self.state_values)
 
         # Case 2: observation space is provided as a list.
         elif isinstance(observation, list):
-            obs_values = copy(observation)
+            obs_values = deepcopy(observation)
             # Add default units when none is provided.
             for idx, o in enumerate(obs_values):
                 if len(o) == 2:
@@ -459,8 +460,14 @@ class ANMEnv(gym.Env):
             raise ObsSpaceError()
 
         # Transform the 'all' option into a list of bus/branch/device IDs.
-        if obs_values is not None:
-            for idx, o in enumerate(obs_values):
+        return self._expand_all_ids(obs_values)
+
+    def _expand_all_ids(self, values):
+        """Helper function to translate the 'all' option in a list of IDS."""
+
+        # Transform the 'all' option into a list of bus/branch/device IDs.
+        if values is not None:
+            for idx, o in enumerate(values):
                 if isinstance(o[1], str) and o[1] == 'all':
                     if 'bus' in o[0]:
                         ids = list(self.simulator.buses.keys())
@@ -479,9 +486,9 @@ class ANMEnv(gym.Env):
                     else:
                         raise ObsNotSupportedError(o[0], STATE_VARIABLES.keys())
 
-                    obs_values[idx] = (o[0], ids, o[2])
+                    values[idx] = (o[0], ids, o[2])
 
-        return obs_values
+        return values
 
     def _construct_state(self):
         """

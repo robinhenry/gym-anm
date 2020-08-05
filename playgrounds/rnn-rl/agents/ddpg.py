@@ -12,6 +12,9 @@ from utils.noise import OrnsteinUhlenbeckNoise
 from utils.gym import check_u_size
 from itertools import chain
 
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 
 class DDPG(BaseAgent):
     """
@@ -196,6 +199,7 @@ class DDPG(BaseAgent):
 
                 x, h = y, i
                 (x, h), u, r, (y, i), d = self.step(x, h, train=train)
+                print('t=%d, r=%.3f' % (t_seq, r))
 
                 cumulative_reward += r * (1 - d) * (self.gamma ** t)
                 done = done or d
