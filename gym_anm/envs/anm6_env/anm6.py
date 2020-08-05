@@ -41,6 +41,8 @@ class ANM6(ANMEnv):
         self.date_init = None
         self.year_count = 0
         self.skipped_frames = None
+        self.render_mode = None
+        self.is_rendering = False
 
     def render(self, mode='human', skip_frames=0):
         """
@@ -95,6 +97,7 @@ class ANM6(ANMEnv):
 
             # Render the initial image of the distribution network.
             self.render_mode = mode
+            self.skipped_frames = 0
             rendered_network_specs = ['dev_type', 'dev_p', 'dev_q', 'branch_s',
                                       'bus_v', 'des_soc']
             specs = {s : self.network_specs[s] for s in rendered_network_specs}
@@ -133,8 +136,13 @@ class ANM6(ANMEnv):
         return obs, r, done, info
 
     def reset(self, date_init=None):
+        # Save rendering setup to restore after the reset().
+        render_mode = self.render_mode
+
         obs = super().reset()
-        self.skipped_frames = 0
+
+        # Restore the rendering setup.
+        self.render_mode = render_mode
 
         # Reset the date (for rendering).
         self.year_count = 0

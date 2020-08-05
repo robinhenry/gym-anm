@@ -16,8 +16,9 @@ def test_runtime():
     for i in range(T):
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
-        env.render(skip_frames=0)
-        time.sleep(.5)
+        env.render(skip_frames=2)
+        time.sleep(.1)
+
         if env.pfe_converged:
             rs.append(r)
             e_losses.append(env.e_loss)
@@ -27,6 +28,10 @@ def test_runtime():
             print('Maximum reward: %.3f' % np.max(np.abs(rs)))
             print('Maximum energy loss cost %.3f' % np.max(e_losses))
             print('Maximum penalty %.3f' % np.max(penalties))
+
+        # Reset the environment every 100 steps.
+        if i > 0 and i % 30 == 0:
+            env.reset()
 
     env.close()
 
@@ -60,5 +65,5 @@ def test_limits():
 
 
 if __name__ == '__main__':
-    # test_runtime()
-    test_limits()
+    test_runtime()
+    # test_limits()
