@@ -38,6 +38,8 @@ class ANMEnv(gym.Env):
     state_values : list of tuple of str
         The electrical quantities to include in the state vectors. Each tuple
         (x, y, z) refers to quantity x at nodes/devices/branches y, using units z.
+    state_N : int
+        The number of state variables.
     action_space : gym.spaces.Box
         The action space from which the agent can select actions.
     obs_values : list of str or None
@@ -46,14 +48,15 @@ class ANMEnv(gym.Env):
         is None.
     observation_space : gym.spaces.Box
         The observation space from which observation vectors are constructed.
+    observation_N : int
+        The number of observation variables.
     done : bool
-        Always False (continuing task).
+        True if a terminal state has been reached (if the network collapsed);
+        False otherwise.
     render_mode : str
         The rendering mode. See `render()`.
     timestep : int
         The current timestep.
-    total_disc_return : float
-        The total discounted return.
     state : numpy.ndarray
         The current state vector `s_t`.
     e_loss : float
@@ -145,6 +148,7 @@ class ANMEnv(gym.Env):
                              ('gen_p_max', 'all', 'MW'),
                              ('aux', 'all', None)]
         self.state_values = self._expand_all_ids(self.state_values)
+        self.state_N = sum(len(s[1]) for s in self.state_values)
 
         # Build action space.
         self.action_space = self._build_action_space()
@@ -152,6 +156,8 @@ class ANMEnv(gym.Env):
         # Build observation space.
         self.obs_values = self._build_observation_space(observation)
         self.observation_space = self.observation_bounds()
+        if self.observation_space is not None:
+            self.observation_N = self.observation_space.shape[0]
 
     def init_state(self):
         """
@@ -250,7 +256,6 @@ class ANMEnv(gym.Env):
         self.done = False
         self.render_mode = None
         self.timestep = 0
-        self.total_disc_return = 0.
         self.e_loss = 0.
         self.penalty = 0.
 
@@ -260,11 +265,7 @@ class ANMEnv(gym.Env):
         # Apply the initial state to the simulator.
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', MatrixRankWarning)
-            self.pfe_converged = self.simulator.reset(self.state)
-        if not self.pfe_converged:
-            logger.warning('The load flow did not converge at timestep t={}. '
-                           'This might indicate that the network has collapsed'
-                           ' (e.g., voltage collapse).'.format(self.timestep))
+            self.done = not self.simulator.reset(self.state)
 
         # Reconstruct the sate vector in case the original state was infeasible.
         self.state = self._construct_state()
@@ -276,9 +277,16 @@ class ANMEnv(gym.Env):
         if self.observation_space is None:
             self.observation_space = spaces.Box(low=-np.ones(len(obs)) * np.inf,
                                                 high=np.ones(len(obs)) * np.inf)
+            self.observation_N = self.observation_space.shape[0]
 
         err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
         assert self.observation_space.contains(obs), err_msg
+
+        # Cast state and obs vectors to 0 (arbitrary) if a terminal state has
+        # been reached.
+        if self.done:
+            self.state = self._terminal_state(self.state_N)
+            obs = self._terminal_state(self.observation_N)
 
         return obs
 
@@ -327,6 +335,12 @@ class ANMEnv(gym.Env):
         err_msg = "Action %r (%s) invalid." % (action, type(action))
         assert self.action_space.contains(action), err_msg
 
+        # 0. Remain in a terminal state and output reward=0 if the environment
+        # has already reached a terminal state.
+        if self.done:
+            obs = self._terminal_state(self.observation_N)
+            return obs, 0., self.done, {}
+
         # 1a. Sample the internal stochastic variables.
         vars = self.next_vars(self.state)
         P_load = vars[:self.simulator.N_load]
@@ -370,32 +384,43 @@ class ANMEnv(gym.Env):
         # 3a. Apply the action in the simulator.
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', MatrixRankWarning)
-            _, r, e_loss, penalty, self.pfe_converged = \
+            _, r, e_loss, penalty, pfe_converged = \
                 self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
                                           Q_set_points)
 
-        if not self.pfe_converged:
-            logger.warning('The load flow did not converge at timestep t={}. '
-                           'This might indicate that the network has collapsed'
-                           ' (e.g., voltage collapse).'.format(self.timestep))
+            # A terminal state has been reached if no solution to the power
+            # flow equations is found.
+            self.done = not pfe_converged
 
         # 3b. Clip the reward.
-        self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0,
-                                                self.costs_clipping[0])
-        self.penalty = np.clip(penalty, 0, self.costs_clipping[1])
-        r = - (self.e_loss + self.penalty)
+        if not self.done:
+            self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0,
+                                                    self.costs_clipping[0])
+            self.penalty = np.clip(penalty, 0, self.costs_clipping[1])
+            r = - (self.e_loss + self.penalty)
+        else:
+            # Very large reward if a terminal state has been reached.
+            r = - self.costs_clipping[1] / (1 - self.gamma)
+            self.e_loss = self.costs_clipping[0]
+            self.penalty = self.costs_clipping[1]
 
         # 4. Construct the state and observation vector.
-        for k in range(self.K):
-            self.state[k-self.K] = aux[k]
-        self.state = self._construct_state()
-        obs = self.observation(self.state)
+        if not self.done:
+            for k in range(self.K):
+                self.state[k-self.K] = aux[k]
+            self.state = self._construct_state()
+            obs = self.observation(self.state)
 
-        err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
-        assert self.observation_space.contains(obs), err_msg
+            err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
+            assert self.observation_space.contains(obs), err_msg
 
-        # 5. Update the discounted return.
-        self.total_disc_return += self.gamma ** self.timestep * r
+        # Cast state and obs vectors to 0 (arbitrary) if a terminal state is
+        # reached.
+        else:
+            self.state = self._terminal_state(self.state_N)
+            obs = self._terminal_state(self.observation_N)
+
+        # 5. Update the timestep.
         self.timestep += 1
 
         return obs, r, self.done, {}
@@ -532,3 +557,19 @@ class ANMEnv(gym.Env):
                 vars.append(o)
 
         return np.array(vars)
+
+    def _terminal_state(self, n):
+        """
+        Return a 0-vector (arbitrarily chosen as terminal state).
+
+        Parameters
+        ----------
+        n : int
+            The length of the vector to return.
+
+        Returns
+        -------
+        numpy.ndarray
+            A zero-vector of size n.
+        """
+        return np.zeros(n)
