@@ -38,8 +38,9 @@ class Simulator(object):
         key is a unique device ID.
     N_bus, N_device : int
         The number of buses and electrical devices in the network.
-    N_load, N_non_slack_gen, N_des : int
-        The number of load, non-slack generators, and DES devices.
+    N_load, N_non_slack_gen, N_des, N_gen_rer : int
+        The number of load, non-slack generators, DES devices, and renewable
+        energy generators.
     Y_bus : scipy.sparse.csc_matrix
         The (N_bus, N_bus) nodal admittance matrix of the network as a sparse
         matrix.
@@ -96,6 +97,7 @@ class Simulator(object):
         self.N_load = len([0 for d in self.devices.values() if isinstance(d, Load)])
         self.N_non_slack_gen = len([0 for d in self.devices.values() if isinstance(d, Generator) and not d.is_slack])
         self.N_des = len([0 for d in self.devices.values() if isinstance(d, StorageUnit)])
+        self.N_gen_rer = len([0 for d in self.devices.values() if isinstance(d, RenewableGen)])
 
         # Build the nodal admittance matrix.
         self.Y_bus = self._build_admittance_matrix()
@@ -148,7 +150,7 @@ class Simulator(object):
 
         bus_ids = list(buses.keys())
 
-        branches = OrderedDict()  # order branches in the order they are provided.
+        branches = OrderedDict()  #order branches in the order they are provided.
         for br_spec in network['branch']:
             branch = TransmissionLine(br_spec, baseMVA, bus_ids)
             branches[(branch.f_bus, branch.t_bus)] = branch
