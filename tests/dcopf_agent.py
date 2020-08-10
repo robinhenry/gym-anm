@@ -30,7 +30,7 @@ class TestDCOPFAgent(BaseTest):
     def test_ANM6Easy_horizon_1(self):
         """Test the DC OPF agent with a single timestep horizon."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
-                           self.safety_margin, planning_horizon=1)
+                           self.safety_margin, planning_steps=1)
 
         for i in range(int(1e3)):
             a = agent.act(self.env.simulator.state)
@@ -43,7 +43,7 @@ class TestDCOPFAgent(BaseTest):
     def test_ANM6Easy_horizon_3(self):
         """Test the DC OPF agent with a horizon of 3 timesteps."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
-                           self.safety_margin, planning_horizon=3)
+                           self.safety_margin, planning_steps=3)
 
         for i in range(int(1e3)):
             a = agent.act(self.env.simulator.state)
@@ -56,7 +56,7 @@ class TestDCOPFAgent(BaseTest):
     def test_ANM6Easy_horizon_20(self):
         """Test the DC OPF agent with a horizon of 20 timesteps."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
-                           self.safety_margin, planning_horizon=20)
+                           self.safety_margin, planning_steps=20)
 
         for i in range(int(1e3)):
             a = agent.act(self.env.simulator.state)

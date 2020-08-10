@@ -10,13 +10,13 @@ class DCOPFAgent(object):
     A deterministic agent that solves a multi-timestep DC Optimal Power Flow.
 
     This agent accesses the full state of the distribution network, which is
-    equivalent to consider the environment fully observable.
+    equivalent to considering the environment to be fully observable.
 
     All values are used in per-unit.
     """
 
     def __init__(self, simulator, action_space, safety_margin=0.9,
-                 planning_horizon=1):
+                 planning_steps=1):
         """
         Parameters
         ----------
@@ -28,7 +28,7 @@ class DCOPFAgent(object):
             The safety margin constant $\Beta$ in [0, 1], used to further
             constraint the power flow on each transmission line, thus
             likely accounting for the error introduced in the DC approximation.
-        planning_horizon : int
+        planning_steps : int
             The number of time steps taken into account in the optimization
             problem.
         """
@@ -38,7 +38,7 @@ class DCOPFAgent(object):
         self.baseMVA = simulator.baseMVA
         self.lamb = simulator.lamb
         self.action_space = action_space
-        self.planning_horizon = planning_horizon
+        self.planning_horizon = planning_steps
 
         # Information about all sets (buses, branches, etc.).
         self.n_bus = simulator.N_bus
