@@ -14,7 +14,7 @@ def test_runtime():
     for i in range(T):
 
         if done:
-            # env.reset()
+            env.reset()
             print('Resetting at i=%d' % i)
 
         a = env.action_space.sample()

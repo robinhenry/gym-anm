@@ -25,3 +25,7 @@ class UnitsNotSupportedError(ObsSpaceError):
         super().__init__('Observation unit unsupported. Desired: {} but we only'
                          'support {} for observation {}.'
                          .format(wanted, allowed, key))
+
+class EnvInitializationError(Exception):
+    """Raised when the environment encounters a problem during reset()."""
+    pass

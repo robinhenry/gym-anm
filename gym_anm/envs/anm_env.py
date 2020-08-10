@@ -8,7 +8,7 @@ import warnings
 from scipy.sparse.linalg import MatrixRankWarning
 
 from ..simulator import Simulator
-from ..errors import ObsSpaceError, ObsNotSupportedError
+from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError
 from ..utils import check_env_args
 from ..simulator.components.constants import STATE_VARIABLES
 from ..simulator.components import StorageUnit, Generator, Load
@@ -37,7 +37,8 @@ class ANMEnv(gym.Env):
         The electricity distribution network simulator.
     state_values : list of tuple of str
         The electrical quantities to include in the state vectors. Each tuple
-        (x, y, z) refers to quantity x at nodes/devices/branches y, using units z.
+        (x, y, z) refers to quantity x at nodes/devices/branches y, using units
+        z.
     state_N : int
         The number of state variables.
     action_space : gym.spaces.Box
@@ -260,12 +261,22 @@ class ANMEnv(gym.Env):
         self.penalty = 0.
 
         # Initialize the state.
-        self.state = self.init_state()
+        init_state_found = False
+        n_init_states = 0
+        n_init_states_max = 100
+        while not init_state_found:
+            n_init_states += 1
+            self.state = self.init_state()
 
-        # Apply the initial state to the simulator.
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', MatrixRankWarning)
-            self.done = not self.simulator.reset(self.state)
+            # Apply the initial state to the simulator.
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', MatrixRankWarning)
+                init_state_found = self.simulator.reset(self.state)
+
+            if n_init_states == n_init_states_max:
+                msg = "No no-terminal state found out of %d initial states for " \
+                      "environment %s" % (n_init_states_max, self.__name__)
+                raise EnvInitializationError(msg)
 
         # Reconstruct the sate vector in case the original state was infeasible.
         self.state = self._construct_state()
