@@ -12,7 +12,7 @@ setup(name='gym_anm',
       long_description_content_type='text/markdown',
       author_email='robin@robinxhenry.com',
       packages=['gym_anm'],
-      install_requires=['gym', 'pandas', 'websocket-client==0.56.0',
-                        'websocket-server==0.4', 'cvxpy>=1.1.1', 'requests'],
-      python_requires='>=3.6'
+      install_requires=['cvxpy>=1.1', 'gym', 'pandas', 'websocket-client==0.56.0',
+                        'websocket-server==0.4', 'requests'],
+      python_requires='>=3.5'
       )

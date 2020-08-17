@@ -73,8 +73,8 @@ class Bus(object):
         if self.is_slack:
             return self._v_slack
         else:
-            raise AttributeError(f'The bus with ID {self.id} is not the slack '
-                                 f'bus.')
+            raise AttributeError('The bus with ID {} is not the slack '
+                                 'bus.'.format(self.id))
 
     @v_slack.setter
     def v_slack(self, value):
