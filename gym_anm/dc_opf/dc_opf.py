@@ -9,13 +9,31 @@ class DCOPFAgent(object):
     """
     A deterministic agent that solves a multi-timestep DC Optimal Power Flow.
 
-    This agent accesses the full state of the distribution network, which is
-    equivalent to considering the environment to be fully observable.
+    This agent accesses the full state of the distribution network at time t and
+    then solves an N-stage optimization problem. The optimization problem solved
+    is an instance of a Direct Current (DC) Optimal Power Flow problem.
+
+    The construction of the DC OPF problem relies on two assumptions:
+    1. transmission lines are lossless, i.e., $r_{ij} = 0, \forall e_{ij}
+      \in \mathcal E$,
+    2. nodal voltage magnitude are close to unity, i.e., $|V_i| = 1, \forall i
+      \in \mathcal N$.
+
+    The construction of the N-stage optimization problem relies
+    on two additional assumptions:
+    1. the demand at all loads remain constant for the period [t, t+N],
+    2. the maximum generation at all generators also remain constant for the
+      period [t, t+N].
 
     All values are used in per-unit.
+
+    Methods
+    -------
+    act(env)
+        Solve the optimization problem and return the optimal action.
     """
 
-    def __init__(self, simulator, action_space, safety_margin=0.9,
+    def __init__(self, simulator, action_space, gamma, safety_margin=0.9,
                  planning_steps=1):
         """
         Parameters
@@ -24,13 +42,15 @@ class DCOPFAgent(object):
             The electricity distribution network simulator.
         action_space : gym.spaces.Box
             The action space of the environment (used to clip actions).
+        gamma : float
+            The discount factor in [0, 1].
         safety_margin : float, optional
             The safety margin constant $\Beta$ in [0, 1], used to further
             constraint the power flow on each transmission line, thus
             likely accounting for the error introduced in the DC approximation.
-        planning_steps : int
-            The number of time steps taken into account in the optimization
-            problem.
+        planning_steps : int, optional
+            The number (N) of stages (time steps) taken into account in the
+            optimization problem.
         """
 
         # Global parameters.
@@ -39,6 +59,7 @@ class DCOPFAgent(object):
         self.lamb = simulator.lamb
         self.action_space = action_space
         self.planning_horizon = planning_steps
+        self.gamma = gamma
 
         # Information about all sets (buses, branches, etc.).
         self.n_bus = simulator.N_bus
@@ -83,44 +104,45 @@ class DCOPFAgent(object):
         # Empty lists to store all single-timestep optimization variables.
         self.V_bus_ang_vars = []
         self.P_dev_vars = []
-        self.P_bus_exprs = []
-        self.P_branch_exprs = []
 
-        # Define all parameters used in solving the problem.
-        self.B_bus = cp.Parameter((self.n_bus, self.n_bus))
-        self.branch_rate = cp.Parameter(self.n_branch, nonneg=True)
+        # Define time-varying parameters.
         self.P_load_prev = cp.Parameter(self.n_load)
         self.soc_prev = cp.Parameter(self.n_des, nonneg=True)
-        self.P_gen_min = cp.Parameter(self.n_gen - 1)
-        self.P_gen_max = cp.Parameter(self.n_gen - 1)
-        self.P_des_min = cp.Parameter(self.n_des)
-        self.P_des_max = cp.Parameter(self.n_des)
         self.P_gen_pot_prev = cp.Parameter(self.n_rer, nonneg=True)
-        self.soc_min = cp.Parameter(self.n_des, nonneg=True)
-        self.soc_max = cp.Parameter(self.n_des, nonneg=True)
 
-        # Set parameters that are time-independent.
+        # Define constants.
         bus_ids = [self.bus_id_mapping[i] for i in self.bus_ids]
-        self.B_bus.value = simulator.Y_bus.imag[bus_ids, :][:, bus_ids].toarray()
+        self.B_bus = simulator.Y_bus.imag[bus_ids, :][:, bus_ids].toarray()
         self.branch_rate = [br.rate for br in simulator.branches.values()]
         self.P_gen_min = [g.p_min for g in simulator.devices.values()
-                          if isinstance(g, Generator) and not g.is_slack]
+                                if isinstance(g, Generator) and not g.is_slack]
         self.P_gen_max = [g.p_max for g in simulator.devices.values()
-                          if isinstance(g, Generator) and not g.is_slack]
+                                if isinstance(g, Generator) and not g.is_slack]
         self.P_des_min = [d.p_min for d in simulator.devices.values()
-                          if isinstance(d, StorageUnit)]
+                                if isinstance(d, StorageUnit)]
         self.P_des_max = [d.p_max for d in simulator.devices.values()
-                          if isinstance(d, StorageUnit)]
+                                if isinstance(d, StorageUnit)]
         self.soc_min = [d.soc_min for d in simulator.devices.values()
-                        if isinstance(d, StorageUnit)]
+                              if isinstance(d, StorageUnit)]
         self.soc_max = [d.soc_max for d in simulator.devices.values()
-                        if isinstance(d, StorageUnit)]
+                              if isinstance(d, StorageUnit)]
+        self.des_eff = [d.eff for d in simulator.devices.values()
+                              if isinstance(d, StorageUnit)]
 
-        # Define the optimization problem.
-        self.dc_opf = self._create_optimization_problem()
+        # Indicate the optimization problem has not been constructed yet. This is
+        # done during the first call of `act()`.
+        self.dc_opf = None
 
     def _create_p_bus_expressions(self, P_dev):
-        """Define P_i^{(bus)} = sum_d P_d^{(dev)} expressions."""
+        """
+        Define P_i^{(bus)} = sum_d P_d^{(dev)} expressions.
+
+        Returns
+        -------
+        list of cvxpy.Expression
+            The active power injection at each bus expressed in terms of the
+            active power injection of its devices.
+        """
         P_bus = [0.] * self.n_bus
         for d in self.device_ids:
             i = self.dev_to_bus[d]
@@ -129,7 +151,15 @@ class DCOPFAgent(object):
         return P_bus
 
     def _create_p_branch_expressions(self, V_bus_ang):
-        """Define P_{ij} = B_{ij} * (V_ang[i] - V_ang[j]) expressions."""
+        """
+        Define P_{ij} = B_{ij} * (V_ang[i] - V_ang[j]) expressions.
+
+        Returns
+        -------
+        list of cvxpy.Expression
+            The branch active power flow expressed in terms of the nodal voltage
+            phase angle variables.
+        """
         P_branch = []
         for i, j in self.branch_ids:
             k = self.bus_id_mapping[i]
@@ -140,48 +170,59 @@ class DCOPFAgent(object):
         return P_branch
 
     def _create_optimization_problem(self):
-        """Create the multi-step cvxpy optimization problem."""
+        """
+        Create the N-stage cvxpy optimization problem.
+
+        Returns
+        -------
+        problem : cvxpy.Problem
+            The N-stage convex optimization problem.
+        """
 
         objective = 0.
         constraints = []
 
+        # Fixed variables, provided as constants at the start of the
+        # optimization.
         P_load = self.P_load_prev
-        soc = self.soc_prev
         P_pot = self.P_gen_pot_prev
+
+        # Variables coupled between different time steps.
+        soc = self.soc_prev
 
         for i in range(self.planning_horizon):
 
-            # Create a new optimization problem coupled with the previous
-            # timestep.
+            # Create a new single-step optimization problem coupled with the
+            # previous time step.
             obj, consts, optim_vars, soc = \
                 self._single_step_optimization_problem(P_load, soc, P_pot)
-            objective += obj
+            objective += self.gamma ** i * obj
             constraints += consts
 
             # Store the optimization variables.
             self.P_dev_vars.append(optim_vars['P_dev'])
             self.V_bus_ang_vars.append(optim_vars['V_bus_ang'])
-            self.P_bus_exprs.append(optim_vars['P_bus'])
-            self.P_branch_exprs.append(optim_vars['P_branch'])
 
-        # 3. Construct the final multi-step optimization problem.
+        # 3. Construct the final N-stage optimization problem.
         problem = cp.Problem(cp.Minimize(objective), constraints)
 
-        # 4. Extract the final optimization variables.
+        # 4. Extract the final optimization variables (from the first stage).
         self.P_dev = self.P_dev_vars[0]
         self.V_bus_ang = self.V_bus_ang_vars[0]
-        self.P_bus = self.P_bus_exprs[0]
-        self.P_branch = self.P_branch_exprs[0]
 
         return problem
 
-    def act(self, full_state):
-        """Select an action."""
+    def act(self, env):
+        """ Select an action by solving the N-stage DC OPF. """
+
+        # Initialize the optimization problem during the first iteration.
+        if self.dc_opf is None:
+            self.dc_opf = self._create_optimization_problem()
 
         # Update the time-varying parameters (fixed values).
-        self._update_parameters(full_state)
+        self._update_parameters(env)
 
-        # Solve the DC OPF (linear program).
+        # Solve the DC OPF (convex program).
         self.dc_opf.solve()
         if self.dc_opf.status != 'optimal':
             print('OPF problem is ' + self.dc_opf.status)
@@ -204,25 +245,53 @@ class DCOPFAgent(object):
 
         return a
 
-    def _update_parameters(self, full_state):
+    def _update_parameters(self, env):
         """Update the time-dependent fixed values of the optimization problem."""
+
+        # Extract the full state of the distribution network.
+        full_state = env.simulator.state
 
         # Set the previous P of loads.
         P_load = [full_state['dev_p']['pu'][i] for i in self.load_ids]
         self.P_load_prev.value = P_load
 
-        # Set the previous state of charge.
+        # Set the previous state of charge of DES units.
         soc = [full_state['des_soc']['pu'][i] for i in self.des_ids]
         self.soc_prev.value = soc
 
-        # Set the previous potential generation P_pot from non-slack generators.
+        # Set the previous maximum generation from non-slack generators.
         P_pot = [full_state['gen_p_max']['pu'][i] for i in
                  self.non_slack_gen_ids]
         self.P_gen_pot_prev.value = P_pot
 
     def _single_step_optimization_problem(self, P_load_prev, soc_prev,
                                           P_gen_pot_prev):
-        """Define an instance of the DC OPF optimization problem."""
+        """
+        Define a single-stage instance of the DC OPF optimization problem.
+
+        Parameters
+        ----------
+        P_load_prev : cvxpy.Expression
+            The load active power injection P from the last time step.
+        soc_prev : cvxpy.Expression
+            The current state of charge of DES units.
+        P_gen_pot_prev : cvxpy.Expression
+            The maximum active power generation from non-slack generators from
+            the last time step.
+
+        Returns
+        -------
+        obj : cvxpy.Expression
+            The objective to be minimized.
+        constraints : list of cvxpy.Constraint
+            A list of constraints.
+        optim_var : dict of {str : cvxpy.Variable or cvxpy.Expression}
+            The optimization variables, with keys {'V_bus_ang', 'P_dev', 'P_bus',
+            'P_branch'}.
+        new_socs : list of cvxpy.Expression
+            The state of charge of the DES units at the next time step, expressed
+            in terms of the optimization variables.
+        """
 
         # 1. Create optimization variables for this timestep.
         V_bus_ang = cp.Variable(self.n_bus)
@@ -249,7 +318,7 @@ class DCOPFAgent(object):
             a.append(c)
         constraints += _make_list_eq_constraints(a, P_bus)
 
-        # P_load(t+1) = P_load(t)
+        # P_load(t+1) = P_load_prev
         c = []
         for l in self.load_ids:
             c.append(P_dev[self.dev_id_mapping[l]])
@@ -275,12 +344,19 @@ class DCOPFAgent(object):
             c.append(P_dev[self.dev_id_mapping[rer]])
         constraints += _make_list_le_constraints(c, P_gen_pot_prev)
 
-        # soc_min <= soc(t+1) <= soc_max
-        new_socs = []
+        # P >= (soc_{t-1} - soc_max) / (delta_t * eff)
+        # P <= (soc_{t-1} - soc_min) * eff / delta_t
+        new_socs, c = [], []
         for i, des in enumerate(self.des_ids):
-            j = self.dev_id_mapping[des]
-            new_soc = soc_prev[i] - self.delta_t * P_dev[j]
+            p_charging = cp.Variable(nonneg=True)
+            p_discharging = cp.Variable(nonneg=True)
+            delta_soc_charging = p_charging * self.delta_t * self.des_eff[i]
+            delta_soc_discharging = - p_discharging * self.delta_t / self.des_eff[i]
+            new_soc = soc_prev[i] + delta_soc_charging + delta_soc_discharging
             new_socs.append(new_soc)
+            c.append(P_dev[self.dev_id_mapping[des]] == p_discharging - p_charging)
+
+        constraints += c
         constraints += _make_list_le_constraints(self.soc_min, new_socs)
         constraints += _make_list_le_constraints(new_socs, self.soc_max)
 
