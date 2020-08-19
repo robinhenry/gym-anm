@@ -26,7 +26,6 @@ def run_baseline(agent_class, safety_margin, planning_steps, T=3000, seed=None,
 
     start = time()
     for i in range(T):
-        print(i)
         a = agent.act(env)
         obs, r, done, _ = env.step(a)
 
