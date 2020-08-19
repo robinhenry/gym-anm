@@ -49,8 +49,8 @@ class MPCAgentANM6Easy(DCOPFAgent):
                          planning_steps)
 
         # Overwrite the variables storing the future loads and max generations.
-        self.P_load_prev = cp.Parameter((self.n_load, self.planning_horizon))
-        self.P_gen_pot_prev = cp.Parameter((self.n_rer, self.planning_horizon),
+        self.P_load_prev = cp.Parameter((self.n_load, self.planning_steps))
+        self.P_gen_pot_prev = cp.Parameter((self.n_rer, self.planning_steps),
                                            nonneg=True)
 
     def _create_optimization_problem(self):
@@ -66,7 +66,7 @@ class MPCAgentANM6Easy(DCOPFAgent):
         # Variables coupled between different time steps.
         soc = self.soc_prev
 
-        for i in range(self.planning_horizon):
+        for i in range(self.planning_steps):
 
             # Create a new optimization problem coupled with the previous
             # timestep. The main difference with the base class is here: the
@@ -95,7 +95,7 @@ class MPCAgentANM6Easy(DCOPFAgent):
 
         # Extract the fixed time series of demand and maximum generation.
         t_start = int(env.state[-1]) + 1   # time of day of next time step
-        t_end = t_start + self.planning_horizon
+        t_end = t_start + self.planning_steps
         P_loads = env.P_loads
         P_gen_pot = env.P_maxs
 
@@ -105,7 +105,7 @@ class MPCAgentANM6Easy(DCOPFAgent):
             P_loads = np.concatenate((P_loads, env.P_loads), axis=-1)
             P_gen_pot = np.concatenate((P_gen_pot, env.P_maxs), axis=-1)
 
-        # Extract the P_loads for the next `planning_horizon` steps.
+        # Extract the P_loads for the next `planning_steps` steps.
         self.P_load_prev.value = P_loads[:, t_start: t_end] / self.baseMVA
 
         # Extract the potential generation P_pot from non-slack generators.

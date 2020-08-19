@@ -58,7 +58,7 @@ class DCOPFAgent(object):
         self.baseMVA = simulator.baseMVA
         self.lamb = simulator.lamb
         self.action_space = action_space
-        self.planning_horizon = planning_steps
+        self.planning_steps = planning_steps
         self.gamma = gamma
 
         # Information about all sets (buses, branches, etc.).
@@ -190,7 +190,7 @@ class DCOPFAgent(object):
         # Variables coupled between different time steps.
         soc = self.soc_prev
 
-        for i in range(self.planning_horizon):
+        for i in range(self.planning_steps):
 
             # Create a new single-step optimization problem coupled with the
             # previous time step.

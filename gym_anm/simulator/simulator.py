@@ -188,7 +188,6 @@ class Simulator(object):
         n = max([i for i in self.buses.keys()])
         Y_bus = np.zeros((n + 1, n + 1), dtype=np.complex)
 
-        data, rows, cols, = [], [], []
         for (f, t), br in self.branches.items():
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
             Y_bus[f, t] = - br.series / np.conjugate(br.tap)
