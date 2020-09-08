@@ -7,3 +7,5 @@ register(
     id='ANM6Easy-v0',
     entry_point='gym_anm.envs:ANM6Easy',
 )
+
+register(id='ANM6Partial-v0', entry_point='gym_anm.envs:ANM6Partial')

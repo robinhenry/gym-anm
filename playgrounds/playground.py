@@ -1,11 +1,11 @@
-from gym_anm.envs import ANM6Easy
+from gym_anm.envs import ANM6Easy, ANM6Partial
 import time
 import numpy as np
 from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 
 def test_runtime():
-    env = ANM6Easy()
+    env = ANM6Partial()
     env.reset()
 
     T = int(1e4)

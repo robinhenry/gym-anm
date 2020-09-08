@@ -52,7 +52,7 @@ def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
     if isinstance(observation, str) and observation == 'state':
         pass
     elif isinstance(observation, list):
-        _check_observation_vars(observation, state_bounds)
+        _check_observation_vars(observation, state_bounds, K)
     elif callable(observation):
         pass
     else:
@@ -68,7 +68,7 @@ def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
                             .format(len(aux_bounds), K))
 
 
-def _check_observation_vars(observation, state_bounds):
+def _check_observation_vars(observation, state_bounds, K):
     """
     Checks the specs of the observation space when specified as a list.
 
@@ -80,6 +80,8 @@ def _check_observation_vars(observation, state_bounds):
         y (list) in unit z (str, optional).
     state_bounds : dict of {str : dict}
         The bounds on the state variables of the distribution network.
+    K : int
+        The number of auxiliary variables.
     """
 
     for obs in observation:
@@ -96,6 +98,11 @@ def _check_observation_vars(observation, state_bounds):
         nodes = obs[1]
         if isinstance(nodes, str) and nodes == 'all':
             pass
+        elif key == 'aux':
+            for n in nodes:
+                if n >= K:
+                    raise ObsSpaceError('Aux variable index {} is out of bound'
+                                        'for {} aux variables.'.format(n, K))
         elif isinstance(nodes, list):
             for n in nodes:
                 if n not in state_bounds[key].keys():

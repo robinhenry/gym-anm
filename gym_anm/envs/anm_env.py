@@ -485,7 +485,7 @@ class ANMEnv(gym.Env):
             # Add default units when none is provided.
             for idx, o in enumerate(obs_values):
                 if len(o) == 2:
-                    obs_values[idx] = tuple(list(o) + STATE_VARIABLES[o[0]][0])
+                    obs_values[idx] = tuple(list(o) + [STATE_VARIABLES[o[0]][0]])
 
         # Case 3: observation space is provided as a callable object.
         elif callable(observation):
