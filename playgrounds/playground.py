@@ -6,7 +6,7 @@ from gym_anm.simulator.solve_load_flow import solve_pfe_newton_raphson
 
 def test_runtime():
     env = ANM6Partial()
-    env.reset()
+    o = env.reset()
 
     T = int(1e4)
     start = time.time()

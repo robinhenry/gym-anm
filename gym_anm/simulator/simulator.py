@@ -434,7 +434,7 @@ class Simulator(object):
 
         # Branch bounds.
         branch_p, branch_q = {}, {}
-        branch_s, branch_i_magn = {}, {}
+        branch_s, branch_i_magn, branch_i_ang = {}, {}, {}
         for br_id, branch in self.branches.items():
             branch_p[br_id] = {'MW': (- np.inf, np.inf),
                                'pu': (- np.inf, np.inf)}
@@ -444,6 +444,8 @@ class Simulator(object):
                                'pu': (- np.inf, np.inf)}
             branch_i_magn[br_id] = {'pu': (- np.inf, np.inf),
                                     'kA': (- np.inf, np.inf)}
+            branch_i_ang[br_id] = {'rad': (- np.pi, np.pi),
+                                   'degree': (- 180, 180)}
 
         specs = {'bus_p': bus_p, 'bus_q': bus_q,
                  'bus_v_magn': bus_v_magn, 'bus_v_ang': bus_v_ang,
@@ -451,7 +453,8 @@ class Simulator(object):
                  'dev_p': dev_p, 'dev_q': dev_q,
                  'des_soc': des_soc, 'gen_p_max': gen_p_max,
                  'branch_p': branch_p, 'branch_q': branch_q,
-                 'branch_s': branch_s, 'branch_i_magn': branch_i_magn
+                 'branch_s': branch_s,
+                 'branch_i_magn': branch_i_magn, 'branch_i_ang': branch_i_ang
                 }
 
         return specs
@@ -597,18 +600,22 @@ class Simulator(object):
 
         # Collect branch variables.
         branch_p, branch_q = {'pu': {}, 'MW': {}}, {'pu': {}, 'MVAr': {}}
-        branch_s, branch_i_magn = {'pu': {}, 'MVA': {}}, {'pu': {}}
+        branch_s = {'pu': {}, 'MVA': {}}
+        branch_i_magn, branch_i_ang = {'pu': {}}, {'rad': {}, 'degree': {}}
         for (f, t), branch in self.branches.items():
-            branch_p['pu'][(f, t)] = np.sign(branch.p_from) * np.maximum(np.abs(branch.p_from), np.abs(branch.p_to))
-            branch_p['MW'][(f, t)] = branch_p['pu'][(f, t)] * self.baseMVA
+            branch_p['pu'][(f, t)] = branch.p_from
+            branch_p['MW'][(f, t)] = branch.p_from * self.baseMVA
 
-            branch_q['pu'][(f, t)] = np.sign(branch.q_from) * np.maximum(np.abs(branch.q_from), np.abs(branch.q_to))
-            branch_q['MVAr'][(f, t)] = branch_q['pu'][(f, t)] * self.baseMVA
+            branch_q['pu'][(f, t)] = branch.q_from
+            branch_q['MVAr'][(f, t)] = branch.q_from * self.baseMVA
 
             branch_s['pu'][(f, t)] = branch.s_apparent_max
             branch_s['MVA'][(f, t)] = branch.s_apparent_max * self.baseMVA
 
-            branch_i_magn['pu'][(f, t)] = np.sign(branch.i_from) * np.maximum(np.abs(branch.i_from), np.abs(branch.i_to))
+            branch_i_magn['pu'][(f, t)] = np.sign(branch.i_from).real * np.abs(branch.i_from)
+
+            branch_i_ang['rad'][(f, t)] = np.angle(branch.i_from)
+            branch_i_ang['degree'][(f, t)] = np.angle(branch.i_from) * 180 / np.pi
 
         state = {'bus_p': bus_p,
                  'bus_q': bus_q,
@@ -623,7 +630,8 @@ class Simulator(object):
                  'branch_p': branch_p,
                  'branch_q': branch_q,
                  'branch_s': branch_s,
-                 'branch_i_magn': branch_i_magn
+                 'branch_i_magn': branch_i_magn,
+                 'branch_i_ang': branch_i_ang
                  }
 
         return state
