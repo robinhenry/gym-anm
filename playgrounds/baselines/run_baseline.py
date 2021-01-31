@@ -5,7 +5,7 @@ from time import time
 def run_baseline(agent_class, safety_margin, planning_steps, T=3000, seed=None,
                  savefile=None):
 
-    print('Using agent: ' + agent_class.__name__)
+    print('Using agent: ' + agent_class.__name__ + f' with T={T}')
 
     # Get file to write results to.
     if savefile is None:
