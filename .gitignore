@@ -13,7 +13,8 @@ dist/
 build/
 old/
 paper/
-
+.DS_Store
+gym_anm/.DS_Store
 
 # Environments.
 gym_anm/envs/anm6_env/anm6_partial.py

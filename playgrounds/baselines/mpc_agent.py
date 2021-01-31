@@ -4,11 +4,11 @@ from run_baseline import run_baseline
 
 def mpc_grid_search():
 
-    T = 3000
+    T = 2000
     seed = 1000
-    savefile = './MPC_returns.txt'
+    savefile = f'./MPC_returns_T{T}.txt'
 
-    for planning_steps in [288, 384, 480]:
+    for planning_steps in [8, 16, 32, 64, 128, 256]:
         for safety_margin in [0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.]:
 
             run_baseline(MPCAgentANM6Easy, safety_margin, planning_steps, T,
