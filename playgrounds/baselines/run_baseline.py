@@ -18,6 +18,7 @@ def run_baseline(agent_class, safety_margin, planning_steps, T=3000, seed=None,
         env.seed(1000)
     env.reset()
     ret = 0.
+    total_reward = 0.
 
     # Make the agent.
     agent = agent_class(env.simulator, env.action_space, gamma,
@@ -30,6 +31,7 @@ def run_baseline(agent_class, safety_margin, planning_steps, T=3000, seed=None,
         obs, r, done, _ = env.step(a)
 
         ret += gamma ** i * r
+        total_reward += r
 
         if done:
             env.reset()
@@ -38,10 +40,10 @@ def run_baseline(agent_class, safety_margin, planning_steps, T=3000, seed=None,
 
     # Write results to file.
     with open(savefile, 'a') as f:
-        f.write('T=%d, N-stage=%d, safety_margin=%.2f, return=%.3f\n'
-                % (T, agent.planning_steps, agent.safety_margin, ret))
+        f.write('T=%d, N-stage=%d, safety_margin=%.2f, return=%.3f, total reward=%.3f\n'
+                % (T, agent.planning_steps, agent.safety_margin, ret, total_reward))
 
-    print('Planning steps: %d, safety margin: %.2f, return: %.4f, elapsed time: %.2f sec'
-          % (agent.planning_steps, agent.safety_margin, ret, elapsed))
+    print('Planning steps: %d, safety margin: %.2f, return: %.4f, total reward: %.4f, elapsed time: %.2f sec'
+          % (agent.planning_steps, agent.safety_margin, ret, total_reward, elapsed))
 
     return ret
