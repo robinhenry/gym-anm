@@ -5,17 +5,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
-**gym-anm is an extension to the [OpenAI Gym](https://github.com/openai/gym) toolkit. It provides researchers 
-with a tool to build and train reinforcement learning agents in environments 
-modelling active network management tasks for electricity distribution 
-networks.**
-  <br>
+**`gym-anm` is a framework for designing reinforcement learning (RL) environments that model active network
+management (ANM) tasks in electricity distribution networks. It is built following the
+[OpenAI Gym](https://github.com/openai/gym) toolkit.**
   
 Each `gym-anm` environment implements the same [general task](#general_task).
  
  This toolkit comes with a paper available at [ADD LINK], and 
  researchers should reference `gym-anm` with the BibTeX entry:
- ```bash
+```
 ADD BibTeX entry
 ```  
 

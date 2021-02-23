@@ -30,6 +30,6 @@ STATE_VARIABLES = {'bus_p': ('MW', 'pu'),
                    'branch_q': ('MVAr', 'pu'),
                    'branch_s': ('MVA', 'pu'),
                    'branch_i_magn': ('pu'),
-                   'branch_i_ang': ('rad', 'degree'),
+                   'branch_i_ang': ('degree', 'rad'),
                    'aux': (None,)
                   }
