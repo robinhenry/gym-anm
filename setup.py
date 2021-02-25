@@ -14,5 +14,5 @@ setup(name='gym_anm',
       packages=['gym_anm'],
       install_requires=['cvxpy>=1.1', 'gym', 'pandas', 'websocket-client==0.56.0',
                         'websocket-server==0.4', 'requests'],
-      python_requires='>=3.5'
+      python_requires='>=3.7'
       )
