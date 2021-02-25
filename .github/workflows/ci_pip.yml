@@ -1,5 +1,5 @@
 name: Tests pip
-#on: [push]
+on: [push]
 
 jobs:
   build:
