@@ -15,15 +15,15 @@ class DCOPFAgent(object):
 
     The construction of the DC OPF problem relies on two assumptions:
     1. transmission lines are lossless, i.e., $r_{ij} = 0, \forall e_{ij}
-      \in \mathcal E$,
+       \in \mathcal E$,
     2. nodal voltage magnitude are close to unity, i.e., $|V_i| = 1, \forall i
-      \in \mathcal N$.
+       \in \mathcal N$.
 
     The construction of the N-stage optimization problem relies
     on two additional assumptions:
     1. the demand at all loads remain constant for the period [t, t+N],
     2. the maximum generation at all generators also remain constant for the
-      period [t, t+N].
+       period [t, t+N].
 
     All values are used in per-unit.
 

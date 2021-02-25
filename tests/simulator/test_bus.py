@@ -5,6 +5,7 @@ import numpy as np
 from gym_anm.simulator.components import Bus
 from gym_anm.simulator.components.errors import *
 
+
 class TestBus(unittest.TestCase):
 
     def setUp(self):

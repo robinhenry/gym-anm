@@ -295,6 +295,7 @@ class TestGenerator(unittest.TestCase):
             self.assertAlmostEqual(gen.p, m[0], places=5)
             self.assertAlmostEqual(gen.q, m[1], places=5)
 
+
 class TestStorageUnit(unittest.TestCase):
     def setUp(self):
         os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(

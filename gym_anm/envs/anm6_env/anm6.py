@@ -1,7 +1,5 @@
-import ast
 import datetime as dt
 import numpy as np
-import pandas as pd
 
 from ..anm_env import ANMEnv
 from .rendering.py import rendering
@@ -23,10 +21,10 @@ class ANM6(ANMEnv):
         House  PV  Factory  Wind  EV   DES
 
     This environment supports rendering (web-based) through the functions
-    render(), replay(), and close().
+    render() and close().
     """
 
-    metadata = {'render.modes': ['human', 'save']}
+    metadata = {'render.modes': ['human']}
 
     def __init__(self, observation, K, delta_t, gamma, lamb,
                  aux_bounds=None, costs_clipping=(None, None), seed=None):
@@ -58,10 +56,9 @@ class ANM6(ANMEnv):
 
         Parameters
         ----------
-        mode : {'human', 'save'}, optional
+        mode : {'human'}, optional
             The mode of rendering. If 'human', the environment is rendered while
-            the agent interacts with it. If 'save', the state history is saved
-            for later visualization using the function replay().
+            the agent interacts with it.
         skip_frames : int, optional
             The number of frames (steps) to skip when rendering the environment.
             For example, `skip_frames`=3 will update the rendering of the
@@ -75,24 +72,13 @@ class ANM6(ANMEnv):
         Notes
         -----
         1. The use of `mode`='human' and `skip_frames`>0 assumes that `render()`
-        is called after each step the agent takes in the environment.
-        The same behavior can be achieved with `skip_frames`=0 and calling
-        `render()` less frequently.
-        2. When using mode == 'save', do not forget to call close() to stop
-        saving the history of interactions. If no call to close() is made,
-        the history will not be saved.
-
-        See Also
-        --------
-        replay()
+           is called after each step the agent takes in the environment.
+           The same behavior can be achieved with `skip_frames`=0 and calling
+           `render()` less frequently.
         """
 
         if self.render_mode is None:
-            if mode in ['human', 'replay']:
-                pass
-            elif mode == 'save':
-                self.render_history = None
-            else:
+            if mode not in ['human']:
                 raise NotImplementedError()
 
             # Render the initial image of the distribution network.
@@ -100,7 +86,7 @@ class ANM6(ANMEnv):
             self.skipped_frames = 0
             rendered_network_specs = ['dev_type', 'dev_p', 'dev_q', 'branch_s',
                                       'bus_v', 'des_soc']
-            specs = {s : self.network_specs[s] for s in rendered_network_specs}
+            specs = {s: self.network_specs[s] for s in rendered_network_specs}
             self._init_render(specs)
 
             # Render the initial state.
@@ -167,11 +153,6 @@ class ANM6(ANMEnv):
         ----------
         network_specs : dict of {str : list}
             The operating characteristics of the electricity distribution network.
-
-        Raises
-        ------
-        NotImplementedError
-            If the rendering mode is non-valid.
         """
 
         # Set visualization title to class name.
@@ -201,17 +182,9 @@ class ANM6(ANMEnv):
         c2 = 10000 if self.costs_clipping[1] is None else self.costs_clipping[1]
         costs_range = (c1, c2)
 
-        if self.render_mode in ['human', 'replay']:
-            self.http_server, self.ws_server = \
-                rendering.start(title, dev_type, ps, qs, branch_rate,
-                                bus_v_min, bus_v_max, soc_max, costs_range)
-
-        elif self.render_mode == 'save':
-            s = pd.Series({'title': title, 'specs': network_specs})
-            self.render_history = pd.DataFrame([s])
-
-        else:
-            raise NotImplementedError
+        self.http_server, self.ws_server = \
+            rendering.start(title, dev_type, ps, qs, branch_rate,
+                            bus_v_min, bus_v_max, soc_max, costs_range)
 
     def _update_render(self, dev_p, dev_q, branch_s, des_soc, gen_p_max,
                        bus_v_magn, costs, network_collapsed):
@@ -239,123 +212,14 @@ class ANM6(ANMEnv):
         network_collapsed : bool
             True if no load flow solution is found (possibly infeasible); False
             otherwise.
-
-        Raises
-        ------
-        NotImplementedError
-            If the rendering mode is non-valid.
         """
+        rendering.update(self.ws_server.address, self.date, self.year_count,
+                         dev_p, dev_q, branch_s, des_soc, gen_p_max,
+                         bus_v_magn, costs, network_collapsed)
 
-        if self.render_mode in ['human', 'replay']:
-            rendering.update(self.ws_server.address, self.date, self.year_count,
-                             dev_p, dev_q, branch_s, des_soc, gen_p_max,
-                             bus_v_magn, costs, network_collapsed)
-
-        elif self.render_mode == 'save':
-            d = {'time': self.time,
-                 'state_values': state_values,
-                 'potential': P_potential,
-                 'costs': costs}
-            s = pd.Series(d)
-            self.render_history = self.render_history.append(s,
-                                                             ignore_index=True)
-
-        else:
-            raise NotImplementedError
-
-    def replay(self, path, sleep_time=0.1):
-        """
-        Render a state history previously saved.
-
-        Parameters
-        ----------
-        path : str
-            The path to the saved history.
-        sleep_time : float, optional
-            The sleeping time between two visualization updates.
-        """
-
-        self.reset()
-        self.render_mode = 'replay'
-
-        history = pd.read_csv(path)
-        ns, obs, p_pot, times, costs = self._unpack_history(history)
-
-        self._init_render(ns)
-
-        for i in range(len(obs)):
-            self._update_render(times[i], obs[i], p_pot[i], costs, sleep_time)
-
-        self.close()
-
-    def _unpack_history(self, history):
-        """
-        Unpack a previously stored history of state variables.
-
-        Parameters
-        ----------
-        history : pandas.DataFrame
-            The history of states, with fields {'specs', 'time', 'state_values',
-            'potential'}.
-
-        Returns
-        -------
-        ns : dict of {str : list}
-            The operating characteristics of the electricity distribution network.
-        state_values : list of list of float
-            The state values needed for rendering.
-        p_potential : list of float
-            The potential generation of each VRE before curtailment (MW).
-        times : list of datetime.datetime
-            The times corresponding to each time step.
-        costs : list of float
-            The total energy loss and the total penalty associated with operating
-            constraints violation.
-        """
-
-        ns = ast.literal_eval(history.specs[0])
-
-        state_values = history.state_values[1:].values
-        state_values = [ast.literal_eval(o) for o in state_values]
-
-        p_potential = history.potential[1:].values
-        p_potential = [ast.literal_eval(p) for p in p_potential]
-
-        times = history.time[1:].values
-        times = [dt.datetime.strptime(t, '%Y-%m-%d %H:%M:%S') for t in times]
-
-        costs = history.costs[1:].values
-        costs = [ast.literal_eval(c) for c in costs]
-
-        return ns, state_values, p_potential, times, costs
-
-    def close(self, path=None):
+    def close(self):
         """
         Close the rendering.
-
-        Parameters
-        ----------
-        path : str, optional
-            The path to the file to store the state history, only used if
-            `render_mode` == 'save'.
-
-        Returns
-        -------
-        pandas.DataFrame
-            The state history.
         """
-
-        to_return = None
-
-        if self.render_mode in ['human', 'replay']:
-            rendering.close(self.http_server, self.ws_server)
-
-        if self.render_mode == 'save':
-            if path is None:
-                raise ValueError('No path specified to save the history.')
-            self.render_history.to_csv(path, index = None, header=True)
-            to_return = self.render_history
-
+        rendering.close(self.http_server, self.ws_server)
         self.render_mode = None
-
-        return to_return

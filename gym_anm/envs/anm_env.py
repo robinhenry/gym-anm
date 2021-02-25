@@ -115,7 +115,7 @@ class ANMEnv(gym.Env):
         costs_clipping : tuple of float, optional
             The clipping values for the costs in the reward signal, where element
             0 is the clipping value for the energy loss cost and element 1 is the
-            clipping value for the constraint-violation penalty.
+            clipping value for the constraint-violation penalty (e.g., (1, 100)).
         seed : int, optional
             A random seed.
         """
@@ -274,7 +274,7 @@ class ANMEnv(gym.Env):
                 init_state_found = self.simulator.reset(self.state)
 
             if n_init_states == n_init_states_max:
-                msg = "No no-terminal state found out of %d initial states for " \
+                msg = "No non-terminal state found out of %d initial states for " \
                       "environment %s" % (n_init_states_max, self.__name__)
                 raise EnvInitializationError(msg)
 

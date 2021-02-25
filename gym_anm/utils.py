@@ -63,7 +63,7 @@ def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
     # Check that aux_bounds is correctly specified.
     if aux_bounds is not None:
         if len(aux_bounds) != K:
-            raise ArgsError('The argument aux_bounds has length {} but the'
+            raise ArgsError('The argument aux_bounds has length {} but the '
                             'environment has K={} auxiliary variables.'
                             .format(len(aux_bounds), K))
 
@@ -101,12 +101,12 @@ def _check_observation_vars(observation, state_bounds, K):
         elif key == 'aux':
             for n in nodes:
                 if n >= K:
-                    raise ObsSpaceError('Aux variable index {} is out of bound'
+                    raise ObsSpaceError('Aux variable index {} is out of bound '
                                         'for {} aux variables.'.format(n, K))
         elif isinstance(nodes, list):
             for n in nodes:
                 if n not in state_bounds[key].keys():
-                    raise ObsSpaceError('Observation {} is not supported for'
+                    raise ObsSpaceError('Observation {} is not supported for '
                                         'device/branch/bus with ID {}.'
                                         .format(key, n))
         else:

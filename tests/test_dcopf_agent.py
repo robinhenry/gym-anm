@@ -3,7 +3,7 @@ import numpy as np
 import numpy.testing as npt
 
 from gym_anm.envs import ANM6Easy
-from gym_anm.dc_opf import DCOPFAgent
+from gym_anm import DCOPFAgent
 from tests.base_test import BaseTest
 
 
@@ -28,12 +28,12 @@ class TestDCOPFAgent(BaseTest):
         self.tolerance = 1e-5
 
     def test_ANM6Easy_horizon_1(self):
-        """Test the DC OPF agent with a single timestep horizon."""
+        """Test the DC OPF agent with a single timestep planning horizon."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
                            self.safety_margin, planning_steps=1)
 
         for i in range(int(1e3)):
-            a = agent.act(self.env.simulator.state)
+            a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
             _, _, done, _ = self.env.step(a)
@@ -41,12 +41,12 @@ class TestDCOPFAgent(BaseTest):
                 self.env.reset()
 
     def test_ANM6Easy_horizon_3(self):
-        """Test the DC OPF agent with a horizon of 3 timesteps."""
+        """Test the DC OPF agent with a planning horizon of 3 timesteps."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
                            self.safety_margin, planning_steps=3)
 
         for i in range(int(1e3)):
-            a = agent.act(self.env.simulator.state)
+            a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
             _, _, done, _ = self.env.step(a)
@@ -54,12 +54,12 @@ class TestDCOPFAgent(BaseTest):
                 self.env.reset()
 
     def test_ANM6Easy_horizon_20(self):
-        """Test the DC OPF agent with a horizon of 20 timesteps."""
+        """Test the DC OPF agent with a planning horizon of 20 timesteps."""
         agent = DCOPFAgent(self.env.simulator, self.env.action_space,
                            self.safety_margin, planning_steps=20)
 
         for i in range(int(1e3)):
-            a = agent.act(self.env.simulator.state)
+            a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
             _, _, done, _ = self.env.step(a)
@@ -78,7 +78,7 @@ class TestDCOPFAgent(BaseTest):
              self.B[3, 1] * (V_ang[3] - V_ang[1]),
              self.B[4, 2] * (V_ang[4] - V_ang[2]),
              self.B[5, 2] * (V_ang[5] - V_ang[2])]
-        P_bus = self._extract_expression_list(agent.P_bus)
+        P_bus = self._extract_expression_list(agent._create_p_bus_expressions(agent.P_dev))
         npt.assert_allclose(P, P_bus, atol=self.tolerance)
 
         # C2) New P_load = old P_load.

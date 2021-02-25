@@ -73,6 +73,7 @@ class ANM6Easy(ANM6):
 
         return obs
 
+
 def _get_load_time_series():
     """Return the fixed 24-hour time-series for the load injections."""
 
@@ -149,5 +150,7 @@ if __name__ == '__main__':
         print(i)
         a = env.action_space.sample()
         o, r, _, _ = env.step(a)
+        env.render()
+        time.sleep(0.5)
 
     print('Done with {} steps in {} seconds!'.format(T, time.time() - start))

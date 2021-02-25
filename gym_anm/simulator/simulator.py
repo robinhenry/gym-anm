@@ -150,7 +150,7 @@ class Simulator(object):
 
         bus_ids = list(buses.keys())
 
-        branches = OrderedDict()  #order branches in the order they are provided.
+        branches = OrderedDict()  # order branches in the order they are provided.
         for br_spec in network['branch']:
             branch = TransmissionLine(br_spec, baseMVA, bus_ids)
             branches[(branch.f_bus, branch.t_bus)] = branch

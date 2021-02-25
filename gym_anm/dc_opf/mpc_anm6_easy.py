@@ -1,7 +1,7 @@
 import cvxpy as cp
 import numpy as np
 
-from gym_anm import DCOPFAgent
+from . import DCOPFAgent
 
 
 class MPCAgentANM6Easy(DCOPFAgent):

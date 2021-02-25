@@ -30,9 +30,10 @@ def check_network_specs(network):
 
     # Check slack bus and slack device match.
     slack_bus = network['bus'][np.where(np.array(bus_types) == 0)[0], BUS_H['BUS_ID']]
-    bus_of_dev =  network['device'][np.where(np.array(dev_types) == 0)[0], DEV_H['BUS_ID']]
+    bus_of_dev = network['device'][np.where(np.array(dev_types) == 0)[0], DEV_H['BUS_ID']]
     if slack_bus != bus_of_dev:
-        raise DeviceSpecError('The slack bus ID of the slack device is %d but the actual slack bus has ID %d.' % (bus_of_dev, slack_bus))
+        raise DeviceSpecError('The slack bus ID of the slack device is %d but the actual slack bus has ID %d.'
+                              % (bus_of_dev, slack_bus))
 
     # Check buses have unique IDs.
     bus_ids = network['bus'][:, BUS_H['BUS_ID']]
@@ -46,7 +47,7 @@ def check_network_specs(network):
     if len(dev_ids) != len(set_ids):
         raise DeviceSpecError('The devices should all have unique IDs.')
 
-    # Check that each branch is also unique (parallel branches not supported).
+    # Check that each branch is unique (parallel branches not supported).
     set_branches = set()
     for br_spec in network['branch']:
         f_bus = br_spec[BRANCH_H['F_BUS']]
@@ -55,3 +56,10 @@ def check_network_specs(network):
         set_branches.add((t_bus, f_bus))
     if len(set_branches) != 2 * network['branch'].shape[0]:
         raise BranchSpecError('The network cannot contain parallel branches.')
+
+    # Check that each branch links existing buses.
+    for br in set_branches:
+        if br[0] not in bus_ids or br[1] not in bus_ids:
+            raise BranchSpecError('Existing buses are {} but you have a branch {}'
+                                  .format(bus_ids, br))
+
