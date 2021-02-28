@@ -3,7 +3,7 @@
 Installation
 =============
 
-:code:`gym-anm` requires Python 3.5+ and can run on Linux, MaxOS, and Windows. You can
+:code:`gym-anm` requires Python 3.7+ and can run on Linux, MaxOS, and Windows. You can
 install it through :ref:`from_pip`, :ref:`from_conda`, or even :ref:`from source <from_source>`.
 
 We recommend installing :code:`gym-anm` in a Python environment (e.g., `virtualenv

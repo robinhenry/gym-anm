@@ -115,19 +115,19 @@ class DCOPFAgent(object):
         self.B_bus = simulator.Y_bus.imag[bus_ids, :][:, bus_ids].toarray()
         self.branch_rate = [br.rate for br in simulator.branches.values()]
         self.P_gen_min = [g.p_min for g in simulator.devices.values()
-                                if isinstance(g, Generator) and not g.is_slack]
+                          if isinstance(g, Generator) and not g.is_slack]
         self.P_gen_max = [g.p_max for g in simulator.devices.values()
-                                if isinstance(g, Generator) and not g.is_slack]
+                          if isinstance(g, Generator) and not g.is_slack]
         self.P_des_min = [d.p_min for d in simulator.devices.values()
-                                if isinstance(d, StorageUnit)]
+                          if isinstance(d, StorageUnit)]
         self.P_des_max = [d.p_max for d in simulator.devices.values()
-                                if isinstance(d, StorageUnit)]
+                          if isinstance(d, StorageUnit)]
         self.soc_min = [d.soc_min for d in simulator.devices.values()
-                              if isinstance(d, StorageUnit)]
+                        if isinstance(d, StorageUnit)]
         self.soc_max = [d.soc_max for d in simulator.devices.values()
-                              if isinstance(d, StorageUnit)]
+                        if isinstance(d, StorageUnit)]
         self.des_eff = [d.eff for d in simulator.devices.values()
-                              if isinstance(d, StorageUnit)]
+                        if isinstance(d, StorageUnit)]
 
         # Indicate the optimization problem has not been constructed yet. This is
         # done during the first call of `act()`.
@@ -375,6 +375,10 @@ class DCOPFAgent(object):
         for idx, gen in enumerate(self.gen_rer_ids):
             i = self.dev_id_mapping[gen]
             cost_1 += P_gen_pot_prev[idx] - P_dev[i]
+        for des in self.des_ids:
+            cost_1 -= P_dev[self.dev_id_mapping[des]]
+        for load in self.load_ids:
+            cost_1 += P_dev[self.dev_id_mapping[load]]
 
         cost_2 = 0.
         for p, rate in zip(P_branch, self.branch_rate):

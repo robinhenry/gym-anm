@@ -1,7 +1,7 @@
 from . import simulator, envs
 from gym.envs.registration import register
-from .dc_opf import DCOPFAgent
-from .dc_opf import MPCAgentANM6Easy
+from .agents import DCOPFAgent
+from .agents import MPCAgentANM6Easy
 
 register(
     id='ANM6Easy-v0',
