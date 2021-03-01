@@ -372,15 +372,11 @@ class DCOPFAgent(object):
 
         # 4. Construct the objective function.
         cost_1 = 0.
-        for gen in [self.slack_dev_id] + self.non_slack_gen_ids:
-            cost_1 += P_dev[self.dev_id_mapping[gen]]
-        for load in self.load_ids:
-            cost_1 += P_dev[self.dev_id_mapping[load]]
-        for des in self.des_ids:
-            cost_1 -= P_dev[self.dev_id_mapping[des]]
         for idx, gen in enumerate(self.gen_rer_ids):
             i = self.dev_id_mapping[gen]
             cost_1 += P_gen_pot_prev[idx] - P_dev[i]
+        for des in self.des_ids:
+            cost_1 -= P_dev[self.dev_id_mapping[des]]
 
         cost_2 = 0.
         for p, rate in zip(P_branch, self.branch_rate):

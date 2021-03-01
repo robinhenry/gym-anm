@@ -661,10 +661,6 @@ class Simulator(object):
         for dev in self.devices.values():
             if isinstance(dev, (Generator, Load)):
                 e_loss += dev.p
-            elif isinstance(dev, StorageUnit):
-                e_loss -= dev.p
-            else:
-                raise NotImplementedError
 
             if isinstance(dev, RenewableGen):
                 e_loss += np.maximum(0, dev.p_pot - dev.p)
