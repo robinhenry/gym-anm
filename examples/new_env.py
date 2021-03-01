@@ -1,7 +1,7 @@
 import numpy as np
 
 from gym_anm.envs import ANM6
-
+from gym_anm import ANMEnv
 
 class NewEnvTest(ANM6):
 

@@ -219,12 +219,12 @@ class TestSimulator(BaseTest):
         self.assert_dict_all_close(specs['branch_s'], branch_s)
 
     def test_reward_no_penalty(self):
-        p_dev = np.array([20, -5, 20, -30]) / self.baseMVA  # cost = 35 + 30
+        p_dev = np.array([20, -5, 20, -30]) / self.baseMVA  # cost = 35
         p_max = 25 / self.baseMVA   # cost = 5
         v_bus = np.array([1., 1., 1.])
         s_branch = np.array([10, 10]) / self.baseMVA
         delta_t = 0.5
-        true_r = - 70 * delta_t / self.baseMVA
+        true_r = - 40 * delta_t / self.baseMVA
 
         self.simulator.delta_t = delta_t
         self.simulator.devices[2].p_pot = p_max
@@ -242,12 +242,12 @@ class TestSimulator(BaseTest):
         self.assertEqual(penalty, 0)
 
     def test_reward_with_penalty(self):
-        p_dev = np.array([20, -5, 20, -30]) / self.baseMVA  # cost = (35 + 30) / baseMVA
+        p_dev = np.array([20, -5, 20, -30]) / self.baseMVA  # cost = (35) / baseMVA
         p_max = 25 / self.baseMVA   # cost = 5 / baseMVA
         v_bus = np.array([1.2, 1., 0.8])  # cost = 0.2
         s_branch = np.array([30, 40]) / self.baseMVA  # cost = 30 / baseMVA
         delta_t = 0.5
-        true_e_loss = 70 * delta_t / self.baseMVA
+        true_e_loss = 40 * delta_t / self.baseMVA
         true_penalty = self.lamb * delta_t * (0.2 + 30 / self.baseMVA)
         true_r = - (true_e_loss + true_penalty)
 

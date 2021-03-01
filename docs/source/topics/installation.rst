@@ -36,7 +36,7 @@ If you would like to run :code:`gym-anm` inside a conda environment, you can:
 
 .. _from_source:
 
-Building from Source
+Building from source
 --------------------
 Alternatively, you can build :code:`gym-anm` directly from source: ::
 
