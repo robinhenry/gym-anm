@@ -19,7 +19,7 @@ are randomly sampled from the action space at each time step: ::
 
     for i in range(100):
         a = env.action_space.sample()
-        o, r, _, _ = env.step(a)
+        o, r, done, info = env.step(a)
         env.render()
         time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
 
@@ -55,4 +55,4 @@ general template to follow: ::
         def observation_bounds(self):  # optional
             ...
 
-For more information about designing your own :code:`gym-anm` environments, see :ref:`framework_label`.
+For more information about designing your own :code:`gym-anm` environments, see :ref:`design_new_env`.

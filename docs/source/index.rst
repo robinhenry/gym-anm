@@ -38,7 +38,7 @@ Key features
    framework, with which a large part of the RL community is already familiar.
 *  The flexibility of :code:`gym-anm`, with its different customizable components, makes it a suitable framework
    to model a wide range of ANM tasks, from simple ones that can be used for educational purposes, to complex ones
-   designed to conduct advanced research (see :ref:`framework_label`).
+   designed to conduct advanced research (see :ref:`design_new_env`).
 
 
 Example
@@ -67,6 +67,13 @@ comes with its own rendering tool:
     topics/using_env
     topics/design_new_env
     topics/rendering
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+    :caption: API
+
+    topics/api
 
 .. toctree::
     :maxdepth: 2
