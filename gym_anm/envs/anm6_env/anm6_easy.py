@@ -1,9 +1,12 @@
+"""The :code:`ANM6Easy-v0` task."""
+
 import numpy as np
 
 from .anm6 import ANM6
 
 
 class ANM6Easy(ANM6):
+    """The :code:`ANM6Easy-v0` task."""
 
     def __init__(self):
         observation = 'state'  # fully observable environment

@@ -8,15 +8,15 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
     """
     Solve load flow using the Newton-Raphson iterative algorithm.
 
+    This function directly updates all the bus and branch variables in the
+    `simulator` object.
+
     Parameters
     ----------
     simulator : simulator.Simulator
         The electricity network simulator.
     xtol : float, optional
         The desired tolerance in the solution.
-
-    This function directly updates all the bus and branch variables in the
-    `simulator` object.
 
     Returns
     -------

@@ -9,28 +9,23 @@ class DCOPFAgent(object):
     """
     A deterministic agent that solves a multi-timestep DC Optimal Power Flow.
 
-    This agent accesses the full state of the distribution network at time t and
+    This agent accesses the full state of the distribution network at time :math:`t` and
     then solves an N-stage optimization problem. The optimization problem solved
     is an instance of a Direct Current (DC) Optimal Power Flow problem.
 
     The construction of the DC OPF problem relies on two assumptions:
-    1. transmission lines are lossless, i.e., $r_{ij} = 0, \forall e_{ij}
-       \in \mathcal E$,
-    2. nodal voltage magnitude are close to unity, i.e., $|V_i| = 1, \forall i
-       \in \mathcal N$.
+
+    1. transmission lines are lossless, i.e., :math:`r_{ij} = 0, \\forall e_{ij} \in \mathcal E,`
+    2. nodal voltage magnitude are close to unity, i.e., :math:`|V_{i}| = 1, \\forall i \in \mathcal N`.
 
     The construction of the N-stage optimization problem relies
     on two additional assumptions:
-    1. the demand at all loads remain constant for the period [t, t+N],
+
+    1. the demand at all loads remain constant for the period :math:`[t, t+N]`,
     2. the maximum generation at all generators also remain constant for the
-       period [t, t+N].
+       period :math:`[t, t+N]`.
 
     All values are used in per-unit.
-
-    Methods
-    -------
-    act(env)
-        Solve the optimization problem and return the optimal action.
     """
 
     def __init__(self, simulator, action_space, gamma, safety_margin=0.9,
@@ -38,14 +33,14 @@ class DCOPFAgent(object):
         """
         Parameters
         ----------
-        simulator : gym_anm.simulator.Simulator
+        simulator : :py:class:`gym_anm.simulator.simulator.Simulator`
             The electricity distribution network simulator.
-        action_space : gym.spaces.Box
+        action_space : :py:class:`gym.spaces.Box`
             The action space of the environment (used to clip actions).
         gamma : float
             The discount factor in [0, 1].
         safety_margin : float, optional
-            The safety margin constant $\Beta$ in [0, 1], used to further
+            The safety margin constant :math:`\\beta` in [0, 1], used to further
             constraint the power flow on each transmission line, thus
             likely accounting for the error introduced in the DC approximation.
         planning_steps : int, optional
@@ -135,7 +130,7 @@ class DCOPFAgent(object):
 
     def _create_p_bus_expressions(self, P_dev):
         """
-        Define P_i^{(bus)} = sum_d P_d^{(dev)} expressions.
+        Define :math:`P_i^{(bus)} = sum_d P_d^{(dev)}` expressions.
 
         Returns
         -------
@@ -152,7 +147,7 @@ class DCOPFAgent(object):
 
     def _create_p_branch_expressions(self, V_bus_ang):
         """
-        Define P_{ij} = B_{ij} * (V_ang[i] - V_ang[j]) expressions.
+        Define :math:`P_{ij} = B_{ij} * (V_ang[i] - V_ang[j])` expressions.
 
         Returns
         -------
@@ -272,7 +267,7 @@ class DCOPFAgent(object):
         Parameters
         ----------
         P_load_prev : cvxpy.Expression
-            The load active power injection P from the last time step.
+            The load active power injection :math:`P` from the last time step.
         soc_prev : cvxpy.Expression
             The current state of charge of DES units.
         P_gen_pot_prev : cvxpy.Expression

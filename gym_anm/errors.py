@@ -1,3 +1,5 @@
+"""Error types for :code:`gym-anm`."""
+
 
 class ANMEnvConfigurationError(Exception):
     """A base class for exceptions relative to the construction of a gym-anm env."""

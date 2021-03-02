@@ -11,35 +11,35 @@ class TransmissionLine(object):
     Attributes
     ----------
         f_bus : int
-            The sending end bus ID.
+            The sending end bus ID :math:`i`.
         t_bus : int
-            The receiving end bus ID.
+            The receiving end bus ID :math:`j`.
         r : float
-            The transmission line resistance (p.u.).
+            The transmission line resistance :math:`r_{ij}` (p.u.).
         x : float
-            The transmission line reactance (p.u.).
+            The transmission line reactance :math:`x_{ij}` (p.u.).
         b : float
-            The transmission line susceptance (p.u.).
+            The transmission line susceptance :math:`b_{ij}` (p.u.).
         rate : float
-            The rate of the line in (p.u.).
+            The rate of the line :math:`\\overline S_{ij}` (p.u.).
         tap_magn : float
-            The magnitude of the transformer tap.
+            The magnitude of the transformer tap :math:`\\tau_{ij}`.
         shift : float
-            The complex phase angle of the transformer (radians).
+            The complex phase angle of the transformer :math:`\\theta_{ij}` (radians).
         i_from, i_to : complex
-            The complex current flows I_{ij} and I_{ji} (p.u.).
+            The complex current flows :math:`I_{ij}` and :math:`I_{ji}` (p.u.).
         p_from, p_to : float
-            The real power flows P_{ij} and P_{ji} in the line (p.u.).
+            The real power flows :math:`P_{ij}` and :math:`P_{ji}` in the line (p.u.).
         q_from, q_to : float
-            The reactive power flows Q_{ij} and Q_{ji} in the line (p.u.).
+            The reactive power flows :math:`Q_{ij}` and :math:`Q_{ji}` in the line (p.u.).
         s_apparent_max : float
             The apparent power flow through the line, taken as the maximum of the
             apparent power injection at each end, with the sign indicating its
-            direction (+ is f_bus -> t_bus; - is f_bus <- t_bus) (p.u.).
+            direction (+ if :math:`P_{ij} \\ge 0`; - otherwise) (p.u.).
         series, shunt : complex
-            The series and shunt admittances of the line in the pi-model (p.u.).
+            The series :math:`y_{ij}` and shunt :math:`y_{ij}^{sh}` admittances of the line in the pi-model (p.u.).
         tap : complex
-            The complex tap of the transformer (p.u.).
+            The complex tap of the transformer :math:`t_{ij}` (p.u.).
     """
 
     def __init__(self, br_spec, baseMVA, bus_ids):
@@ -147,9 +147,9 @@ class TransmissionLine(object):
         Parameters
         ----------
         v_f : np.complex
-            The complex voltage at bus `self.f_bus`.
+            The complex voltage at bus :code:`self.f_bus`.
         v_t : np.complex
-            The complex voltage at bus `self.t_bus`.
+            The complex voltage at bus :code:`self.t_bus`.
         """
 
         # Forward current.
@@ -169,9 +169,9 @@ class TransmissionLine(object):
         Parameters
         ----------
         v_f : np.complex
-            The complex voltage at bus `self.f_bus` (p.u.).
+            The complex voltage at bus :code:`self.f_bus` (p.u.).
         v_t : np.complex
-            The complex voltage at bus `self.t_bus` (p.u.).
+            The complex voltage at bus :code:`self.t_bus` (p.u.).
         """
 
         # Forward power flows.

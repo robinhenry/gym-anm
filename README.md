@@ -29,7 +29,7 @@ Documentation is provided online at [https://gym-anm.readthedocs.io/en/latest/](
 ### Requirements
 `gym-anm` requires Python 3.7+ and can run on Linux, MaxOS, and Windows.
 
-We recommend installing `gym-anm` in a Python environment (e.g., [virtualenv](https://virtualenv.pypa.io/en/stable/index.html>)
+We recommend installing `gym-anm` in a Python environment (e.g., [virtualenv](https://virtualenv.pypa.io/en/latest/)
 or [conda](https://conda.io/en/latest/#)).
 
 ### Using pip
@@ -74,12 +74,14 @@ o = env.reset()
 
 for i in range(100):
     a = env.action_space.sample()
-    o, r, _, _ = env.step(a)
+    o, r, done, info = env.step(a)
     env.render()
     time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
 ```
 The above code would render the environment in your default web browser as shown in the image below:
 ![alt text](https://github.com/robinhenry/gym-anm/blob/master/docs/source/images/anm6-easy-example.png?raw=true)
+
+Additional example scripts can be found in [examples/](examples).
 
 ## Testing the installation
 All unit tests in `gym-anm` can be ran from the project root directory with:

@@ -1,3 +1,5 @@
+"""The input dictionary for a 6-bus distribution network."""
+
 import numpy as np
 
 ##### CASE FILE DESCRIPTION #####

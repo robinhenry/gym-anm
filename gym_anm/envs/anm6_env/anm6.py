@@ -1,3 +1,5 @@
+"""The base class for a 6-bus and 7-device :code:`gym-anm` environment."""
+
 import datetime as dt
 import numpy as np
 
@@ -9,7 +11,7 @@ from .utils import random_date
 
 class ANM6(ANMEnv):
     """
-    The base class for a 6-bus and 7-device `gym-anm` environment.
+    The base class for a 6-bus and 7-device :code:`gym-anm` environment.
 
     The structure of the electricity distribution network used for this
     environment is shown below:
@@ -21,7 +23,7 @@ class ANM6(ANMEnv):
         House  PV  Factory  Wind  EV   DES
 
     This environment supports rendering (web-based) through the functions
-    render() and close().
+    :py:func:`render()` and :py:func:`close()`.
     """
 
     metadata = {'render.modes': ['human']}
@@ -49,9 +51,9 @@ class ANM6(ANMEnv):
         Visualizing the agent-environment interactions in real-time (e.g.,
         during training) is hard to follow and not very useful, as the state of
         the distribution network changes too quickly (you can try with
-        `mode`='human' and `skip_frames=0`). Instead, setting `skip_frames`>0
+        :code:`mode='human'` and :code`skip_frames=0`). Instead, setting :code:`skip_frames>0`
         will only update the rendering of the environment every `skip_frames`+1
-        steps (assuming `render(skip_frames)` is called after every step),
+        steps (assuming :code:`render(skip_frames)` is called after every step),
         which will make it much easier to follow for the human eye.
 
         Parameters
@@ -61,8 +63,8 @@ class ANM6(ANMEnv):
             the agent interacts with it.
         skip_frames : int, optional
             The number of frames (steps) to skip when rendering the environment.
-            For example, `skip_frames`=3 will update the rendering of the
-            environment every 4 calls to `render()`.
+            For example, :code:`skip_frames=3` will update the rendering of the
+            environment every 4 calls to :py:func:`render()`.
 
         Raises
         ------
@@ -71,10 +73,10 @@ class ANM6(ANMEnv):
 
         Notes
         -----
-        1. The use of `mode`='human' and `skip_frames`>0 assumes that `render()`
+        1. The use of :code:`mode='human'` and :code:`skip_frames>0` assumes that :py:func`render()`
            is called after each step the agent takes in the environment.
-           The same behavior can be achieved with `skip_frames`=0 and calling
-           `render()` less frequently.
+           The same behavior can be achieved with :code:`skip_frames=0` and calling
+           :py:func`render()` less frequently.
         """
 
         if self.render_mode is None:

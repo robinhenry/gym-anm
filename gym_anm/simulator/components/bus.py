@@ -9,7 +9,7 @@ class Bus(object):
     Attributes
     ----------
     id : int
-        The bus unique ID.
+        The bus unique ID :math:`i`.
     type : int
         The bus type (0 = slack, 1 = PQ).
     baseKV : float
@@ -17,15 +17,16 @@ class Bus(object):
     is_slack : bool
         True if it is the slack bus; False otherwise.
     v_min, v_max : float
-        The minimum and maximum RMS voltage magnitudes (p.u.).
+        The minimum and maximum RMS voltage magnitudes :math:`[\\underline V_i,
+        \\overline V_i]` (p.u.).
     v_slack : float
-        The fixed voltage magnitude (used only for slack bus, set to `p_max`) (p.u.).
+        The fixed voltage magnitude (used only for slack bus, set to :code:`v_max`) (p.u.).
     v : complex
-        The complex bus voltage V_i (p.u.).
+        The complex bus voltage :math:`V_i` (p.u.).
     i : complex
-        The complex bus current injection I_i (p.u.).
+        The complex bus current injection :math:`I_i` (p.u.).
     p, q : float
-        The active P_i (p.u.) and reactive Q_i (p.u.) power injections at the bus.
+        The active :math:`P_i` (p.u.) and reactive :math:`Q_i` (p.u.) power injections at the bus.
     p_min, p_max, q_min, q_max : float
         The bounds on the feasible active and reactive power injections at the bus,
         computed as the sum of the bounds of the devices connected to the bus (p.u.).

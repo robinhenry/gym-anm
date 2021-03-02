@@ -8,17 +8,17 @@ class MPCAgentANM6Easy(DCOPFAgent):
     """
     A deterministic Model Predictive Control agent for the ANM6Easy environment.
 
-    This agent solves the `ANM6Easy` environment as a Model Predictive
+    This agent solves the :code:`ANM6Easy` environment as a Model Predictive
     Control (MPC) problem. It implements a near-optimal policy, by accessing
     the full state of the distribution network, as well as the future demand
     and maximum generation from loads and distributed generators, respectively.
 
-    This agent improves the base `gym_anm.DCOPFAgent` class by removing the
+    This agent improves the base class :py:class:`gym_anm.agents.dc_opf.DCOPFAgent` by removing the
     assumptions that the demand of loads and the maximum generation of non-slack
-    generators is constant during [t, t+N].
+    generators is constant during :math:`[t, t+N]`.
 
     The resulting policy is optimal, if we assume that N optimization stages are
-    used, with N -> inf, and that the approximation errors introduced when
+    used, with :math:`N \\to \infty`, and that the approximation errors introduced when
     casting the original AC OPF problem into a linear DC OPF problem are
     negligible.
 
@@ -30,14 +30,14 @@ class MPCAgentANM6Easy(DCOPFAgent):
         """
         Parameters
         ----------
-        simulator : gym_anm.simulator.Simulator
+        simulator : :py:class:`gym_anm.simulator.simulator.Simulator`
             The electricity distribution network simulator.
         action_space : gym.spaces.Box
             The action space of the environment (used to clip actions).
         gamma : float
             The discount factor in [0, 1].
         safety_margin : float, optional
-            The safety margin constant $\Beta$ in [0, 1], used to further
+            The safety margin constant :math:`\\beta` in [0, 1], used to further
             constraint the power flow on each transmission line, thus
             likely accounting for the error introduced in the DC approximation.
         planning_steps : int

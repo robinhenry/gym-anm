@@ -3,7 +3,7 @@ import datetime as dt
 
 def random_date(np_random, year):
     """
-    Generate a random date within the year `year`.
+    Generate a random date within the year :code:`year`.
 
     Parameters
     ----------
@@ -15,7 +15,7 @@ def random_date(np_random, year):
     Returns
     -------
     datetime.datetime
-        A datetime of 00:00 on a random day within the year `year`.
+        A datetime of 00:00 on a random day within the year :code:`year`.
     """
 
     random_day = dt.timedelta(days=np_random.randint(1, 365))

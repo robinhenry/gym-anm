@@ -23,11 +23,11 @@ class Simulator(object):
         The base power of the system (MVA).
     delta_t : float
         The fraction of an hour corresponding to the time interval between two
-        consecutive time steps (e.g., 0.25 means an interval of 15 minutes).
+        consecutive time steps :math:`\\Delta t` (e.g., 0.25 means an interval of 15 minutes).
     lamb : int
-        The penalty factor associated with violating operating constraints, used
-        in the reward signal.
-    buses : dict of {int : `Bus`}
+        The penalty factor associated with violating operating constraints :math:`\\lambda`,
+        used in the reward signal.
+    buses : dict of {int : :py:class:`Bus`}
         The buses of the grid, where for each {key: value} pair, the key is a
         unique bus ID.
     branches : dict of {(int, int) : `TransmissionLine`}
@@ -37,12 +37,13 @@ class Simulator(object):
         The devices connected to the grid, where for each {key: value} pair, the
         key is a unique device ID.
     N_bus, N_device : int
-        The number of buses and electrical devices in the network.
+        The number of buses :math:`|\\mathcal N|` and electrical devices :math:`|\\mathcal D|`
+        in the network.
     N_load, N_non_slack_gen, N_des, N_gen_rer : int
-        The number of load, non-slack generators, DES devices, and renewable
-        energy generators.
+        The number of load :math:`|\\mathcal D_L|`, non-slack generators :math:`|\\mathcal D_G|-1`,
+        DES devices :math:`|\\mathcal D_{DES}|`, and renewable energy generators :math:`|\\mathcal D_{DER}|`.
     Y_bus : scipy.sparse.csc_matrix
-        The (N_bus, N_bus) nodal admittance matrix of the network as a sparse
+        The (N_bus, N_bus) nodal admittance matrix :math:`\\mathbf Y` of the network as a sparse
         matrix.
     state_bounds : dict of {str : dict}
         The lower and upper bounds that each electrical quantity may take. This
@@ -74,11 +75,11 @@ class Simulator(object):
         network : dict of {str : numpy.ndarray}
             A network dictionary describing the power grid.
         delta_t : float
-            The interval of time between two consecutive time steps, in fraction
-            of hour.
+            The interval of time between two consecutive time steps :math:`\\delta t`,
+            in fraction of hour.
         lamb : int
-            A constant factor multiplying the penalty associated with violating
-            operational constraints.
+            A constant factor :math:`\\lambda` multiplying the penalty associated
+            with violating operational constraints.
         """
 
         self.delta_t = delta_t
@@ -227,13 +228,13 @@ class Simulator(object):
         """
         Reset the simulator.
 
-        The `init_state` vector should have power injections in MW or MVAr and
+        The :code:`init_state` vector should have power injections in MW or MVAr and
         state of charge in MWh.
 
         Parameters
         ----------
         init_state : numpy.ndarray
-            The initial state vector `s_0` of the environment.
+            The initial state vector :math:`s_0` of the environment.
 
         Returns
         -------
@@ -296,11 +297,11 @@ class Simulator(object):
         Summarize the specs of the distribution network (useful for rendering).
 
         All values are in p.u. (or p.u. per hour for DES units). This method
-        differs from `get_state_space()` in that it returns the bounds that
-        should be respected for a successsful operation of the network, whereas
-        `get_state_space()` returns the range of values that state variables can
+        differs from :code:`get_state_space()` in that it returns the bounds that
+        should be respected for a successful operation of the network, whereas
+        :code:`get_state_space()` returns the range of values that state variables can
         take. For example, this method will return the rate of a branch, whereas
-        `get_state_space()` will return an upper bound of `np.inf`, since branch
+        :code:`get_state_space()` will return an upper bound of :code:`np.inf`, since branch
         rates may be violated during the simulation.
 
         Returns
@@ -340,28 +341,28 @@ class Simulator(object):
         """
         Return the range of each possible control action.
 
-        This function returns the lower and upper bound of the action space `\mathcal A`
+        This function returns the lower and upper bound of the action space :math:`\\mathcal A`
         available to the agent as dictionaries. The keys are the unique device IDs
         and the values are a tuple of (lower bound, upper bound).
 
         Returns
         -------
         P_gen_bounds : dict of {int : tuple of float}
-            The range of active (MW) power injection of generators.
+            The range of active (MW) power injection of generators :math:`[\\overline P_g, \\underline P_g]`.
         Q_gen_bounds : dict of {int : tuple of float}
-            The range of reactive (MVAr) power injection of generators.
+            The range of reactive (MVAr) power injection of generators :math:`[\\overline Q_g, \\underline Q_g]`.
         P_des_bounds : dict of {int : tuple of float}
-            The range of active (MW) power injection of DES units.
+            The range of active (MW) power injection of DES units :math:`[\\overline P_d, \\underline P_d]`.
         Q_des_bounds : dict of {int : tuple of float}
-            The range of reactive (MVAr) power injection of DES units.
+            The range of reactive (MVAr) power injection of DES units :math:`[\\overline Q_d, \\underline Q_d]`.
 
         Notes
         -----
         The bounds returned by this function are loose, i.e., some parts of
         those spaces might be physically impossible to achieve due to other
         operating constraints. This is just an indication of the range of action
-        available to the DSO. Whenever an action is taken through the transition(
-        ) function, it gets mapped onto the set of physically feasible actions.
+        available to the DSO. Whenever an action is taken through the :code:`transition()`
+        function, it gets mapped onto the set of physically feasible actions.
         """
 
         P_gen_bounds, Q_gen_bounds = {}, {}
@@ -382,11 +383,11 @@ class Simulator(object):
         Returns the range of potential values for all state variables.
 
         These lower and upper bounds are respected at all timesteps in the
-        simulator. For unbounded values, a range of (- inf, inf) is used.
+        simulator. For unbounded values, a range of :code:`(-inf, inf)` is used.
 
         Returns
         -------
-        dict of {str : dict}
+        specs : dict of {str : dict}
             A dictionary where keys are the names of the state variables (e.g.,
             {'bus_p', 'bus_q', ...}) and the values are dictionary, indexed with
             the device/branch/bus unique ID, that store dictionaries of
@@ -461,7 +462,7 @@ class Simulator(object):
 
     def transition(self, P_load, P_potential, P_set_points, Q_set_points):
         """
-        Simulate a transition of the system from time t to time (t+1).
+        Simulate a transition of the system from time :math:`t` to time :math:`t+1`.
 
         This function simulates a transition of the system after actions were
         taken by the DSO. The results of these decisions then affect the new
@@ -470,28 +471,28 @@ class Simulator(object):
         Parameters
         ----------
         P_load : dict of {int : float}
-            A dictionary with device IDs as keys and fixed real power injection
+            A dictionary with device IDs as keys and fixed real power injection :math:`P_l^{(dev)}`
             (MW) as values (load devices only).
         P_potential : dict of {int : float}
             A dictionary with device IDs as keys and maximum potential real power
-            generation (MW) as values (generators only).
+            generation :math:`P_g^{(max)}` (MW) as values (generators only).
         P_set_points : dict of {int : float}
             A dictionary with device IDs as keys and real power injection
-            set-points (MW) set by the DSO (non-slack generators and DES units).
+            set-points :math:`a_P` (MW) set by the DSO (non-slack generators and DES units).
         Q_set_points : dict of {int : float}
             A dictionary with device IDs as keys and reactive power injection
-            set-points (MVAr) set by the DSO (non-slack generators and DES units).
+            set-points :math:`a_Q` (MVAr) set by the DSO (non-slack generators and DES units).
 
         Returns
         -------
         state : dict of {str : numpy.ndarray}
-            The current state of the system.
+            The new state of the system :math:`s_{t+1}`.
         reward : float
-            The reward associated with the transition.
+            The reward :math:`r_t` associated with the transition.
         e_loss : float
-            The total energy loss (MWh).
+            The total energy loss :math:`\\Delta E_{t:t+1}` (MWh).
         penalty : float
-            The total penalty due to violation of operating constraints.
+            The total penalty :math:`\\lambda \\phi(s_{t+1})` due to violation of operating constraints.
         pfe_converged : bool
             True if a feasible solution was reached (within the specified
             tolerance) for the power flow equations. If False, it might indicate

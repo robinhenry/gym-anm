@@ -15,44 +15,43 @@ class Device(object):
     Attributes
     ----------
     dev_id : int
-        The unique device ID.
+        The unique device ID :math:`d`.
     bus_id : int
-        The ID of the bus the device is connected to.
+        The ID of the bus the device is connected to :math:`i`.
     type : int
         The device type : -1 (load), 0 (slack), 1 (classical generator),
         2 (renewable energy), 3 (storage).
     qp_ratio : float
-        The constant ratio of reactive over real power injection.
+        The constant ratio of reactive over real power injection :math:`(Q/P)_d`.
     p_min, p_max, q_min, q_max : float
-        The minimum and maximum real (p.u.) and reactive (p.u.) power injections.
+        The minimum and maximum real (p.u.) and reactive (p.u.) power injections
+        (:math:`\\underline P_d, \\overline P_d, \\underline Q_d, \\overline Q_d`).
     p_plus, p_minus, q_plus, q_minus : float
-        The bounds describing the (P, Q) region of physical operation of the device (p.u.).
+        The bounds describing the (P, Q) region of physical operation of the device (p.u.)
+        (:math:`P^+_d, P^-_d, Q^+_d, Q^-_d`).
     soc_min, soc_max : float
         The minimum and maximum state of charge if the device is a storage
-        unit (p.u. per hour); None otherwise.
+        unit :math:`[\\underline {SoC}_d, \\overline {SoC}_d]` (p.u. per hour); None otherwise.
     eff : float
-        The round-trip efficiency in [0, 1] if the device is a storage unit;
+        The round-trip efficiency :math:`\\eta \\in [0, 1]` if the device is a storage unit;
         None otherwise.
     tau_1, tau_2, tau_3, tau_4 : float
-        The slope of the constraints on Q when P is near its maximum (1-2 are used
-        for generators, 1-4 for storage units, and the remaining ones are None).
+        The slope of the constraints on Q when P is near its maximum (:math:`\\tau^{(1)}_d,
+        \\tau^{(2)}_d, \\tau^{(3)}_d, \\tau^{(4)}_d`) (1-2 are used for generators, 1-4
+        for storage units, and the remaining ones are None).
     rho_1, rho_2, rho_3, rho_4 : float
-        The offset of the linear constraints on Q when P is near its maximum (see `tau_1`).
+        The offset of the linear constraints on Q when P is near its maximum
+        (:math:`\\rho^{(1)}_d, \\rho^{(2)}_d, \\rho^{(3)}_d, \\rho^{(4)}_d`)(see `tau_1`).
     is_slack : bool
         True if the device is connected to the slack bus; False otherwise.
     p, q : float
-        The real and reactive power injections from the device (p.u.).
+        The real :math:`P_d^{(dev)}` and reactive :math:`Q_d^{(dev)}` power injections from the device (p.u.).
     p_pot : float
-        The maximum active generation of the device at the current time (p.u.),
+        The maximum active generation of the device at the current time :math:`P_g^{(max)}` (p.u.),
         if a generator; None otherwise.
     soc : float
-        The state of charge if the device is a storage unit (p.u. per hour);
+        The state of charge :math:`SoC_d` if the device is a storage unit (p.u. per hour);
         None otherwise.
-
-    Methods
-    -------
-    map_pq(p, q)
-        Map (p, q) to the closest (P, Q) feasible power injection point.
     """
 
     def __init__(self, dev_spec, bus_ids, baseMVA):
@@ -164,10 +163,10 @@ class Load(Device):
         Parameters
         ----------
         p : float
-            The desired P power injection point (p.u.).
+            The desired :math:`P_l` power injection point (p.u.).
         """
 
-        self.p  = np.clip(p, self.p_min, self.p_max)
+        self.p = np.clip(p, self.p_min, self.p_max)
         self.q = self.p * self.qp_ratio
 
 
@@ -552,14 +551,14 @@ class StorageUnit(Device):
         """
         Update the state of charge based on the current power injection.
 
-        This function updates the new state of charge SoC_{t+1}, assuming that
-        the device injects `self.p` active power (in p.u.) into the network
-        during `delta_t` hours.
+        This function updates the new state of charge :math:`SoC_{t+1}`, assuming that
+        the device injects :code:`self.p` active power (in p.u.) into the network
+        during :code:`delta_t` hours.
 
         Parameters
         ----------
         delta_t : float
-            Time interval between subsequent timesteps (in fraction of hour).
+            Time interval between subsequent timesteps :math:`\\Delta t` (in fraction of hour).
         """
 
         # Compute the new SoC.

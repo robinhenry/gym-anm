@@ -1,3 +1,5 @@
+"""The base class for :code:`gym-anm` environments."""
+
 import gym
 from gym import spaces
 from gym.utils import seeding
@@ -9,7 +11,7 @@ from scipy.sparse.linalg import MatrixRankWarning
 
 from ..simulator import Simulator
 from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError
-from ..utils import check_env_args
+from .utils import check_env_args
 from ..simulator.components.constants import STATE_VARIABLES
 from ..simulator.components import StorageUnit, Generator, Load
 
@@ -19,7 +21,7 @@ logger = getLogger(__file__)
 
 class ANMEnv(gym.Env):
     """
-    The base class for `gym-anm` environments.
+    The base class for :code:`gym-anm` environments.
 
     Attributes
     ----------
@@ -33,7 +35,7 @@ class ANMEnv(gym.Env):
     delta_t : float
         The interval of time between two consecutive time steps (fraction of
         hour).
-    simulator : `Simulator`
+    simulator : :py:class:`gym_anm.simulator.simulator.Simulator`
         The electricity distribution network simulator.
     state_values : list of tuple of str
         The electrical quantities to include in the state vectors. Each tuple
@@ -44,8 +46,8 @@ class ANMEnv(gym.Env):
     action_space : gym.spaces.Box
         The action space from which the agent can select actions.
     obs_values : list of str or None
-        Similarly to `state_values`, the values to include in the observation
-        vectors. If a customized observation() function is provided, obs_values
+        Similarly to :py:obj:`state_values`, the values to include in the observation
+        vectors. If a customized :py:func:`observation()` function is provided, :py:obj:`obs_values`
         is None.
     observation_space : gym.spaces.Box
         The observation space from which observation vectors are constructed.
@@ -55,32 +57,25 @@ class ANMEnv(gym.Env):
         True if a terminal state has been reached (if the network collapsed);
         False otherwise.
     render_mode : str
-        The rendering mode. See `render()`.
+        The rendering mode. See :py:func:`render()`.
     timestep : int
         The current timestep.
     state : numpy.ndarray
-        The current state vector `s_t`.
+        The current state vector :math:`s_t`.
     e_loss : float
         The energy loss during the last transition (part of the reward signal).
     penalty : float
         The penalty associated with violating operational constraints during the
         last transition (part of the reward signal).
     costs_clipping : tuple of float
-        The clipping values for the costs (- rewards), where costs_clipping[0] is
-        the clipping value for the absolute energy loss and costs_clipping[1] is
+        The clipping values for the costs (- rewards), where :py:obj:`costs_clipping[0]` is
+        the clipping value for the absolute energy loss and :py:obj:`costs_clipping[1]` is
         the clipping value for the constraint violation penalty.
     pfe_converged : bool
         True if the last transition converged to a load flow solution (i.e.,
         the network is stable); False otherwise.
     np_random : numpy.random.RandomState
         The random state/seed of the environment.
-
-    Methods
-    -------
-    reset()
-        Reset the environment.
-    step(action)
-        Take a control action and compute the associated reward.
     """
 
     def __init__(self, network, observation, K, delta_t, gamma, lamb,
@@ -92,8 +87,8 @@ class ANMEnv(gym.Env):
             The network input dictionary describing the power grid.
         observation : callable or list or str
             The observation space. It can be specified as "state" to construct a
-            fully observable environment (o_t = s_t); as a callable function such
-            that o_t = observation(s_t); or as a list of tuples (x, y, z) that
+            fully observable environment (:math:`o_t = s_t`); as a callable function such
+            that :math:`o_t = observation(s_t)`; or as a list of tuples (x, y, z) that
             refer to the electrical quantities x (str) at the nodes/branches/devices
             y (list or 'all') in unit z (str, optional).
         K : int
@@ -108,8 +103,8 @@ class ANMEnv(gym.Env):
             operational constraints (used in the reward signal).
         aux_bounds : numpy.ndarray, optional
             The bounds on the auxiliary internal variables as a 2D array where
-            the k^th-1 auxiliary variable is bounded by
-            [aux_bounds[k, 0], aux_bounds[k, 1]]. This can be useful if auxiliary
+            the :math:`k^{th}`-1 auxiliary variable is bounded by
+            :py:obj:`[aux_bounds[k, 0], aux_bounds[k, 1]]`. This can be useful if auxiliary
             variables are to be included in the observation vectors and a bounded
             observation space is desired.
         costs_clipping : tuple of float, optional
@@ -162,15 +157,15 @@ class ANMEnv(gym.Env):
 
     def init_state(self):
         """
-        Sample an initial state s_0.
+        Sample an initial state :math:`s_0`.
 
-        For reproducibility, the RandomState `self.np_random` should be used to
+        For reproducibility, the RandomState :py:obj:`self.np_random` should be used to
         generate random numbers.
 
         Returns
         -------
         numpy.ndarray
-            An initial state vector s_0.
+            An initial state vector :math:`s_0`.
         """
         raise NotImplementedError
 
@@ -181,17 +176,17 @@ class ANMEnv(gym.Env):
         Parameters
         ----------
         s_t : numpy.ndarray
-            The current state vector `s_t`.
+            The current state vector :math:`s_t`.
 
         Returns
         -------
         numpy.ndarray
             The internal variables for the next timestep, following the structure
-            [P_l, P_g^{(max)}, aux^{(k)}], where P_l contains the load
-            injections (ordered by device ID), P_g^{(max)} the maximum generation
-            from non-slack generators (ordered by device ID), and aux^{(k)} the
+            :math:`[P_l, P_g^{(max)}, aux^{(k)}]`, where :math:`P_l` contains the load
+            injections (ordered by device ID), :math:`P_g^{(max)}` the maximum generation
+            from non-slack generators (ordered by device ID), and :math:`aux^{(k)} `the
             auxiliary variables. The vector shape should be
-            (N_load + (N_generators-1) + K,).
+            :code:`(N_load + (N_generators-1) + K,)`.
         """
         raise NotImplementedError
 
@@ -200,8 +195,8 @@ class ANMEnv(gym.Env):
         Builds the observation space of the environment.
 
         If the observation space is specified as a callable object, then its
-        bounds are set to (- np.inf, np.inf)^{N_o} by default (this is done
-        during the `reset()` call, as the size of observation vectors is not
+        bounds are set to :code:`(- np.inf, np.inf)^{N_o}` by default (this is done
+        during the :py:func:`reset()` call, as the size of observation vectors is not
         known before then). Alternatively, the user can specify their own bounds
         by overwriting this function in a subclass.
 
@@ -244,8 +239,8 @@ class ANMEnv(gym.Env):
         Reset the environment.
 
         If the observation space is provided as a callable object but the
-        `observation_bounds()` method is not overwritten, then the bounds on the
-        observation space are set to (- inf, inf) here (after the size of the
+        :py:func:`observation_bounds()` method is not overwritten, then the bounds on the
+        observation space are set to :code:`(- np.inf, np.inf)` here (after the size of the
         observation vectors is known).
 
         Returns
@@ -303,19 +298,19 @@ class ANMEnv(gym.Env):
 
     def observation(self, s_t):
         """
-        Returns the observation vector corresponding to the current state `s_t`.
+        Returns the observation vector corresponding to the current state :math:`s_t`.
 
         Alternatively, this function can be overwritten in customized environments.
 
         Parameters
         ----------
         s_t : numpy.ndarray
-            The current state vector `s_t`.
+            The current state vector :math:`s_t`.
 
         Returns
         -------
         numpy.ndarray
-            The corresponding observation vector `o_t`.
+            The corresponding observation vector :math:`o_t`.
         """
         obs = self._extract_state_variables(self.obs_values)
         obs = np.clip(obs, self.observation_space.low,
@@ -324,21 +319,21 @@ class ANMEnv(gym.Env):
 
     def step(self, action):
         """
-        Take a control action and transition from state `s_t` to state `s_{t+1}`.
+        Take a control action and transition from state :math:`s_t` to state :math:`s_{t+1}`.
 
         Parameters
         ----------
         action : numpy.ndarray
-            The action vector `a_t` taken by the agent.
+            The action vector :math:`a_t` taken by the agent.
 
         Returns
         -------
         obs : numpy.ndarray
-            The observation vector `o_{t+1}`.
+            The observation vector :math:`o_{t+1}`.
         reward : float
-            The reward associated with the transition `r_t`.
+            The reward associated with the transition :math:`r_t`.
         done : bool
-            Always False (continuing task).
+            True if a terminal state has been reached; False otherwise.
         info : dict
             A dictionary with further information (used for debugging).
         """
@@ -437,9 +432,23 @@ class ANMEnv(gym.Env):
         return obs, r, self.done, {}
 
     def render(self, mode='human'):
+        """
+        Update the rendering of the environment (to be overwritten).
+
+        Raises
+        ------
+        NotImplementedError
+        """
         raise NotImplementedError()
 
     def close(self):
+        """
+        Close the rendering of the environment (to be overwritten).
+
+        Raises
+        -------
+        NotImplementedError
+        """
         raise NotImplementedError()
 
     def seed(self, seed=None):
@@ -449,7 +458,7 @@ class ANMEnv(gym.Env):
 
     def _build_action_space(self):
         """
-        Build the available loose action space `\mathcal A`.
+        Build the available loose action space :math:`\mathcal A`.
 
         Returns
         -------
@@ -528,12 +537,12 @@ class ANMEnv(gym.Env):
 
     def _construct_state(self):
         """
-        Construct the state vector `s_t`.
+        Construct the state vector :math:`s_t`.
 
         Returns
         -------
         s_t : numpy.ndarray
-            The state vector
+            The state vector.
         """
         return self._extract_state_variables(self.state_values)
 
