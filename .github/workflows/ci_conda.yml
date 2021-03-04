@@ -12,13 +12,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Setup Miniconda
-        uses: goanpeca/setup-miniconda@v1
+      - name: Setup conda
+        uses: s-weigand/setup-conda@v1
         with:
           auto-update-conda: true
-          auto-activate-base: false
           python-version: ${{ matrix.python-version }}
-          channels: defaults,conda-forge
+          channels: defaults, anaconda, conda-forge
           environment-file: environment-ci.yml
           activate-environment: gym-anm-dev
       - name: Install from source
