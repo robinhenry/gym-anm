@@ -1,6 +1,6 @@
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
-![CI (pip)](https://github.com/robinhenry/gym-anm/workflows/CI%20(pip)/badge.svg)
-![CI (conda)](https://github.com/robinhenry/gym-anm/workflows/CI%20(conda)/badge.svg)
+![CI (pip)](https://github.com/robinhenry/gym-anm/blob/master/.github/workflows/ci_pip.yml/badge.svg)
+![CI (conda)](https://github.com/robinhenry/gym-anm/blob/master/.github/workflows/ci_conda.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # gym-anm
