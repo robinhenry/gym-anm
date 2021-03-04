@@ -5,9 +5,9 @@ from gym_anm.simulator.components import Load, StorageUnit, Generator, \
     RenewableGen
 
 
-class DCOPFAgent(object):
+class MPCAgent(object):
     """
-    A deterministic agent that solves a multi-timestep DC Optimal Power Flow.
+    A deterministic agent that solves a MPC DC Optimal Power Flow.
 
     This agent accesses the full state of the distribution network at time :math:`t` and
     then solves an N-stage optimization problem. The optimization problem solved

@@ -1,10 +1,10 @@
 import cvxpy as cp
 import numpy as np
 
-from . import DCOPFAgent
+from . import MPCAgent
 
 
-class MPCAgentANM6Easy(DCOPFAgent):
+class MPCAgentANM6Easy(MPCAgent):
     """
     A deterministic Model Predictive Control agent for the ANM6Easy environment.
 

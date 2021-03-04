@@ -28,6 +28,6 @@ gym\_anm.agents
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.agents.dc_opf
+   gym_anm.agents.mpc
    gym_anm.agents.mpc_anm6_easy
 

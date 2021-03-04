@@ -1,7 +1,7 @@
-gym\_anm.agents.dc\_opf
-=======================
+gym\_anm.agents.mpc
+===================
 
-.. automodule:: gym_anm.agents.dc_opf
+.. automodule:: gym_anm.agents.mpc
 
    
    
@@ -19,7 +19,7 @@ gym\_anm.agents.dc\_opf
       :toctree:
       :template: custom-class-template.rst
    
-      DCOPFAgent
+      MPCAgent
    
    
 
