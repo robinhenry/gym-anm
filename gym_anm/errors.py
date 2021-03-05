@@ -33,6 +33,10 @@ class UnitsNotSupportedError(ObsSpaceError):
                          .format(wanted, allowed, key))
 
 
-class EnvInitializationError(Exception):
+class EnvInitializationError(ANMEnvConfigurationError):
     """Raised when the environment encounters a problem during reset()."""
     pass
+
+
+class EnvNextVarsError(ANMEnvConfigurationError):
+    """Raised when something goes wrong with the :py:func:`next_vars()` function."""

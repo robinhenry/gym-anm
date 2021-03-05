@@ -10,7 +10,8 @@ import warnings
 from scipy.sparse.linalg import MatrixRankWarning
 
 from ..simulator import Simulator
-from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError
+from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError, \
+    EnvNextVarsError
 from .utils import check_env_args
 from ..simulator.components.constants import STATE_VARIABLES
 from ..simulator.components import StorageUnit, Generator, Load
@@ -263,6 +264,14 @@ class ANMEnv(gym.Env):
             n_init_states += 1
             self.state = self.init_state()
 
+            # Check s_0 has the correct size.
+            expected = 2 * self.simulator.N_device + self.simulator.N_des \
+                       + self.simulator.N_non_slack_gen + self.K
+            if self.state.size != expected:
+                msg = "Expected size of initial state s0 is %d but actual is %d" \
+                      % (expected, self.state.size)
+                raise EnvInitializationError(msg)
+
             # Apply the initial state to the simulator.
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', MatrixRankWarning)
@@ -349,6 +358,13 @@ class ANMEnv(gym.Env):
 
         # 1a. Sample the internal stochastic variables.
         vars = self.next_vars(self.state)
+        expected_size = self.simulator.N_load + self.simulator.N_non_slack_gen \
+                        + self.K
+        if vars.size != expected_size:
+            msg = 'Next vars vector has size %d but expected is %d' % \
+                  (vars.size, expected_size)
+            raise EnvNextVarsError(msg)
+
         P_load = vars[:self.simulator.N_load]
         P_pot = vars[self.simulator.N_load: self.simulator.N_load +
                                             self.simulator.N_non_slack_gen]

@@ -1,4 +1,4 @@
-gym\_anm.errors
+﻿gym\_anm.errors
 ===============
 
 .. automodule:: gym_anm.errors
@@ -25,6 +25,7 @@ gym\_anm.errors
       ANMEnvConfigurationError
       ArgsError
       EnvInitializationError
+      EnvNextVarsError
       ObsNotSupportedError
       ObsSpaceError
       UnitsNotSupportedError
