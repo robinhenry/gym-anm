@@ -2,7 +2,6 @@
 
 from gym.envs.registration import register
 
-from . import simulator, envs
 from .agents import MPCAgent, MPCAgentANM6Easy
 from .envs import ANMEnv
 
