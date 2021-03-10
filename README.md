@@ -39,21 +39,6 @@ Using pip (preferably after activating your virtual environment):
 pip install gym-anm
 ```
 
-### Using conda
-If you would like to run `gym-anm` inside a conda environment, you can:
-
-1. [Install conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) (or simply
-   [miniconda](https://docs.conda.io/en/latest/miniconda.html)).
-2. Create a new environment `my_env`: 
-```
-conda create --name my_env 
-conda activate my_env
-```
-
-3. Install `gym-anm`:
-```
-conda install gym-anm
-```
 ### Building from source
 Alternatively, you can build `gym-anm` directly from source:
 ```
