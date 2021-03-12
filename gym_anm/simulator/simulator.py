@@ -290,6 +290,9 @@ class Simulator(object):
                 dev.soc = soc[soc_idx] / self.baseMVA
                 soc_idx += 1
 
+        # 5. Re-construct the state dictionary after modifying the SoC.
+        self.state = self._gather_state()
+
         return pfe_converged
 
     def get_rendering_specs(self):

@@ -9,15 +9,15 @@ optimization horizon.
 For more information, see https://gym-anm.readthedocs.io/en/latest/topics/mpc.html#constant-forecast.
 """
 import gym
-from gym_anm import MPCAgent
+from gym_anm import MPCAgentConstant
 
 def run():
     env = gym.make('ANM6Easy-v0')
     o = env.reset()
 
     # Initialize the MPC policy.
-    agent = MPCAgent(env.simulator, env.action_space, env.gamma,
-                     safety_margin=0.96, planning_steps=10)
+    agent = MPCAgentConstant(env.simulator, env.action_space, env.gamma,
+                             safety_margin=0.96, planning_steps=10)
 
     # Run the policy.
     for t in range(100):

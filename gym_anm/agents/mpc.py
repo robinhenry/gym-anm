@@ -1,30 +1,29 @@
 import cvxpy as cp
 import numpy as np
 
-from gym_anm.simulator.components import Load, StorageUnit, Generator, \
-    RenewableGen
-
+from gym_anm.simulator.components import Load, StorageUnit, Generator, RenewableGen
 
 
 class MPCAgent(object):
     """
-    A deterministic agent that solves a MPC DC Optimal Power Flow.
+    A base class for an agent that solves a MPC DC Optimal Power Flow.
 
     This agent accesses the full state of the distribution network at time :math:`t` and
     then solves an N-stage optimization problem. The optimization problem solved
     is an instance of a Direct Current (DC) Optimal Power Flow problem.
 
-    The construction of the DC OPF problem relies on two assumptions:
+    The construction of the DC OPF problem relies on 3 assumptions:
 
     1. transmission lines are lossless, i.e., :math:`r_{ij} = 0, \\forall e_{ij} \in \mathcal E,`
-    2. nodal voltage magnitude are close to unity, i.e., :math:`|V_{i}| = 1, \\forall i \in \mathcal N`.
+    2. the difference between adjacent bus voltage angles is small, i.e.,
+       :math:`\\angle V_i = \\angle V_j, \\forall e_{ij} \in \mathcal E`,
+    3. nodal voltage magnitude are close to unity, i.e., :math:`|V_{i}| = 1, \\forall i \in \mathcal N`.
 
     The construction of the N-stage optimization problem relies
     on two additional assumptions:
 
-    1. the demand at all loads remain constant for the period :math:`[t, t+N]`,
-    2. the maximum generation at all generators also remain constant for the
-       period :math:`[t, t+N]`.
+    All sub-classes must implement the :py:func`forecast()` method to provide forecasts
+    of demand and generation over the optimization horizon :math:`[t+1,t+N]`.
 
     All values are used in per-unit.
     """
@@ -103,10 +102,8 @@ class MPCAgent(object):
         self.P_dev_vars = []
 
         # Define time-varying parameters.
-        self.P_load_forecast = [cp.Parameter(self.n_load)
-                                for _ in range(self.planning_steps)]
-        self.P_gen_forecast = [cp.Parameter(self.n_rer, nonneg=True)
-                               for _ in range(self.planning_steps)]
+        self.P_load_forecast = cp.Parameter((self.n_load, self.planning_steps), nonpos=True)
+        self.P_gen_forecast = cp.Parameter((self.n_gen - 1, self.planning_steps), nonneg=True)
         self.init_soc = cp.Parameter(self.n_des, nonneg=True)
 
         # Define constants.
@@ -184,8 +181,8 @@ class MPCAgent(object):
         for i in range(self.planning_steps):
 
             # Extract forecasted values for timestep t+1+i.
-            P_load_forecast = self.P_load_forecast[i]
-            P_gen_forecast = self.P_gen_forecast[i]
+            P_load_forecast = self.P_load_forecast[:, i]
+            P_gen_forecast = self.P_gen_forecast[:, i]
 
             # Create a new single-step optimization problem coupled with the
             # previous time step.
@@ -207,62 +204,18 @@ class MPCAgent(object):
 
         return problem
 
-    def act(self, env):
-        P_load_forecasts, P_gen_forecasts = self._forecast(env)
-        a = self._solve(env.simulator, P_load_forecasts, P_gen_forecasts)
-        return a
-
-    def forecast(self, env):
-        raise NotImplementedError()
-
-    def _solve(self, simulator, load_forecasts, gen_forecasts):
-        """ Select an action by solving the N-stage DC OPF. """
-
-        # Initialize the optimization problem during the first iteration.
-        if self.dc_opf is None:
-            self.dc_opf = self._create_optimization_problem()
-
-        # Update the time-varying parameters (fixed values).
-        self._update_parameters(simulator, load_forecasts, gen_forecasts)
-
-        # Solve the DC OPF (convex program).
-        self.dc_opf.solve()
-        if self.dc_opf.status != 'optimal':
-            print('OPF problem is ' + self.dc_opf.status)
-
-        # Extract the control variables (scale from p.u. to MW or MVAr).
-        P_gen = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
-                 for d in self.non_slack_gen_ids]
-        Q_gen = [0.] * len(P_gen)
-        P_des = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
-                 for d in self.des_ids]
-        Q_des = [0.] * len(P_des)
-
-        # Construct the action vector.
-        a = np.concatenate((P_gen, Q_gen, P_des, Q_des))
-
-        # Clip the actions, which are sometime beyond the space by a tiny
-        # amount, due to precision errors in the optimization problem
-        # solution (e.g., of the order of 1e-10).
-        a = np.clip(a, self.action_space.low, self.action_space.high)
-
-        return a
-
-    def _update_parameters(self, simulator, P_load_forecasts, P_gen_forecasts):
-        """Update the time-dependent fixed values of the optimization problem."""
-
-        # Update the parameters of the optimization problem with the
-        # forecasted values.
-        self.P_load_forecast.value = P_load_forecasts
-        self.P_gen_forecast.value = P_gen_forecasts
-
-        # Set the initial state of charge of DES units.
-        self.init_soc.value = [simulator.state['des_soc']['pu'][i]
-                               for i in self.des_ids]
-
     def _single_step_optimization_problem(self, P_load_forecast, P_gen_forecast):
         """
         Define a single-stage instance of the DC OPF optimization problem.
+
+        Parameters
+        ----------
+        P_load_forecast : array_like
+            Load power injection forecasted values, ordered in increasing order of
+            device index.
+        P_gen_forecast : array_like
+            Maximum generation forecasted values, ordered in increasing order of
+            device index.
 
         Returns
         -------
@@ -307,7 +260,7 @@ class MPCAgent(object):
         c = []
         for l in self.load_ids:
             c.append(P_dev[self.dev_id_mapping[l]])
-        constraints += _make_list_eq_constraints(c, self.P_load_forecast)
+        constraints += _make_list_eq_constraints(c, P_load_forecast)
 
         # P_min <= P_gen <= P_max (for non-slack generators).
         c = []
@@ -327,7 +280,7 @@ class MPCAgent(object):
         c = []
         for rer in self.gen_rer_ids:
             c.append(P_dev[self.dev_id_mapping[rer]])
-        constraints += _make_list_le_constraints(c, self.P_gen_forecast)
+        constraints += _make_list_le_constraints(c, P_gen_forecast)
 
         # P >= (soc_{t-1} - soc_max) / (delta_t * eff)
         # P <= (soc_{t-1} - soc_min) * eff / delta_t
@@ -372,6 +325,85 @@ class MPCAgent(object):
                       'P_branch': P_branch}
 
         return obj, constraints, optim_vars, new_socs
+
+    def act(self, env):
+        """
+        Select an action by solving the N-stage DC OPF.
+
+        Parameters
+        ----------
+        env : py:class:`gym_anm.ANMEnv`
+            The :code:`gym-anm` environment.
+
+        Returns
+        -------
+        numpy.ndarray
+            The action vector to apply in the environment.
+        """
+        P_load_forecasts, P_gen_forecasts = self.forecast(env)
+        a = self._solve(env.simulator, P_load_forecasts, P_gen_forecasts)
+
+        # Clip the actions, which are sometime beyond the space by a tiny
+        # amount due to precision errors in the optimization problem
+        # solution (e.g., of the order of 1e-10).
+        a = np.clip(a, self.action_space.low, self.action_space.high)
+
+        return a
+
+    def forecast(self, env):
+        raise NotImplementedError()
+
+    def _solve(self, simulator, load_forecasts, gen_forecasts):
+        """ Select an action by solving the N-stage DC OPF. """
+
+        # Initialize the optimization problem during the first iteration.
+        if self.dc_opf is None:
+            self.dc_opf = self._create_optimization_problem()
+
+        # Update the time-varying parameters (fixed values).
+        self._update_parameters(simulator, load_forecasts, gen_forecasts)
+
+        # Solve the DC OPF (convex program).
+        self.dc_opf.solve()
+        if self.dc_opf.status != 'optimal':
+            print('OPF problem is ' + self.dc_opf.status)
+
+        # Extract the control variables (scale from p.u. to MW or MVAr).
+        P_gen = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
+                 for d in self.non_slack_gen_ids]
+        Q_gen = [0.] * len(P_gen)
+        P_des = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
+                 for d in self.des_ids]
+        Q_des = [0.] * len(P_des)
+
+        return np.concatenate((P_gen, Q_gen, P_des, Q_des))
+
+    def _update_parameters(self, simulator, P_load_forecasts, P_gen_forecasts):
+        """
+        Update the time-dependent fixed values of the optimization problem.
+
+        Parameters
+        ----------
+        simulator : py:class:`gym_anm.simulator.Simulator`
+            The power grid simulator of the environment.
+        P_load_forecasts : numpy.ndarray
+            A (N_load, N) array of forecasted demand values over the optimization
+            horizon [t+1, t+N]. The rows should be ordered in increasing order of
+            device index.
+        P_gen_forecasts : numpy.ndarray
+            A (N_gen-1, N) array of forecasted maximum generation from non-slack
+            generators over the optimization horizon [t+1, t+N]. The rows should
+            be ordered in increasing order of device index.
+        """
+
+        # Update the parameters of the optimization problem with the
+        # forecasted values.
+        self.P_load_forecast.value = np.array(P_load_forecasts)
+        self.P_gen_forecast.value = np.array(P_gen_forecasts)
+
+        # Set the initial state of charge of DES units.
+        self.init_soc.value = [simulator.state['des_soc']['pu'][i]
+                               for i in self.des_ids]
 
 
 def _make_list_eq_constraints(a, b):

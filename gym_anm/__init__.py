@@ -2,7 +2,7 @@
 
 from gym.envs.registration import register
 
-from .agents import MPCAgent, MPCAgentANM6Easy
+from .agents import MPCAgentPerfect, MPCAgentConstant
 from .envs import ANMEnv
 
 register(

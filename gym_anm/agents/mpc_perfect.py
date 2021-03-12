@@ -1,9 +1,9 @@
 import numpy as np
 
-from . import MPCAgent
+from .mpc import MPCAgent
 
 
-class MPCAgentANM6Easy(MPCAgent):
+class MPCAgentPerfect(MPCAgent):
     """
     A deterministic Model Predictive Control agent for the ANM6Easy environment.
 

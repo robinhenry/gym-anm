@@ -1,3 +1,5 @@
+import numpy as np
+
 from .mpc import MPCAgent
 
 
@@ -19,7 +21,7 @@ class MPCAgentConstant(MPCAgent):
                  self.non_slack_gen_ids]
 
         # Forecast constant values over the optimization horizon.
-        P_load = [P_load for _ in range(self.planning_steps)]
-        P_pot = [P_pot for _ in range(self.planning_steps)]
+        P_load = np.array([P_load for _ in range(self.planning_steps)]).T
+        P_pot = np.array([P_pot for _ in range(self.planning_steps)]).T
 
         return P_load, P_pot
