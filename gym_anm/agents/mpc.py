@@ -5,6 +5,7 @@ from gym_anm.simulator.components import Load, StorageUnit, Generator, \
     RenewableGen
 
 
+
 class MPCAgent(object):
     """
     A deterministic agent that solves a MPC DC Optimal Power Flow.
@@ -102,9 +103,11 @@ class MPCAgent(object):
         self.P_dev_vars = []
 
         # Define time-varying parameters.
-        self.P_load_prev = cp.Parameter(self.n_load)
-        self.soc_prev = cp.Parameter(self.n_des, nonneg=True)
-        self.P_gen_pot_prev = cp.Parameter(self.n_rer, nonneg=True)
+        self.P_load_forecast = [cp.Parameter(self.n_load)
+                                for _ in range(self.planning_steps)]
+        self.P_gen_forecast = [cp.Parameter(self.n_rer, nonneg=True)
+                               for _ in range(self.planning_steps)]
+        self.init_soc = cp.Parameter(self.n_des, nonneg=True)
 
         # Define constants.
         bus_ids = [self.bus_id_mapping[i] for i in self.bus_ids]
@@ -178,20 +181,16 @@ class MPCAgent(object):
         objective = 0.
         constraints = []
 
-        # Fixed variables, provided as constants at the start of the
-        # optimization.
-        P_load = self.P_load_prev
-        P_pot = self.P_gen_pot_prev
-
-        # Variables coupled between different time steps.
-        soc = self.soc_prev
-
         for i in range(self.planning_steps):
+
+            # Extract forecasted values for timestep t+1+i.
+            P_load_forecast = self.P_load_forecast[i]
+            P_gen_forecast = self.P_gen_forecast[i]
 
             # Create a new single-step optimization problem coupled with the
             # previous time step.
-            obj, consts, optim_vars, soc = \
-                self._single_step_optimization_problem(P_load, soc, P_pot)
+            obj, consts, optim_vars, soc = self._single_step_optimization_problem(
+                P_load_forecast, P_gen_forecast)
             objective += self.gamma ** i * obj
             constraints += consts
 
@@ -209,6 +208,14 @@ class MPCAgent(object):
         return problem
 
     def act(self, env):
+        P_load_forecasts, P_gen_forecasts = self._forecast(env)
+        a = self._solve(env.simulator, P_load_forecasts, P_gen_forecasts)
+        return a
+
+    def forecast(self, env):
+        raise NotImplementedError()
+
+    def _solve(self, simulator, load_forecasts, gen_forecasts):
         """ Select an action by solving the N-stage DC OPF. """
 
         # Initialize the optimization problem during the first iteration.
@@ -216,7 +223,7 @@ class MPCAgent(object):
             self.dc_opf = self._create_optimization_problem()
 
         # Update the time-varying parameters (fixed values).
-        self._update_parameters(env)
+        self._update_parameters(simulator, load_forecasts, gen_forecasts)
 
         # Solve the DC OPF (convex program).
         self.dc_opf.solve()
@@ -241,39 +248,21 @@ class MPCAgent(object):
 
         return a
 
-    def _update_parameters(self, env):
+    def _update_parameters(self, simulator, P_load_forecasts, P_gen_forecasts):
         """Update the time-dependent fixed values of the optimization problem."""
 
-        # Extract the full state of the distribution network.
-        full_state = env.simulator.state
+        # Update the parameters of the optimization problem with the
+        # forecasted values.
+        self.P_load_forecast.value = P_load_forecasts
+        self.P_gen_forecast.value = P_gen_forecasts
 
-        # Set the previous P of loads.
-        P_load = [full_state['dev_p']['pu'][i] for i in self.load_ids]
-        self.P_load_prev.value = P_load
+        # Set the initial state of charge of DES units.
+        self.init_soc.value = [simulator.state['des_soc']['pu'][i]
+                               for i in self.des_ids]
 
-        # Set the previous state of charge of DES units.
-        soc = [full_state['des_soc']['pu'][i] for i in self.des_ids]
-        self.soc_prev.value = soc
-
-        # Set the previous maximum generation from non-slack generators.
-        P_pot = [full_state['gen_p_max']['pu'][i] for i in
-                 self.non_slack_gen_ids]
-        self.P_gen_pot_prev.value = P_pot
-
-    def _single_step_optimization_problem(self, P_load_prev, soc_prev,
-                                          P_gen_pot_prev):
+    def _single_step_optimization_problem(self, P_load_forecast, P_gen_forecast):
         """
         Define a single-stage instance of the DC OPF optimization problem.
-
-        Parameters
-        ----------
-        P_load_prev : cvxpy.Expression
-            The load active power injection :math:`P` from the last time step.
-        soc_prev : cvxpy.Expression
-            The current state of charge of DES units.
-        P_gen_pot_prev : cvxpy.Expression
-            The maximum active power generation from non-slack generators from
-            the last time step.
 
         Returns
         -------
@@ -318,7 +307,7 @@ class MPCAgent(object):
         c = []
         for l in self.load_ids:
             c.append(P_dev[self.dev_id_mapping[l]])
-        constraints += _make_list_eq_constraints(c, P_load_prev)
+        constraints += _make_list_eq_constraints(c, self.P_load_forecast)
 
         # P_min <= P_gen <= P_max (for non-slack generators).
         c = []
@@ -338,7 +327,7 @@ class MPCAgent(object):
         c = []
         for rer in self.gen_rer_ids:
             c.append(P_dev[self.dev_id_mapping[rer]])
-        constraints += _make_list_le_constraints(c, P_gen_pot_prev)
+        constraints += _make_list_le_constraints(c, self.P_gen_forecast)
 
         # P >= (soc_{t-1} - soc_max) / (delta_t * eff)
         # P <= (soc_{t-1} - soc_min) * eff / delta_t
@@ -348,7 +337,7 @@ class MPCAgent(object):
             p_discharging = cp.Variable(nonneg=True)
             delta_soc_charging = p_charging * self.delta_t * self.des_eff[i]
             delta_soc_discharging = - p_discharging * self.delta_t / self.des_eff[i]
-            new_soc = soc_prev[i] + delta_soc_charging + delta_soc_discharging
+            new_soc = self.init_soc[i] + delta_soc_charging + delta_soc_discharging
             new_socs.append(new_soc)
             c.append(P_dev[self.dev_id_mapping[des]] == p_discharging - p_charging)
 
