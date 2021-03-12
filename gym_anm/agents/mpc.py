@@ -67,6 +67,7 @@ class MPCAgent(object):
         self.n_rer = simulator.N_gen_rer
         self.load_ids = [i for i, d in simulator.devices.items()
                          if isinstance(d, Load)]
+        self.gen_ids = [i for i, d in simulator.devices.items() if isinstance(d, Generator)]
         self.non_slack_gen_ids = [i for i, d in simulator.devices.items()
                                   if isinstance(d, Generator) and not d.is_slack]
         self.gen_rer_ids = [i for i, d in simulator.devices.items()
@@ -367,11 +368,9 @@ class MPCAgent(object):
 
         # 4. Construct the objective function.
         cost_1 = 0.
-        for idx, gen in enumerate(self.gen_rer_ids):
-            i = self.dev_id_mapping[gen]
-            cost_1 += P_gen_pot_prev[idx] - P_dev[i]
-        for des in self.des_ids:
-            cost_1 -= P_dev[self.dev_id_mapping[des]]
+        for gen in self.gen_ids:
+            if gen not in self.gen_rer_ids:
+                cost_1 += P_dev[self.dev_id_mapping[gen]]
 
         cost_2 = 0.
         for p, rate in zip(P_branch, self.branch_rate):
