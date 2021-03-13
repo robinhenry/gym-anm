@@ -1,6 +1,6 @@
 """
 This script shows how to run the MPC-based DC OPF policy
-:math:`\pi_{MPC-N}^{perfect}` in the ANM6Easy-v0 environment.
+:math:`\\pi_{MPC-N}^{perfect}` in the ANM6Easy-v0 environment.
 
 This policy assumes perfect forecasts of demands and generations
 over the optimization horizon.

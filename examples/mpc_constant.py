@@ -1,6 +1,6 @@
 """
 This script shows how to run the MPC-based DC OPF policy
-:math:`\pi_{MPC-N}^{constant}` in an arbitrary gym-anm
+:math:`\\pi_{MPC-N}^{constant}` in an arbitrary gym-anm
 environment.
 
 This policy assumes constant demand and generation during the
