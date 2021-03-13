@@ -1,15 +1,24 @@
+"""An MPC-based policy with constant forecasts."""
 import numpy as np
 
 from .mpc import MPCAgent
 
 
 class MPCAgentConstant(MPCAgent):
+    """
+    A Model Predictive Control (MPC)-based policy with constant forecasts.
+
+    This class implements the :math:`\\pi_{MPC-N}^{constant}` policy, a variant
+    of the general :math:`\\pi_{MPC-N}` policy in which the future demand and
+    generation are assumed constant over the optimization horizon.
+
+    For more information, see https://gym-anm.readthedocs.io/en/latest/topics/mpc.html#constant-forecast.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def forecast(self, env):
-
         # Extract the full state of the distribution network.
         full_state = env.simulator.state
 

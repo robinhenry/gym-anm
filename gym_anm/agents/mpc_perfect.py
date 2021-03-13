@@ -1,3 +1,4 @@
+"""An MPC-based policy with perfect forecasts."""
 import numpy as np
 
 from .mpc import MPCAgent
@@ -5,30 +6,19 @@ from .mpc import MPCAgent
 
 class MPCAgentPerfect(MPCAgent):
     """
-    A deterministic Model Predictive Control agent for the ANM6Easy environment.
+    A Model Predictive Control (MPC)-based policy with perfect forecasts.
 
-    This agent solves the :code:`ANM6Easy` environment as a Model Predictive
-    Control (MPC) problem. It implements a near-optimal policy, by accessing
-    the full state of the distribution network, as well as the future demand
-    and maximum generation from loads and distributed generators, respectively.
+    This class implements the :math:`\\pi_{MPC-N}^{perfect}` policy, a variant
+    of the general :math:`\\pi_{MPC-N}` policy in which the future demand and
+    generation are perfectly predicted (i.e., assumed known).
 
-    This agent improves the base class :py:class:`gym_anm.agents.dc_opf.DCOPFAgent` by removing the
-    assumptions that the demand of loads and the maximum generation of non-slack
-    generators is constant during :math:`[t, t+N]`.
-
-    The resulting policy is optimal, if we assume that N optimization stages are
-    used, with :math:`N \\to \infty`, and that the approximation errors introduced when
-    casting the original AC OPF problem into a linear DC OPF problem are
-    negligible.
-
-    All values are used in per-unit.
+    For more information, see https://gym-anm.readthedocs.io/en/latest/topics/mpc.html#perfect-forecast.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def forecast(self, env):
-
         # Extract the fixed time series of demand and maximum generation.
         t_start = int(env.state[-1]) + 1  # time of day of next time step
         t_end = t_start + self.planning_steps

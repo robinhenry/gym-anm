@@ -1,3 +1,4 @@
+"""The base class for MPC-based policies."""
 import cvxpy as cp
 import numpy as np
 
@@ -213,12 +214,13 @@ class MPCAgent(object):
 
         Parameters
         ----------
-        P_load_forecast : array_like
-            Load power injection forecasted values, ordered in increasing order of
-            device index.
-        P_gen_forecast : array_like
-            Maximum generation forecasted values, ordered in increasing order of
-            device index.
+        P_load_forecast : cvxpy.Expression
+            The vector of forecasted load active power injections.
+        P_gen_forecast : cvxpy.Expression
+            The vector of forecasted maximum active power generation from non-slack
+            generators.
+        soc_prev : cvxpy.Expression
+            The vector of current state of charge of DES units.
 
         Returns
         -------
@@ -354,6 +356,30 @@ class MPCAgent(object):
         return a
 
     def forecast(self, env):
+        """
+        Forecast the demand and generation over the optimization horizon.
+
+        This method must be implemented by all sub-classes of :py:class:`MPCAgent`.
+        It gets called in :py:func:`act()` and must return the predictions of
+        future load demand, :math:`\\tilde P_{l,k}^{(dev)}`, and maximum generation
+        at non-slack generators, :math:`\\tilde P_{g,k}^{(max)}`.
+
+        Parameters
+        ----------
+        env : py:class:`gym_anm.ANMEnv`
+            The :code:`gym-anm` environment.
+
+        Returns
+        -------
+        P_load_forecast : array_like
+            A (N_load, N) array of forecasted load power injections (<0), where N
+            is the length of the optimization horizon. The rows should be ordered
+            in increasing order of device ID.
+        P_gen_forecast : array_like
+            A (N_gen-1, N) array of forecasted maximum generation from non-slack
+            generators, where N is the length of the optimization horizon. The rows
+            should be ordered in increasing order of device ID.
+        """
         raise NotImplementedError()
 
     def _solve(self, simulator, load_forecasts, gen_forecasts):
