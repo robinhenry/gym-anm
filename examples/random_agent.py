@@ -12,7 +12,7 @@ def run():
     env = gym.make('gym_anm:ANM6Easy-v0')
     o = env.reset()
 
-    for i in range(1000):
+    for i in range(10):
         a = env.action_space.sample()
         o, r, done, info = env.step(a)
         env.render()
@@ -20,6 +20,7 @@ def run():
 
         if done:
             o = env.reset()
+    env.close()
 
 if __name__ == '__main__':
     run()
