@@ -14,14 +14,14 @@ class MPCAgentConstant(MPCAgent):
         full_state = env.simulator.state
 
         # Extract the current power injections from loads.
-        P_load = [full_state['dev_p']['pu'][i] for i in self.load_ids]
+        P_load_forecast = [full_state['dev_p']['pu'][i] for i in self.load_ids]
 
         # Extract the current maximum generation from non-slack generators.
-        P_pot = [full_state['gen_p_max']['pu'][i] for i in
-                 self.non_slack_gen_ids]
+        P_gen_forecast = [full_state['gen_p_max']['pu'][i] for i in
+                          self.non_slack_gen_ids]
 
         # Forecast constant values over the optimization horizon.
-        P_load = np.array([P_load for _ in range(self.planning_steps)]).T
-        P_pot = np.array([P_pot for _ in range(self.planning_steps)]).T
+        P_load_forecast = np.array([P_load_forecast for _ in range(self.planning_steps)]).T
+        P_gen_forecast = np.array([P_gen_forecast for _ in range(self.planning_steps)]).T
 
-        return P_load, P_pot
+        return P_load_forecast, P_gen_forecast

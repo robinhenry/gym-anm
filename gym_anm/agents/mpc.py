@@ -102,7 +102,7 @@ class MPCAgent(object):
         self.P_dev_vars = []
 
         # Define time-varying parameters.
-        self.P_load_forecast = cp.Parameter((self.n_load, self.planning_steps), nonpos=True)
+        self.P_load_forecast = cp.Parameter((self.n_load, self.planning_steps))
         self.P_gen_forecast = cp.Parameter((self.n_gen - 1, self.planning_steps), nonneg=True)
         self.init_soc = cp.Parameter(self.n_des, nonneg=True)
 
@@ -178,6 +178,9 @@ class MPCAgent(object):
         objective = 0.
         constraints = []
 
+        # Variable coupled between different time steps.
+        soc = self.init_soc
+
         for i in range(self.planning_steps):
 
             # Extract forecasted values for timestep t+1+i.
@@ -187,7 +190,7 @@ class MPCAgent(object):
             # Create a new single-step optimization problem coupled with the
             # previous time step.
             obj, consts, optim_vars, soc = self._single_step_optimization_problem(
-                P_load_forecast, P_gen_forecast)
+                P_load_forecast, P_gen_forecast, soc)
             objective += self.gamma ** i * obj
             constraints += consts
 
@@ -204,7 +207,7 @@ class MPCAgent(object):
 
         return problem
 
-    def _single_step_optimization_problem(self, P_load_forecast, P_gen_forecast):
+    def _single_step_optimization_problem(self, P_load_forecast, P_gen_forecast, soc_prev):
         """
         Define a single-stage instance of the DC OPF optimization problem.
 
@@ -256,13 +259,13 @@ class MPCAgent(object):
             a.append(c)
         constraints += _make_list_eq_constraints(a, P_bus)
 
-        # P_load(t+1) = P_load_prev
+        # P_load(t+1) = P_load_forecast
         c = []
         for l in self.load_ids:
             c.append(P_dev[self.dev_id_mapping[l]])
         constraints += _make_list_eq_constraints(c, P_load_forecast)
 
-        # P_min <= P_gen <= P_max (for non-slack generators).
+        # P_min <= P_gen <= P_max_ (for non-slack generators).
         c = []
         for g in self.non_slack_gen_ids:
             c.append(P_dev[self.dev_id_mapping[g]])
@@ -276,10 +279,10 @@ class MPCAgent(object):
         constraints += _make_list_le_constraints(self.P_des_min, c)
         constraints += _make_list_le_constraints(c, self.P_des_max)
 
-        # P <= P_pot (for renewable energy generators).
+        # P <= P_gen_forecast (for non-slack generators).
         c = []
-        for rer in self.gen_rer_ids:
-            c.append(P_dev[self.dev_id_mapping[rer]])
+        for gen in self.non_slack_gen_ids:
+            c.append(P_dev[self.dev_id_mapping[gen]])
         constraints += _make_list_le_constraints(c, P_gen_forecast)
 
         # P >= (soc_{t-1} - soc_max) / (delta_t * eff)
@@ -290,7 +293,7 @@ class MPCAgent(object):
             p_discharging = cp.Variable(nonneg=True)
             delta_soc_charging = p_charging * self.delta_t * self.des_eff[i]
             delta_soc_discharging = - p_discharging * self.delta_t / self.des_eff[i]
-            new_soc = self.init_soc[i] + delta_soc_charging + delta_soc_discharging
+            new_soc = soc_prev[i] + delta_soc_charging + delta_soc_discharging
             new_socs.append(new_soc)
             c.append(P_dev[self.dev_id_mapping[des]] == p_discharging - p_charging)
 
