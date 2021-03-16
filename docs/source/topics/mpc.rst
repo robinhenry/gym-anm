@@ -4,7 +4,7 @@
 
 MPC DCOPF policy
 ================
-In the `original paper <link>`_, we describe a policy based on Model Predictive Control (MPC) that
+In the `original paper <https://arxiv.org/abs/2103.07932>`_, we describe a policy based on Model Predictive Control (MPC) that
 solves a multi-timestep DC Optimal Power Flow (OPF).
 
 In the paper, we first describe the general MPC-based policy :math:`\pi_{MPC-N}`, which takes as input

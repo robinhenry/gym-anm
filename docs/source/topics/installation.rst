@@ -17,7 +17,7 @@ Using pip (preferably after activating your virtual environment): ::
 
     pip install gym-anm
 
-.. _from_conda:
+.. _from_source:
 
 Building from source
 --------------------

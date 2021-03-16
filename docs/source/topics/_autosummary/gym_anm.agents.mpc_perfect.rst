@@ -1,7 +1,7 @@
-gym\_anm.agents.mpc\_anm6\_easy
-===============================
+gym\_anm.agents.mpc\_perfect
+============================
 
-.. automodule:: gym_anm.agents.mpc_anm6_easy
+.. automodule:: gym_anm.agents.mpc_perfect
 
    
    
@@ -19,7 +19,7 @@ gym\_anm.agents.mpc\_anm6\_easy
       :toctree:
       :template: custom-class-template.rst
    
-      MPCAgentANM6Easy
+      MPCAgentPerfect
    
    
 

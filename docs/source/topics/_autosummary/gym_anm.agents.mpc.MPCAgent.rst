@@ -18,6 +18,7 @@ gym\_anm.agents.mpc.MPCAgent
    
       ~MPCAgent.__init__
       ~MPCAgent.act
+      ~MPCAgent.forecast
    
    
 

@@ -1,4 +1,4 @@
-﻿gym\_anm.errors
+gym\_anm.errors
 ===============
 
 .. automodule:: gym_anm.errors

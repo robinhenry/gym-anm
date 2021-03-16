@@ -29,5 +29,6 @@ gym\_anm.agents
    :recursive:
 
    gym_anm.agents.mpc
-   gym_anm.agents.mpc_anm6_easy
+   gym_anm.agents.mpc_constant
+   gym_anm.agents.mpc_perfect
 

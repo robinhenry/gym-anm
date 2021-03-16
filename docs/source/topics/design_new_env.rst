@@ -18,8 +18,8 @@ to follow is shown below.
 where:
 
 * :code:`network` is the network dictionary that describes the characteristics of the power grid
-  considered (see Appendix D of `add link`_),
-* :code:`observation` defines the observation space (see Appendix C of `add link`_),
+  considered (see Appendix D of `the paper <https://arxiv.org/abs/2103.07932>`_),
+* :code:`observation` defines the observation space (see Appendix C of `the paper <https://arxiv.org/abs/2103.07932>`_),
 * :code:`K` is the number of auxiliary variables :math:`K`,
 * :code:`delta_t` is the time interval (in hour) between subsequent timesteps :math:`\Delta t`,
 * :code:`gamma` is the discount factor :math:`\gamma \in [0, 1]`,
