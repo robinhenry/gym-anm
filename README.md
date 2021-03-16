@@ -1,4 +1,4 @@
-# gym-anm
+# Gym-ANM
 [![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](https://gym-anm.readthedocs.io/en/latest/)
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
 ![CI (pip)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_pip.yml/badge.svg)
