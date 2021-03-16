@@ -12,6 +12,8 @@ Management (ANM) tasks in electricity distribution networks. It is built on top 
 The `gym-anm` framework was designed with one goal in mind: **bridge the gap between research in RL and in
 the management of power systems**. We attempt to do this by providing RL researchers with an easy-to-work-with
 library of environments that model decision-making tasks in power grids.
+
+**Paper:** [Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems](https://arxiv.org/abs/2103.07932)
  
 ## Key features
 *  Very little background in electricity systems modelling it required. This makes `gym-anm` an ideal starting point
@@ -78,7 +80,14 @@ python -m tests
 ## Citing the project
 To cite this project in publications, cite the original paper:
 ```
-ADD BIBTEX
+@misc{henry2021gymanm,
+      title={Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems}, 
+      author={Robin Henry and Damien Ernst},
+      year={2021},
+      eprint={2103.07932},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
 ```
 
 ## Maintainers
