@@ -3,7 +3,7 @@ import numpy as np
 import numpy.testing as npt
 
 from gym_anm.envs import ANM6Easy
-from gym_anm import MPCAgent
+from gym_anm import MPCAgentConstant
 from tests.base_test import BaseTest
 
 
@@ -29,7 +29,7 @@ class TestDCOPFAgent(BaseTest):
 
     def test_ANM6Easy_horizon_1(self):
         """Test the DC OPF agent with a single timestep planning horizon."""
-        agent = MPCAgent(self.env.simulator, self.env.action_space,
+        agent = MPCAgentConstant(self.env.simulator, self.env.action_space,
                          self.safety_margin, planning_steps=1)
 
         for i in range(int(1e3)):
@@ -42,7 +42,7 @@ class TestDCOPFAgent(BaseTest):
 
     def test_ANM6Easy_horizon_3(self):
         """Test the DC OPF agent with a planning horizon of 3 timesteps."""
-        agent = MPCAgent(self.env.simulator, self.env.action_space,
+        agent = MPCAgentConstant(self.env.simulator, self.env.action_space,
                          self.safety_margin, planning_steps=3)
 
         for i in range(int(1e3)):
@@ -55,7 +55,7 @@ class TestDCOPFAgent(BaseTest):
 
     def test_ANM6Easy_horizon_20(self):
         """Test the DC OPF agent with a planning horizon of 20 timesteps."""
-        agent = MPCAgent(self.env.simulator, self.env.action_space,
+        agent = MPCAgentConstant(self.env.simulator, self.env.action_space,
                          self.safety_margin, planning_steps=20)
 
         for i in range(int(1e3)):
