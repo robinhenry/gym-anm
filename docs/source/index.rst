@@ -5,8 +5,12 @@ Welcome to `gym-anm`!
 
 **Train reinforcement learning agents to manage electricity networks.**
 
-**Paper:** `gym-anm: a class of open-source environments for reinforcement learning research in active network
-management of electrical distribution systems <https://arxiv.org/abs/2103.07932>`_, R. Henry and D. Ernst (2021).
+**Papers:** 
+
+*  `Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems <https://arxiv.org/abs/2103.07932>`_,
+   R. Henry and D. Ernst (2021).
+*  `Gym-ANM: Open-source software to leverage reinforcement learning for power system management in research and education <https://doi.org/10.1016/j.simpa.2021.100092>`_,
+   R. Henry and D. Ernst (2021). 
 
 
 What is it?
