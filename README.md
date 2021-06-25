@@ -79,6 +79,9 @@ All unit tests in `gym-anm` can be ran from the project root directory with:
 python -m tests
 ```
 
+## Contributing
+Contributions are always welcome! Please read the [contribution guidelines](CONTRIBUTING.md) first.
+
 ## Citing the project
 All publications derived from the use of `gym-anm` should cite the following two 2021 papers:
 ```
