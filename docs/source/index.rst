@@ -7,7 +7,7 @@ Welcome to `gym-anm`!
 
 **Papers:** 
 
-*  `Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems <https://arxiv.org/abs/2103.07932>`_,
+*  `Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems <https://doi.org/10.1016/j.egyai.2021.100092>`_,
    R. Henry and D. Ernst (2021).
 *  `Gym-ANM: Open-source software to leverage reinforcement learning for power system management in research and education <https://doi.org/10.1016/j.simpa.2021.100092>`_,
    R. Henry and D. Ernst (2021). 

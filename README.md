@@ -14,7 +14,7 @@ the management of power systems**. We attempt to do this by providing RL researc
 library of environments that model decision-making tasks in power grids.
 
 **Papers:** 
-*  [Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems](https://arxiv.org/abs/2103.07932)
+*  [Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems](https://doi.org/10.1016/j.egyai.2021.100092)
 *  [Gym-ANM: Open-source software to leverage reinforcement learning for power system management in research and education](https://doi.org/10.1016/j.simpa.2021.100092)
  
 ## Key features
@@ -85,13 +85,15 @@ Contributions are always welcome! Please read the [contribution guidelines](CONT
 ## Citing the project
 All publications derived from the use of `gym-anm` should cite the following two 2021 papers:
 ```
-@misc{henry2021gymanm,
-    title={Gym-ANM: Reinforcement Learning Environments for Active Network Management Tasks in Electricity Distribution Systems}, 
-    author={Robin Henry and Damien Ernst},
-    year={2021},
-    eprint={2103.07932},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG}
+@article{HENRY2021100092,
+    title = {Gym-ANM: Reinforcement learning environments for active network management tasks in electricity distribution systems},
+    journal = {Energy and AI},
+    volume = {5},
+    pages = {100092},
+    year = {2021},
+    issn = {2666-5468},
+    doi = {https://doi.org/10.1016/j.egyai.2021.100092},
+    author = {Robin Henry and Damien Ernst},
 }
 ```
 ```
