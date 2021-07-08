@@ -17,6 +17,7 @@ Great Bug Reports tend to have:
 - What you expected would happen
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
+- If you know who should look into this, then assign the issue. If you don't, just assign it to @robinhenry.
 
 ## Propose changes to the codebase
 Pull requests are the best way to propose changes to the codebase (we use [Github Flow](https://guides.github.com/introduction/flow/index.html)). We actively welcome your pull requests:
