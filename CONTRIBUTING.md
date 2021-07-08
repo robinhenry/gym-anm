@@ -27,7 +27,8 @@ Pull requests are the best way to propose changes to the codebase (we use [Githu
 3. If you've changed APIs, update the documentation.
 4. Ensure the test suite passes.
 5. Make sure your code lints.
-6. Issue that pull request!
+6. Request @robinhenry as the reviewer.
+7. Issue that pull request!
 
 ## Propose a novel `gym-anm` environment
 If you designed a new `gym-anm` environment and would like it to be added to the project, you can do so as follows:
