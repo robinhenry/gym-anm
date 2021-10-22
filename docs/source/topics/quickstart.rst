@@ -14,14 +14,20 @@ are randomly sampled from the action space at each time step: ::
     import gym
     import time
 
-    env = gym.make('gym_anm:ANM6Easy-v0')
-    o = env.reset()
+    def run():
+        env = gym.make('gym_anm:ANM6Easy-v0')
+        o = env.reset()
 
-    for i in range(100):
-        a = env.action_space.sample()
-        o, r, done, info = env.step(a)
-        env.render()
-        time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
+        for i in range(100):
+            a = env.action_space.sample()
+            o, r, done, info = env.step(a)
+            env.render()
+            time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
+
+        env.close()
+
+    if __name__ == '__main__':
+        run()
 
 For more information about the Gym interface, read the `official documentation <https://github.com/openai/gym>`_.
 
