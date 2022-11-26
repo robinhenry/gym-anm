@@ -10,7 +10,7 @@ readme = "README.md"
 documentation = "https://gym-anm.readthedocs.io/en/latest/"
 repository = "https://github.com/robinhenry/gym-anm"
 packages = [
-    { include = "gym-anm" },
+    { include = "gym_anm" },
 ]
 exclude = ["tests", "tests.*"]
 
