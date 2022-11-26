@@ -28,7 +28,7 @@ class ANM6Easy(ANM6):
 
         state = np.zeros(2 * n_dev + n_des + n_gen + self.K)
 
-        t_0 = self.np_random.randint(0, int(24 / self.delta_t))
+        t_0 = self.np_random.integers(0, int(24 / self.delta_t))
         state[-1] = t_0
 
         # Load (P, Q) injections.
