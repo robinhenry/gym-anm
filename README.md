@@ -32,7 +32,8 @@ Documentation is provided online at [https://gym-anm.readthedocs.io/en/latest/](
 ## Installation
 
 ### Requirements
-`gym-anm` requires Python 3.8+ and can run on Linux, MaxOS, and Windows.
+`gym-anm` requires Python 3.8+ and can run on Linux, MaxOS, and Windows. Some rendering features may not work properly
+on Windows (not tested).
 
 We recommend installing `gym-anm` in a Python environment (e.g., [virtualenv](https://virtualenv.pypa.io/en/latest/)
 or [conda](https://conda.io/en/latest/#)).
