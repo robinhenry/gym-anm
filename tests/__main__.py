@@ -1,10 +1,3 @@
-"""
-To be ran from the root folder with:
-
-coverage run -m tests
-coverage html
-"""
-
 import unittest
 
 loader = unittest.TestLoader()
