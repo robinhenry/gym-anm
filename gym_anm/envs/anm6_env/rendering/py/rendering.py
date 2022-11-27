@@ -83,7 +83,7 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
             break
         elif time.time() > timeout:
             raise ConnectionError("Connection to HTTP server timeout.")
-    webbrowser.open_new_tab(p)
+    webbrowser.open(p)
 
     message = json.dumps(
         {
