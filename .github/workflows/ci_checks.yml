@@ -6,7 +6,7 @@ jobs:
     strategy:
       max-parallel: 6
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.10"]
         poetry-version: ["1.2"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
