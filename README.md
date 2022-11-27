@@ -2,8 +2,7 @@
 [![Downloads](https://pepy.tech/badge/gym-anm)](https://pepy.tech/project/gym-anm)
 [![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](https://gym-anm.readthedocs.io/en/latest/)
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
-![CI (pip)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_pip.yml/badge.svg)
-![CI (conda)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_conda.yml/badge.svg)
+[![Checks](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml/badge.svg)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `gym-anm` is a framework for designing reinforcement learning (RL) environments that model Active Network
