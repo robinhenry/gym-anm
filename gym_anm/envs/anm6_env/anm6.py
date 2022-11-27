@@ -26,13 +26,11 @@ class ANM6(ANMEnv):
     :py:func:`render()` and :py:func:`close()`.
     """
 
-    metadata = {'render.modes': ['human']}
+    metadata = {"render.modes": ["human"]}
 
-    def __init__(self, observation, K, delta_t, gamma, lamb,
-                 aux_bounds=None, costs_clipping=(None, None), seed=None):
+    def __init__(self, observation, K, delta_t, gamma, lamb, aux_bounds=None, costs_clipping=(None, None), seed=None):
 
-        super().__init__(network, observation, K, delta_t, gamma, lamb,
-                         aux_bounds, costs_clipping, seed)
+        super().__init__(network, observation, K, delta_t, gamma, lamb, aux_bounds, costs_clipping, seed)
 
         # Rendering variables.
         self.network_specs = self.simulator.get_rendering_specs()
@@ -44,7 +42,7 @@ class ANM6(ANMEnv):
         self.render_mode = None
         self.is_rendering = False
 
-    def render(self, mode='human', skip_frames=0):
+    def render(self, mode="human", skip_frames=0):
         """
         Render the current state of the environment.
 
@@ -80,14 +78,13 @@ class ANM6(ANMEnv):
         """
 
         if self.render_mode is None:
-            if mode not in ['human']:
+            if mode not in ["human"]:
                 raise NotImplementedError()
 
             # Render the initial image of the distribution network.
             self.render_mode = mode
             self.skipped_frames = 0
-            rendered_network_specs = ['dev_type', 'dev_p', 'dev_q', 'branch_s',
-                                      'bus_v', 'des_soc']
+            rendered_network_specs = ["dev_type", "dev_p", "dev_q", "branch_s", "bus_v", "des_soc"]
             specs = {s: self.network_specs[s] for s in rendered_network_specs}
             self._init_render(specs)
 
@@ -100,17 +97,16 @@ class ANM6(ANMEnv):
                 return
 
             full_state = self.simulator.state
-            dev_p = list(full_state['dev_p']['MW'].values())
-            dev_q = list(full_state['dev_q']['MVAr'].values())
-            branch_s = list(full_state['branch_s']['MVA'].values())
-            des_soc = list(full_state['des_soc']['MWh'].values())
-            gen_p_max = list(full_state['gen_p_max']['MW'].values())
-            bus_v_magn = list(full_state['bus_v_magn']['pu'].values())
+            dev_p = list(full_state["dev_p"]["MW"].values())
+            dev_q = list(full_state["dev_q"]["MVAr"].values())
+            branch_s = list(full_state["branch_s"]["MVA"].values())
+            des_soc = list(full_state["des_soc"]["MWh"].values())
+            gen_p_max = list(full_state["gen_p_max"]["MW"].values())
+            bus_v_magn = list(full_state["bus_v_magn"]["pu"].values())
             costs = [self.e_loss, self.penalty]
             network_collapsed = not self.simulator.pfe_converged
 
-            self._update_render(dev_p, dev_q, branch_s, des_soc,
-                                gen_p_max, bus_v_magn, costs, network_collapsed)
+            self._update_render(dev_p, dev_q, branch_s, des_soc, gen_p_max, bus_v_magn, costs, network_collapsed)
 
     def step(self, action):
         obs, r, done, info = super().step(action)
@@ -161,35 +157,34 @@ class ANM6(ANMEnv):
         title = type(self).__name__
 
         # Convert dict of network specs into lists.
-        dev_type = list(network_specs['dev_type'].values())
+        dev_type = list(network_specs["dev_type"].values())
         ps, qs = [], []
-        for i in network_specs['dev_p'].keys():
-            p_min_max = [network_specs['dev_p'][i]['MW'][j] for j in [0, 1]]
+        for i in network_specs["dev_p"].keys():
+            p_min_max = [network_specs["dev_p"][i]["MW"][j] for j in [0, 1]]
             ps.append(np.max(np.abs(p_min_max)))
-            q_min_max = [network_specs['dev_q'][i]['MVAr'][j] for j in [0, 1]]
+            q_min_max = [network_specs["dev_q"][i]["MVAr"][j] for j in [0, 1]]
             qs.append(np.max(np.abs(q_min_max)))
         branch_rate = []
-        for br in network_specs['branch_s'].keys():
-            branch_rate.append(network_specs['branch_s'][br]['MVA'][1])
+        for br in network_specs["branch_s"].keys():
+            branch_rate.append(network_specs["branch_s"][br]["MVA"][1])
         bus_v_min, bus_v_max = [], []
-        for i in network_specs['bus_v'].keys():
-            bus_v_min.append(network_specs['bus_v'][i]['pu'][0])
-            bus_v_max.append(network_specs['bus_v'][i]['pu'][1])
+        for i in network_specs["bus_v"].keys():
+            bus_v_min.append(network_specs["bus_v"][i]["pu"][0])
+            bus_v_max.append(network_specs["bus_v"][i]["pu"][1])
         soc_max = []
-        for i in network_specs['des_soc'].keys():
-            soc_max.append(network_specs['des_soc'][i]['MWh'][1])
+        for i in network_specs["des_soc"].keys():
+            soc_max.append(network_specs["des_soc"][i]["MWh"][1])
 
         # Set default costs range if not specified.
         c1 = 100 if self.costs_clipping[0] is None else self.costs_clipping[0]
         c2 = 10000 if self.costs_clipping[1] is None else self.costs_clipping[1]
         costs_range = (c1, c2)
 
-        self.http_server, self.ws_server = \
-            rendering.start(title, dev_type, ps, qs, branch_rate,
-                            bus_v_min, bus_v_max, soc_max, costs_range)
+        self.http_server, self.ws_server = rendering.start(
+            title, dev_type, ps, qs, branch_rate, bus_v_min, bus_v_max, soc_max, costs_range
+        )
 
-    def _update_render(self, dev_p, dev_q, branch_s, des_soc, gen_p_max,
-                       bus_v_magn, costs, network_collapsed):
+    def _update_render(self, dev_p, dev_q, branch_s, des_soc, gen_p_max, bus_v_magn, costs, network_collapsed):
         """
         Update the rendering of the environment state.
 
@@ -215,9 +210,19 @@ class ANM6(ANMEnv):
             True if no load flow solution is found (possibly infeasible); False
             otherwise.
         """
-        rendering.update(self.ws_server.address, self.date, self.year_count,
-                         dev_p, dev_q, branch_s, des_soc, gen_p_max,
-                         bus_v_magn, costs, network_collapsed)
+        rendering.update(
+            self.ws_server.address,
+            self.date,
+            self.year_count,
+            dev_p,
+            dev_q,
+            branch_s,
+            des_soc,
+            gen_p_max,
+            bus_v_magn,
+            costs,
+            network_collapsed,
+        )
 
     def close(self):
         """

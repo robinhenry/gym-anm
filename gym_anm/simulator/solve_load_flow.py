@@ -39,13 +39,11 @@ def solve_pfe_newton_raphson(simulator, xtol=1e-5):
             q.append(0)
 
     # Construct initial guess for nodal V.
-    v_guess = [0.] * (simulator.N_bus - 1) + [1.] * (simulator.N_bus - 1)
+    v_guess = [0.0] * (simulator.N_bus - 1) + [1.0] * (simulator.N_bus - 1)
     v_guess = np.array(v_guess)
 
     # Solve power flow equations using Netwon-Raphson method.
-    v, n_iter, diff, converged = \
-        _newton_raphson_sparse(v_guess, np.array(p), np.array(q),
-                               simulator.Y_bus, x_tol=xtol)
+    v, n_iter, diff, converged = _newton_raphson_sparse(v_guess, np.array(p), np.array(q), simulator.Y_bus, x_tol=xtol)
 
     # Check if a stable solution has been reached.
     stable = True if converged and diff <= xtol else False
@@ -161,7 +159,7 @@ def _dfdx(guess, Y):
     J10 = dS_dVa[1:, 1:].imag
     J11 = dS_dVm[1:, 1:].imag
 
-    J = svstack([shstack([J00, J01]), shstack([J10, J11])], format='csr')
+    J = svstack([shstack([J00, J01]), shstack([J10, J11])], format="csr")
 
     return J
 
@@ -170,7 +168,7 @@ def _construct_v_from_guess(guess):
     assert len(guess) % 2 == 0
     n = int(len(guess) / 2)
     v_nonslack = guess[n:] * np.exp(1j * guess[:n])
-    v = np.concatenate((np.array([1+0j]), v_nonslack))
+    v = np.concatenate((np.array([1 + 0j]), v_nonslack))
 
     return v
 

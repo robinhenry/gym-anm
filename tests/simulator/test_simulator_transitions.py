@@ -19,16 +19,15 @@ class TestSimulatorTransition(unittest.TestCase):
         """Solve a single-branch 2-bus AC load flow."""
         # Network definition.
         network = {
-            'baseMVA': self.baseMVA,
-            'bus': np.array([[0, 0, 50, 1., 1.],
-                             [1, 1, 50, 1.1, 0.9]]),
-            'branch': np.array([[0, 1, 0.01, 0.1, 0., 32, 1, 0]]),
-            'device': np.array([
-                [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None,
-                 None, None, None],  # slack
-                [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None,
-                 None, None]  # load
-            ])
+            "baseMVA": self.baseMVA,
+            "bus": np.array([[0, 0, 50, 1.0, 1.0], [1, 1, 50, 1.1, 0.9]]),
+            "branch": np.array([[0, 1, 0.01, 0.1, 0.0, 32, 1, 0]]),
+            "device": np.array(
+                [
+                    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
+                    [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
+                ]
+            ),
         }
         simulator = Simulator(network, self.delta_t, self.lamb)
 
@@ -51,20 +50,20 @@ class TestSimulatorTransition(unittest.TestCase):
 
         # Network definition.
         network = {
-            'baseMVA': self.baseMVA,
-            'bus': np.array([[0, 0, 50, 1., 1.],
-                             [1, 1, 50, 1.1, 0.9],
-                             [2, 1, 50, 1.1, 0.9]]),
-            'branch': np.array([[0, 1, 0.01, 0.1, 0., 30, 1, 0],
-                                [1, 2, 0.02, 0.3, 0.2, 30, 1, 0],
-                                [2, 0, 0.05, 0.2, 0.1, 30, 1, 0]]),
-            'device': np.array([
-                [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
-                [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
-                [2, 1, 1, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # gen
-                [3, 2, 2, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # renewable
-                [4, 2, 3, None, 200, -200, 200, -200, None, None, None, None, 100, 0, 0.9]  # storage
-            ])
+            "baseMVA": self.baseMVA,
+            "bus": np.array([[0, 0, 50, 1.0, 1.0], [1, 1, 50, 1.1, 0.9], [2, 1, 50, 1.1, 0.9]]),
+            "branch": np.array(
+                [[0, 1, 0.01, 0.1, 0.0, 30, 1, 0], [1, 2, 0.02, 0.3, 0.2, 30, 1, 0], [2, 0, 0.05, 0.2, 0.1, 30, 1, 0]]
+            ),
+            "device": np.array(
+                [
+                    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
+                    [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
+                    [2, 1, 1, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # gen
+                    [3, 2, 2, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # renewable
+                    [4, 2, 3, None, 200, -200, 200, -200, None, None, None, None, 100, 0, 0.9],  # storage
+                ]
+            ),
         }
         simulator = Simulator(network, self.delta_t, self.lamb)
 
@@ -75,8 +74,7 @@ class TestSimulatorTransition(unittest.TestCase):
         pq_ren = np.random.uniform(0, 1, (N, 2))
         pq_des = np.random.uniform(-1, 1, (N, 2))
         for i in range(N):
-            for j, pq in zip(range(1, 5),
-                             [pq_load[i], pq_gen[i], pq_ren[i], pq_des[i]]):
+            for j, pq in zip(range(1, 5), [pq_load[i], pq_gen[i], pq_ren[i], pq_des[i]]):
                 simulator.devices[j].p = pq[0]
                 simulator.devices[j].q = pq[1]
 
@@ -102,20 +100,24 @@ class TestSimulatorTransition(unittest.TestCase):
 
             # Network definition.
             network = {
-                'baseMVA': self.baseMVA,
-                'bus': np.array([[0, 0, 50, 1., 1.],
-                                 [1, 1, 50, 1.1, 0.9],
-                                 [2, 1, 50, 1.1, 0.9]]),
-                'branch': np.array([[0, 1, 0.01, 0.1, 0., 30, 1, 0],
-                                    [1, 2, 0.02, 0.3, 0.2, 30, tap, shift],
-                                    [2, 0, 0.05, 0.2, 0.1, 30, 1, 0]]),
-                'device': np.array([
-                    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
-                    [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
-                    [2, 1, 1, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # gen
-                    [3, 2, 2, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # renewable
-                    [4, 2, 3, None, 200, -200, 200, -200, None, None, None, None, 100, 0, 0.9]  # storage
-                ])
+                "baseMVA": self.baseMVA,
+                "bus": np.array([[0, 0, 50, 1.0, 1.0], [1, 1, 50, 1.1, 0.9], [2, 1, 50, 1.1, 0.9]]),
+                "branch": np.array(
+                    [
+                        [0, 1, 0.01, 0.1, 0.0, 30, 1, 0],
+                        [1, 2, 0.02, 0.3, 0.2, 30, tap, shift],
+                        [2, 0, 0.05, 0.2, 0.1, 30, 1, 0],
+                    ]
+                ),
+                "device": np.array(
+                    [
+                        [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
+                        [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
+                        [2, 1, 1, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # gen
+                        [3, 2, 2, None, 200, 0, 200, -200, None, None, None, None, None, None, None],  # renewable
+                        [4, 2, 3, None, 200, -200, 200, -200, None, None, None, None, 100, 0, 0.9],  # storage
+                    ]
+                ),
             }
             simulator = Simulator(network, self.delta_t, self.lamb)
 
@@ -126,8 +128,7 @@ class TestSimulatorTransition(unittest.TestCase):
             pq_ren = np.random.uniform(0, 1, (N, 2))
             pq_des = np.random.uniform(-1, 1, (N, 2))
             for i in range(N):
-                for j, pq in zip(range(1, 5),
-                                 [pq_load[i], pq_gen[i], pq_ren[i], pq_des[i]]):
+                for j, pq in zip(range(1, 5), [pq_load[i], pq_gen[i], pq_ren[i], pq_des[i]]):
                     simulator.devices[j].p = pq[0]
                     simulator.devices[j].q = pq[1]
 
@@ -149,25 +150,20 @@ class TestSimulatorTransition(unittest.TestCase):
         # Network definition.
         baseMVA = 10
         network = {
-            'baseMVA': baseMVA,
-            'bus': np.array([[0, 0, 50, 1., 1.],
-                             [1, 1, 50, 1.1, 0.9],
-                             [2, 1, 50, 1.1, 0.9]]),
-            'branch': np.array([[0, 1, 0.01, 0.1, 0., 30, 1, 0],
-                                [1, 2, 0.02, 0.3, 0.2, 30, 1, 0],
-                                [2, 0, 0.05, 0.2, 0.1, 30, 1, 0]]),
-            'device': np.array([
-                [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None,
-                 None, None, None],  # slack
-                [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None,
-                 None, None],  # load
-                [2, 1, 1, None, 100, 0, 100, -100, None, None, None, None, None,
-                 None, None],  # gen
-                [3, 2, 2, None, 100, 0, 100, -100, None, None, None, None, None,
-                 None, None],  # renewable
-                [4, 2, 3, None, 100, -100, 100, -100, None, None, None, None,
-                 100, 0, 0.9]  # storage
-            ])
+            "baseMVA": baseMVA,
+            "bus": np.array([[0, 0, 50, 1.0, 1.0], [1, 1, 50, 1.1, 0.9], [2, 1, 50, 1.1, 0.9]]),
+            "branch": np.array(
+                [[0, 1, 0.01, 0.1, 0.0, 30, 1, 0], [1, 2, 0.02, 0.3, 0.2, 30, 1, 0], [2, 0, 0.05, 0.2, 0.1, 30, 1, 0]]
+            ),
+            "device": np.array(
+                [
+                    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],  # slack
+                    [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],  # load
+                    [2, 1, 1, None, 100, 0, 100, -100, None, None, None, None, None, None, None],  # gen
+                    [3, 2, 2, None, 100, 0, 100, -100, None, None, None, None, None, None, None],  # renewable
+                    [4, 2, 3, None, 100, -100, 100, -100, None, None, None, None, 100, 0, 0.9],  # storage
+                ]
+            ),
         }
         simulator = Simulator(network, self.delta_t, self.lamb)
 
@@ -201,8 +197,8 @@ class TestSimulatorTransition(unittest.TestCase):
         # Check slack bus has V = 1 + 0j.
         for bus in simulator.buses.values():
             if bus.is_slack:
-                self.assertAlmostEqual(bus.v.real, 1., places=self.places)
-                self.assertAlmostEqual(bus.v.imag, 0., places=self.places)
+                self.assertAlmostEqual(bus.v.real, 1.0, places=self.places)
+                self.assertAlmostEqual(bus.v.imag, 0.0, places=self.places)
 
         # Check that each bus has P_i = \sum_d P_d and Q_i = \sum_d Q_d.
         p_bus = {i: 0 for i in simulator.buses.keys()}
@@ -234,10 +230,8 @@ class TestSimulatorTransition(unittest.TestCase):
         for branch in simulator.branches.values():
             # At the sending end.
             s_from = simulator.buses[branch.f_bus].v * np.conj(branch.i_from)
-            self.assertAlmostEqual(s_from.real, branch.p_from,
-                                   places=self.places)
-            self.assertAlmostEqual(s_from.imag, branch.q_from,
-                                   places=self.places)
+            self.assertAlmostEqual(s_from.real, branch.p_from, places=self.places)
+            self.assertAlmostEqual(s_from.imag, branch.q_from, places=self.places)
 
             # At the receiving end.
             s_to = simulator.buses[branch.t_bus].v * np.conj(branch.i_to)
@@ -248,18 +242,13 @@ class TestSimulatorTransition(unittest.TestCase):
         for br in simulator.branches.values():
             v_i = simulator.buses[br.f_bus].v
             v_t = simulator.buses[br.t_bus].v
-            i_from_true = (br.series + br.shunt) / br.tap_magn ** 2 \
-                          * v_i - br.series / np.conj(br.tap) * v_t
-            i_to_true = - br.series / br.tap * v_i + (br.series + br.shunt) * v_t
+            i_from_true = (br.series + br.shunt) / br.tap_magn**2 * v_i - br.series / np.conj(br.tap) * v_t
+            i_to_true = -br.series / br.tap * v_i + (br.series + br.shunt) * v_t
 
-            self.assertAlmostEqual(i_from_true.real, br.i_from.real,
-                                   places=self.places)
-            self.assertAlmostEqual(i_from_true.imag, br.i_from.imag,
-                                   places=self.places)
-            self.assertAlmostEqual(i_to_true.real, br.i_to.real,
-                                   places=self.places)
-            self.assertAlmostEqual(i_to_true.imag, br.i_to.imag,
-                                   places=self.places)
+            self.assertAlmostEqual(i_from_true.real, br.i_from.real, places=self.places)
+            self.assertAlmostEqual(i_from_true.imag, br.i_from.imag, places=self.places)
+            self.assertAlmostEqual(i_to_true.real, br.i_to.real, places=self.places)
+            self.assertAlmostEqual(i_to_true.imag, br.i_to.imag, places=self.places)
 
         # Check the sign of |S_{ij}| for each branch.
         for br in simulator.branches.values():
@@ -267,17 +256,14 @@ class TestSimulatorTransition(unittest.TestCase):
 
         # Check that |S| = |S_{ij}| or |S| = |S_{ji}|.
         for br in simulator.branches.values():
-            s_app = np.maximum(np.sqrt(br.p_from ** 2 + br.q_from ** 2),
-                               np.sqrt(br.p_to ** 2 + br.q_to ** 2))
+            s_app = np.maximum(np.sqrt(br.p_from**2 + br.q_from**2), np.sqrt(br.p_to**2 + br.q_to**2))
             if np.sign(br.s_apparent_max) >= 0:
-                self.assertAlmostEqual(br.s_apparent_max, s_app,
-                                       places=self.places)
+                self.assertAlmostEqual(br.s_apparent_max, s_app, places=self.places)
             else:
-                self.assertAlmostEqual(-br.s_apparent_max, s_app,
-                                       places=self.places)
+                self.assertAlmostEqual(-br.s_apparent_max, s_app, places=self.places)
 
         return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

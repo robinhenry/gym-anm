@@ -8,8 +8,9 @@ from gym_anm.simulator.components.errors import *
 
 class TestDevice(unittest.TestCase):
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))  # Set the working directory to the root.
+        os.chdir(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )  # Set the working directory to the root.
 
         self.bus_ids = [0, 1, 2]
         self.baseMVA = 10
@@ -28,10 +29,10 @@ class TestDevice(unittest.TestCase):
 
 
 class TestLoad(unittest.TestCase):
-
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))  # Set the working directory to the root.
+        os.chdir(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )  # Set the working directory to the root.
 
         self.bus_ids = [0, 1, 2]
         self.baseMVA = 10
@@ -82,7 +83,7 @@ class TestLoad(unittest.TestCase):
             self.assertEqual(load.q, p * spec[3])
 
         # p < p_min
-        for p in np.random.uniform(5*spec[5], spec[5], 50):
+        for p in np.random.uniform(5 * spec[5], spec[5], 50):
             p /= self.baseMVA
             load.map_pq(p)
             self.assertEqual(load.p, spec[5] / self.baseMVA)
@@ -97,10 +98,10 @@ class TestLoad(unittest.TestCase):
 
 
 class TestGenerator(unittest.TestCase):
-
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))  # Set the working directory to the root.
+        os.chdir(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )  # Set the working directory to the root.
 
         self.bus_ids = [0, 1, 2]
         self.baseMVA = 10
@@ -277,10 +278,8 @@ class TestGenerator(unittest.TestCase):
                 for p_pot in p_pots:
                     gen.p_pot = p_pot
                     gen.map_pq(p, q)
-                    true_p = np.clip(p, spec[5] / self.baseMVA,
-                                     np.minimum(spec[4] / self.baseMVA, p_pot))
-                    true_q = np.clip(q, spec[7] / self.baseMVA,
-                                     spec[6] / self.baseMVA)
+                    true_p = np.clip(p, spec[5] / self.baseMVA, np.minimum(spec[4] / self.baseMVA, p_pot))
+                    true_q = np.clip(q, spec[7] / self.baseMVA, spec[6] / self.baseMVA)
                     self.assertAlmostEqual(gen.p, true_p, places=5)
                     self.assertAlmostEqual(gen.q, true_q, places=5)
 
@@ -298,8 +297,7 @@ class TestGenerator(unittest.TestCase):
 
 class TestStorageUnit(unittest.TestCase):
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))
+        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
         self.bus_ids = [0, 1, 2]
         self.baseMVA = 10
@@ -347,7 +345,6 @@ class TestStorageUnit(unittest.TestCase):
         spec = np.array([2, 1, 3, None, 10, 12, 20, -30, 5, -6, 10, -15, 100, 10, 0.9])
         with self.assertRaises(StorageSpecError):
             StorageUnit(spec, self.bus_ids, self.baseMVA)
-
 
     def test_infeasible_q_bounds(self):
         spec = np.array([2, 1, 3, None, 10, -12, 20, 30, 5, -6, 10, -15, 100, 10, 0.9])
@@ -411,7 +408,7 @@ class TestStorageUnit(unittest.TestCase):
         self.assertEqual(su.p_minus, spec[5] / self.baseMVA)
 
     def test_q_plus(self):
-       # q_plus < q_min and q_plus > q_max
+        # q_plus < q_min and q_plus > q_max
         for q_plus in [-35, 25]:
             spec = np.array([2, 1, 3, None, 10, -12, 20, -30, 5, -6, q_plus, -15, 100, 10, 0.9])
             with self.assertRaises(StorageSpecError):
@@ -462,21 +459,19 @@ class TestStorageUnit(unittest.TestCase):
 
         # p > 0
         for p in np.random.uniform(0, 10, 50):
-            for delta_t in [1., 0.25]:
+            for delta_t in [1.0, 0.25]:
                 su.soc = 50 / self.baseMVA
                 su.p = p / self.baseMVA
                 su.update_soc(delta_t)
-                self.assertAlmostEqual(su.soc * self.baseMVA, 50 - delta_t * p / spec[14],
-                                       places=5)
+                self.assertAlmostEqual(su.soc * self.baseMVA, 50 - delta_t * p / spec[14], places=5)
 
         # p < 0
         for p in np.random.uniform(-10, 0, 50):
-            for delta_t in [1., 0.25]:
+            for delta_t in [1.0, 0.25]:
                 su.soc = 50 / self.baseMVA
                 su.p = p / self.baseMVA
                 su.update_soc(delta_t)
-                self.assertAlmostEqual(su.soc * self.baseMVA, 50 - delta_t * p * spec[14],
-                                       places=5)
+                self.assertAlmostEqual(su.soc * self.baseMVA, 50 - delta_t * p * spec[14], places=5)
 
     def test_update_soc_clipping(self):
         spec = np.array([2, 1, 3, None, 10, -12, 20, -30, 5, -6, 10, -15, 10, 0, 1])
@@ -504,7 +499,7 @@ class TestStorageUnit(unittest.TestCase):
             self.assertEqual(su.tau_1, 0)
             self.assertEqual(su.tau_2, 0)
 
-        p_min = - 12
+        p_min = -12
         for p_minus in [None, p_min]:
             spec = np.array([2, 1, 3, None, 10, p_min, 20, -30, 5, p_minus, 10, -15, 10, 0, 1])
             su = StorageUnit(spec, self.bus_ids, self.baseMVA)
@@ -528,10 +523,14 @@ class TestStorageUnit(unittest.TestCase):
     def test_map_pq_no_flexibility_limits(self):
         spec = np.array([2, 1, 3, None, 10, -12, 20, -30, None, None, None, None, 1000, 0, 1])
         su = StorageUnit(spec, self.bus_ids, self.baseMVA)
-        delta_t = 1.
+        delta_t = 1.0
 
-        ps = list(np.random.uniform(-20, -12, 10) / self.baseMVA) + list(np.random.uniform(10.01, 20, 10) / self.baseMVA)
-        qs = list(np.random.uniform(-40, -30, 10) / self.baseMVA) + list(np.random.uniform(20.01, 30, 10) / self.baseMVA)
+        ps = list(np.random.uniform(-20, -12, 10) / self.baseMVA) + list(
+            np.random.uniform(10.01, 20, 10) / self.baseMVA
+        )
+        qs = list(np.random.uniform(-40, -30, 10) / self.baseMVA) + list(
+            np.random.uniform(20.01, 30, 10) / self.baseMVA
+        )
 
         for p in ps:
             for q in qs:
@@ -552,7 +551,7 @@ class TestStorageUnit(unittest.TestCase):
     def test_map_pq_with_flex_limits(self):
         spec = np.array([2, 1, 3, None, 10, -11, 20, -30, 5, -6, 15, -25, 1000, 0, 1])
         su = StorageUnit(spec, self.bus_ids, self.baseMVA)
-        delta_t = 1.
+        delta_t = 1.0
 
         points = np.array([(8.5, 18.5), (8.5, -28.5), (-9.5, 18.5), (-9.5, -28.5)]) / self.baseMVA
         mapped = np.array([(7.5, 17.5), (7.5, -27.5), (-8.5, 17.5), (-8.5, -27.5)]) / self.baseMVA
@@ -563,5 +562,5 @@ class TestStorageUnit(unittest.TestCase):
             self.assertAlmostEqual(su.q, m[1])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

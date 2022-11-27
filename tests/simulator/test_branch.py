@@ -12,13 +12,13 @@ class TestBranch(unittest.TestCase):
 
     def test_simple_branch(self):
         for _ in range(100):
-            spec = np.concatenate((np.array([1, 2]), np.random.uniform(0., 20, 5), np.random.uniform(0, 360, 1)))
+            spec = np.concatenate((np.array([1, 2]), np.random.uniform(0.0, 20, 5), np.random.uniform(0, 360, 1)))
             branch = TransmissionLine(spec, self.baseMVA, self.bus_ids)
 
-            series = 1 / (spec[2] + 1.j * spec[3])
-            shunt = 1.j * spec[4] / 2
+            series = 1 / (spec[2] + 1.0j * spec[3])
+            shunt = 1.0j * spec[4] / 2
             shift_rad = spec[7] * np.pi / 180
-            tap = spec[6] * np.exp(1.j * shift_rad)
+            tap = spec[6] * np.exp(1.0j * shift_rad)
 
             self.assertEqual(branch.f_bus, spec[0])
             self.assertEqual(branch.t_bus, spec[1])
@@ -89,14 +89,13 @@ class TestBranch(unittest.TestCase):
         with self.assertRaises(BranchSpecError):
             TransmissionLine(spec, self.baseMVA, self.bus_ids)
 
-
         for tap_magn in np.random.uniform(-10, -1, 10):
-            spec = np.array([1, 2, 0.1, 0.2, 0.3, 10, tap_magn, 0.])
+            spec = np.array([1, 2, 0.1, 0.2, 0.3, 10, tap_magn, 0.0])
             with self.assertRaises(BranchSpecError):
                 TransmissionLine(spec, self.baseMVA, self.bus_ids)
 
         for shift in list(np.random.uniform(-360, -1, 50)) + list(np.random.uniform(360.1, 1000, 50)):
-            spec = np.array([1, 2, 0.1, 0.2, 0.3, 10, 1., shift])
+            spec = np.array([1, 2, 0.1, 0.2, 0.3, 10, 1.0, shift])
             with self.assertRaises(BranchSpecError):
                 TransmissionLine(spec, self.baseMVA, self.bus_ids)
 
@@ -104,14 +103,14 @@ class TestBranch(unittest.TestCase):
         spec = np.array([1, 2, 0.1, 0.2, 0.3, 10, 2, 20])
         branch = TransmissionLine(spec, self.baseMVA, self.bus_ids)
 
-        series = 1 / (spec[2] + 1.j * spec[3])
-        shunt = 1.j * spec[4] / 2
+        series = 1 / (spec[2] + 1.0j * spec[3])
+        shunt = 1.0j * spec[4] / 2
         shift_rad = spec[7] * np.pi / 180
-        tap = spec[6] * np.exp(1.j * shift_rad)
+        tap = spec[6] * np.exp(1.0j * shift_rad)
 
         for v_f, v_t in zip(np.random.uniform(-10, -10, 100), np.random.uniform(-10, -10, 100)):
-            I_ij = (series + shunt) * v_f / np.abs(tap)**2 - series * v_t / np.conj(tap)
-            I_ji = - series * v_f / tap + (series + shunt) * v_t
+            I_ij = (series + shunt) * v_f / np.abs(tap) ** 2 - series * v_t / np.conj(tap)
+            I_ji = -series * v_f / tap + (series + shunt) * v_t
 
             branch.compute_currents(v_f, v_t)
             self.assertAlmostEqual(branch.i_from, I_ij, places=5)
@@ -130,9 +129,9 @@ class TestBranch(unittest.TestCase):
                 branch.compute_power_flows(v_f, v_t)
                 self.assertAlmostEqual(branch.p_from, s_f.real, places=5)
                 self.assertAlmostEqual(branch.p_to, s_t.real, places=5)
-                self.assertAlmostEqual(branch.q_from, s_f.imag,places=5)
+                self.assertAlmostEqual(branch.q_from, s_f.imag, places=5)
                 self.assertAlmostEqual(branch.q_to, s_t.imag, places=5)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -10,8 +10,7 @@ import warnings
 from scipy.sparse.linalg import MatrixRankWarning
 
 from ..simulator import Simulator
-from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError, \
-    EnvNextVarsError
+from ..errors import ObsSpaceError, ObsNotSupportedError, EnvInitializationError, EnvNextVarsError
 from .utils import check_env_args
 from ..simulator.components.constants import STATE_VARIABLES
 from ..simulator.components import StorageUnit, Generator, Load
@@ -79,8 +78,7 @@ class ANMEnv(gym.Env):
         The random state/seed of the environment.
     """
 
-    def __init__(self, network, observation, K, delta_t, gamma, lamb,
-                 aux_bounds=None, costs_clipping=None, seed=None):
+    def __init__(self, network, observation, K, delta_t, gamma, lamb, aux_bounds=None, costs_clipping=None, seed=None):
         """
         Parameters
         ----------
@@ -136,14 +134,16 @@ class ANMEnv(gym.Env):
         self.simulator = Simulator(network, self.delta_t, self.lamb)
 
         # Check the arguments provided.
-        check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
-                       self.simulator.state_bounds)
+        check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds, self.simulator.state_bounds)
 
         # Variables to include in state vectors.
-        self.state_values = [('dev_p', 'all', 'MW'), ('dev_q', 'all', 'MVAr'),
-                             ('des_soc', 'all', 'MWh'),
-                             ('gen_p_max', 'all', 'MW'),
-                             ('aux', 'all', None)]
+        self.state_values = [
+            ("dev_p", "all", "MW"),
+            ("dev_q", "all", "MVAr"),
+            ("des_soc", "all", "MWh"),
+            ("gen_p_max", "all", "MW"),
+            ("aux", "all", None),
+        ]
         self.state_values = self._expand_all_ids(self.state_values)
         self.state_N = sum(len(s[1]) for s in self.state_values)
 
@@ -209,7 +209,7 @@ class ANMEnv(gym.Env):
         lower_bounds, upper_bounds = [], []
 
         if self.obs_values is None:
-            logger.warning('The observation space is unbounded.')
+            logger.warning("The observation space is unbounded.")
             # In this case, the size of the obs space is obtained after the
             # environment has been reset. See `reset()`.
             return None
@@ -218,7 +218,7 @@ class ANMEnv(gym.Env):
             bounds = self.simulator.state_bounds
             for key, nodes, unit in self.obs_values:
                 for n in nodes:
-                    if key == 'aux':
+                    if key == "aux":
                         if self.aux_bounds is not None:
                             lower_bounds.append(self.aux_bounds[n][0])
                             upper_bounds.append(self.aux_bounds[n][1])
@@ -229,9 +229,7 @@ class ANMEnv(gym.Env):
                         lower_bounds.append(bounds[key][n][unit][0])
                         upper_bounds.append(bounds[key][n][unit][1])
 
-        space = spaces.Box(low=np.array(lower_bounds),
-                           high=np.array(upper_bounds),
-                           dtype=np.float64)
+        space = spaces.Box(low=np.array(lower_bounds), high=np.array(upper_bounds), dtype=np.float64)
 
         return space
 
@@ -253,8 +251,8 @@ class ANMEnv(gym.Env):
         self.done = False
         self.render_mode = None
         self.timestep = 0
-        self.e_loss = 0.
-        self.penalty = 0.
+        self.e_loss = 0.0
+        self.penalty = 0.0
 
         # Initialize the state.
         init_state_found = False
@@ -265,21 +263,21 @@ class ANMEnv(gym.Env):
             self.state = self.init_state()
 
             # Check s_0 has the correct size.
-            expected = 2 * self.simulator.N_device + self.simulator.N_des \
-                       + self.simulator.N_non_slack_gen + self.K
+            expected = 2 * self.simulator.N_device + self.simulator.N_des + self.simulator.N_non_slack_gen + self.K
             if self.state.size != expected:
-                msg = "Expected size of initial state s0 is %d but actual is %d" \
-                      % (expected, self.state.size)
+                msg = "Expected size of initial state s0 is %d but actual is %d" % (expected, self.state.size)
                 raise EnvInitializationError(msg)
 
             # Apply the initial state to the simulator.
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore', MatrixRankWarning)
+                warnings.simplefilter("ignore", MatrixRankWarning)
                 init_state_found = self.simulator.reset(self.state)
 
             if n_init_states == n_init_states_max:
-                msg = "No non-terminal state found out of %d initial states for " \
-                      "environment %s" % (n_init_states_max, self.__name__)
+                msg = "No non-terminal state found out of %d initial states for " "environment %s" % (
+                    n_init_states_max,
+                    self.__name__,
+                )
                 raise EnvInitializationError(msg)
 
         # Reconstruct the sate vector in case the original state was infeasible.
@@ -290,8 +288,7 @@ class ANMEnv(gym.Env):
 
         # Update the observation space bounds if required.
         if self.observation_space is None:
-            self.observation_space = spaces.Box(low=-np.ones(len(obs)) * np.inf,
-                                                high=np.ones(len(obs)) * np.inf)
+            self.observation_space = spaces.Box(low=-np.ones(len(obs)) * np.inf, high=np.ones(len(obs)) * np.inf)
             self.observation_N = self.observation_space.shape[0]
 
         err_msg = "Observation %r (%s) invalid." % (obs, type(obs))
@@ -322,8 +319,7 @@ class ANMEnv(gym.Env):
             The corresponding observation vector :math:`o_t`.
         """
         obs = self._extract_state_variables(self.obs_values)
-        obs = np.clip(obs, self.observation_space.low,
-                      self.observation_space.high)
+        obs = np.clip(obs, self.observation_space.low, self.observation_space.high)
         return obs
 
     def step(self, action):
@@ -354,23 +350,19 @@ class ANMEnv(gym.Env):
         # has already reached a terminal state.
         if self.done:
             obs = self._terminal_state(self.observation_N)
-            return obs, 0., self.done, {}
+            return obs, 0.0, self.done, {}
 
         # 1a. Sample the internal stochastic variables.
         vars = self.next_vars(self.state)
-        expected_size = self.simulator.N_load + self.simulator.N_non_slack_gen \
-                        + self.K
+        expected_size = self.simulator.N_load + self.simulator.N_non_slack_gen + self.K
         if vars.size != expected_size:
-            msg = 'Next vars vector has size %d but expected is %d' % \
-                  (vars.size, expected_size)
+            msg = "Next vars vector has size %d but expected is %d" % (vars.size, expected_size)
             raise EnvNextVarsError(msg)
 
-        P_load = vars[:self.simulator.N_load]
-        P_pot = vars[self.simulator.N_load: self.simulator.N_load +
-                                            self.simulator.N_non_slack_gen]
-        aux = vars[self.simulator.N_load + self.simulator.N_non_slack_gen:]
-        err_msg = 'Only {} auxiliary variables are generated, but K={} are ' \
-                  'expected.'.format(len(aux), self.K)
+        P_load = vars[: self.simulator.N_load]
+        P_pot = vars[self.simulator.N_load : self.simulator.N_load + self.simulator.N_non_slack_gen]
+        aux = vars[self.simulator.N_load + self.simulator.N_non_slack_gen :]
+        err_msg = "Only {} auxiliary variables are generated, but K={} are " "expected.".format(len(aux), self.K)
         assert len(aux) == self.K, err_msg
 
         # 1b. Convert internal variables to dictionaries.
@@ -387,28 +379,28 @@ class ANMEnv(gym.Env):
         # 2. Extract the different actions from the action vector.
         P_set_points = {}
         Q_set_points = {}
-        gen_non_slack_ids = [i for i, dev in self.simulator.devices.items()
-                             if isinstance(dev, Generator) and not dev.is_slack]
-        des_ids = [i for i, dev in self.simulator.devices.items()
-                   if isinstance(dev, StorageUnit)]
+        gen_non_slack_ids = [
+            i for i, dev in self.simulator.devices.items() if isinstance(dev, Generator) and not dev.is_slack
+        ]
+        des_ids = [i for i, dev in self.simulator.devices.items() if isinstance(dev, StorageUnit)]
         N_gen = len(gen_non_slack_ids)
         N_des = len(des_ids)
 
         for a, dev_id in zip(action[:N_gen], gen_non_slack_ids):
             P_set_points[dev_id] = a
-        for a, dev_id in zip(action[N_gen: 2 * N_gen], gen_non_slack_ids):
+        for a, dev_id in zip(action[N_gen : 2 * N_gen], gen_non_slack_ids):
             Q_set_points[dev_id] = a
-        for a, dev_id in zip(action[2 * N_gen: 2 * N_gen + N_des], des_ids):
+        for a, dev_id in zip(action[2 * N_gen : 2 * N_gen + N_des], des_ids):
             P_set_points[dev_id] = a
-        for a, dev_id in zip(action[2 * N_gen + N_des:], des_ids):
+        for a, dev_id in zip(action[2 * N_gen + N_des :], des_ids):
             Q_set_points[dev_id] = a
 
         # 3a. Apply the action in the simulator.
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', MatrixRankWarning)
-            _, r, e_loss, penalty, pfe_converged = \
-                self.simulator.transition(P_load_dict, P_pot_dict, P_set_points,
-                                          Q_set_points)
+            warnings.simplefilter("ignore", MatrixRankWarning)
+            _, r, e_loss, penalty, pfe_converged = self.simulator.transition(
+                P_load_dict, P_pot_dict, P_set_points, Q_set_points
+            )
 
             # A terminal state has been reached if no solution to the power
             # flow equations is found.
@@ -416,20 +408,19 @@ class ANMEnv(gym.Env):
 
         # 3b. Clip the reward.
         if not self.done:
-            self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0,
-                                                    self.costs_clipping[0])
+            self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0, self.costs_clipping[0])
             self.penalty = np.clip(penalty, 0, self.costs_clipping[1])
-            r = - (self.e_loss + self.penalty)
+            r = -(self.e_loss + self.penalty)
         else:
             # Very large reward if a terminal state has been reached.
-            r = - self.costs_clipping[1] / (1 - self.gamma)
+            r = -self.costs_clipping[1] / (1 - self.gamma)
             self.e_loss = self.costs_clipping[0]
             self.penalty = self.costs_clipping[1]
 
         # 4. Construct the state and observation vector.
         if not self.done:
             for k in range(self.K):
-                self.state[k-self.K] = aux[k]
+                self.state[k - self.K] = aux[k]
             self.state = self._construct_state()
             obs = self.observation(self.state)
 
@@ -447,7 +438,7 @@ class ANMEnv(gym.Env):
 
         return obs, r, self.done, {}
 
-    def render(self, mode='human'):
+    def render(self, mode="human"):
         """
         Update the rendering of the environment (to be overwritten).
 
@@ -468,7 +459,7 @@ class ANMEnv(gym.Env):
         raise NotImplementedError()
 
     def seed(self, seed=None):
-        """Seed the random number generator. """
+        """Seed the random number generator."""
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
@@ -482,8 +473,7 @@ class ANMEnv(gym.Env):
             The action space of the environment.
         """
 
-        P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds = \
-            self.simulator.get_action_space()
+        P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds = self.simulator.get_action_space()
 
         lower_bounds, upper_bounds = [], []
         for x in [P_gen_bounds, Q_gen_bounds, P_des_bounds, Q_des_bounds]:
@@ -491,9 +481,7 @@ class ANMEnv(gym.Env):
                 lower_bounds.append(x[dev_id][0])
                 upper_bounds.append(x[dev_id][1])
 
-        space = spaces.Box(low=np.array(lower_bounds),
-                           high=np.array(upper_bounds),
-                           dtype=np.float64)
+        space = spaces.Box(low=np.array(lower_bounds), high=np.array(upper_bounds), dtype=np.float64)
 
         return space
 
@@ -501,7 +489,7 @@ class ANMEnv(gym.Env):
         """Handles the different ways of specifying an observation space."""
 
         # Case 1: environment is fully observable.
-        if isinstance(observation, str) and observation == 'state':
+        if isinstance(observation, str) and observation == "state":
             obs_values = deepcopy(self.state_values)
 
         # Case 2: observation space is provided as a list.
@@ -529,20 +517,20 @@ class ANMEnv(gym.Env):
         # Transform the 'all' option into a list of bus/branch/device IDs.
         if values is not None:
             for idx, o in enumerate(values):
-                if isinstance(o[1], str) and o[1] == 'all':
-                    if 'bus' in o[0]:
+                if isinstance(o[1], str) and o[1] == "all":
+                    if "bus" in o[0]:
                         ids = list(self.simulator.buses.keys())
-                    elif 'dev' in o[0]:
+                    elif "dev" in o[0]:
                         ids = list(self.simulator.devices.keys())
-                    elif 'des' in o[0]:
-                        ids = [i for i, d in self.simulator.devices.items()
-                               if isinstance(d, StorageUnit)]
-                    elif 'gen' in o[0]:
-                        ids = [i for i, d in self.simulator.devices.items()
-                               if isinstance(d, Generator) and not d.is_slack]
-                    elif 'branch' in o[0]:
+                    elif "des" in o[0]:
+                        ids = [i for i, d in self.simulator.devices.items() if isinstance(d, StorageUnit)]
+                    elif "gen" in o[0]:
+                        ids = [
+                            i for i, d in self.simulator.devices.items() if isinstance(d, Generator) and not d.is_slack
+                        ]
+                    elif "branch" in o[0]:
                         ids = list(self.simulator.branches.keys())
-                    elif o[0] == 'aux':
+                    elif o[0] == "aux":
                         ids = list(range(0, self.K))
                     else:
                         raise ObsNotSupportedError(o[0], STATE_VARIABLES.keys())
@@ -586,7 +574,7 @@ class ANMEnv(gym.Env):
             for idx in value[1]:
                 if value[0] in full_state.keys():
                     o = full_state[value[0]][value[2]][idx]
-                elif value[0] == 'aux':
+                elif value[0] == "aux":
                     o = self.state[idx - self.K]
                 else:
                     raise ObsNotSupportedError(value[0], STATE_VARIABLES.keys())

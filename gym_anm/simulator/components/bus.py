@@ -40,11 +40,11 @@ class Bus(object):
             The corresponding bus row in the network file describing the network.
         """
 
-        self.id = int(bus_spec[BUS_H['BUS_ID']])
-        self.type = int(bus_spec[BUS_H['BUS_TYPE']])
-        self.baseKV = bus_spec[BUS_H['BASE_KV']]
-        self.v_max = bus_spec[BUS_H['VMAX']]
-        self.v_min = bus_spec[BUS_H['VMIN']]
+        self.id = int(bus_spec[BUS_H["BUS_ID"]])
+        self.type = int(bus_spec[BUS_H["BUS_TYPE"]])
+        self.baseKV = bus_spec[BUS_H["BASE_KV"]]
+        self.v_max = bus_spec[BUS_H["VMAX"]]
+        self.v_min = bus_spec[BUS_H["VMIN"]]
 
         if self.type == 0:
             self.is_slack = True
@@ -74,8 +74,7 @@ class Bus(object):
         if self.is_slack:
             return self._v_slack
         else:
-            raise AttributeError('The bus with ID {} is not the slack '
-                                 'bus.'.format(self.id))
+            raise AttributeError("The bus with ID {} is not the slack " "bus.".format(self.id))
 
     @v_slack.setter
     def v_slack(self, value):
@@ -84,17 +83,17 @@ class Bus(object):
     def _check_input_specs(self):
 
         if self.type is None or self.type not in [0, 1]:
-            raise BusSpecError('The BUS_TYPE value for bus %d should be in [0, 1]' % (self.id))
+            raise BusSpecError("The BUS_TYPE value for bus %d should be in [0, 1]" % (self.id))
 
         if self.baseKV is None or self.baseKV <= 0:
-            raise BusSpecError('The BASE_KV value for bus %d should be > 0' % (self.id))
+            raise BusSpecError("The BASE_KV value for bus %d should be > 0" % (self.id))
 
         if self.v_max is None or self.v_max < 0:
-            raise BusSpecError('The VMAX value for bus %d should be >= 0' % (self.id))
+            raise BusSpecError("The VMAX value for bus %d should be >= 0" % (self.id))
 
         if self.v_min is None or self.v_min < 0:
             if not self.is_slack:
-                raise BusSpecError('The VMIN value for bus %d should be >= 0' % (self.id))
+                raise BusSpecError("The VMIN value for bus %d should be >= 0" % (self.id))
 
         if not self.is_slack and self.v_max < self.v_min:
-            raise BusSpecError('Bus %d has VMAX < VMIN' % (self.id))
+            raise BusSpecError("Bus %d has VMAX < VMIN" % (self.id))

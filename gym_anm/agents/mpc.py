@@ -29,8 +29,7 @@ class MPCAgent(object):
     All values are used in per-unit.
     """
 
-    def __init__(self, simulator, action_space, gamma, safety_margin=0.9,
-                 planning_steps=1):
+    def __init__(self, simulator, action_space, gamma, safety_margin=0.9, planning_steps=1):
         """
         Parameters
         ----------
@@ -66,21 +65,21 @@ class MPCAgent(object):
         self.n_des = simulator.N_des
         self.n_load = simulator.N_load
         self.n_rer = simulator.N_gen_rer
-        self.load_ids = [i for i, d in simulator.devices.items()
-                         if isinstance(d, Load)]
+        self.load_ids = [i for i, d in simulator.devices.items() if isinstance(d, Load)]
         self.gen_ids = [i for i, d in simulator.devices.items() if isinstance(d, Generator)]
-        self.non_slack_gen_ids = [i for i, d in simulator.devices.items()
-                                  if isinstance(d, Generator) and not d.is_slack]
-        self.gen_rer_ids = [i for i, d in simulator.devices.items()
-                            if isinstance(d, RenewableGen)]
-        self.des_ids = [i for i, d in simulator.devices.items()
-                        if isinstance(d, StorageUnit)]
+        self.non_slack_gen_ids = [
+            i for i, d in simulator.devices.items() if isinstance(d, Generator) and not d.is_slack
+        ]
+        self.gen_rer_ids = [i for i, d in simulator.devices.items() if isinstance(d, RenewableGen)]
+        self.des_ids = [i for i, d in simulator.devices.items() if isinstance(d, StorageUnit)]
         self.branch_ids = list(simulator.branches.keys())
         self.device_ids = list(simulator.devices.keys())
         self.bus_ids = list(simulator.buses.keys())
-        self.slack_dev_id = [i for i in self.device_ids if i not in self.des_ids
-                             and i not in self.non_slack_gen_ids
-                             and i not in self.load_ids][0]
+        self.slack_dev_id = [
+            i
+            for i in self.device_ids
+            if i not in self.des_ids and i not in self.non_slack_gen_ids and i not in self.load_ids
+        ][0]
 
         # Define a mapping from the device to the buses they are connected to
         # (using the simulator internal indices).
@@ -111,20 +110,13 @@ class MPCAgent(object):
         bus_ids = [self.bus_id_mapping[i] for i in self.bus_ids]
         self.B_bus = simulator.Y_bus.imag[bus_ids, :][:, bus_ids].toarray()
         self.branch_rate = [br.rate for br in simulator.branches.values()]
-        self.P_gen_min = [g.p_min for g in simulator.devices.values()
-                          if isinstance(g, Generator) and not g.is_slack]
-        self.P_gen_max = [g.p_max for g in simulator.devices.values()
-                          if isinstance(g, Generator) and not g.is_slack]
-        self.P_des_min = [d.p_min for d in simulator.devices.values()
-                          if isinstance(d, StorageUnit)]
-        self.P_des_max = [d.p_max for d in simulator.devices.values()
-                          if isinstance(d, StorageUnit)]
-        self.soc_min = [d.soc_min for d in simulator.devices.values()
-                        if isinstance(d, StorageUnit)]
-        self.soc_max = [d.soc_max for d in simulator.devices.values()
-                        if isinstance(d, StorageUnit)]
-        self.des_eff = [d.eff for d in simulator.devices.values()
-                        if isinstance(d, StorageUnit)]
+        self.P_gen_min = [g.p_min for g in simulator.devices.values() if isinstance(g, Generator) and not g.is_slack]
+        self.P_gen_max = [g.p_max for g in simulator.devices.values() if isinstance(g, Generator) and not g.is_slack]
+        self.P_des_min = [d.p_min for d in simulator.devices.values() if isinstance(d, StorageUnit)]
+        self.P_des_max = [d.p_max for d in simulator.devices.values() if isinstance(d, StorageUnit)]
+        self.soc_min = [d.soc_min for d in simulator.devices.values() if isinstance(d, StorageUnit)]
+        self.soc_max = [d.soc_max for d in simulator.devices.values() if isinstance(d, StorageUnit)]
+        self.des_eff = [d.eff for d in simulator.devices.values() if isinstance(d, StorageUnit)]
 
         # Indicate the optimization problem has not been constructed yet. This is
         # done during the first call of `act()`.
@@ -140,7 +132,7 @@ class MPCAgent(object):
             The active power injection at each bus expressed in terms of the
             active power injection of its devices.
         """
-        P_bus = [0.] * self.n_bus
+        P_bus = [0.0] * self.n_bus
         for d in self.device_ids:
             i = self.dev_to_bus[d]
             P_bus[self.bus_id_mapping[i]] += P_dev[self.dev_id_mapping[d]]
@@ -176,7 +168,7 @@ class MPCAgent(object):
             The N-stage convex optimization problem.
         """
 
-        objective = 0.
+        objective = 0.0
         constraints = []
 
         # Variable coupled between different time steps.
@@ -190,14 +182,13 @@ class MPCAgent(object):
 
             # Create a new single-step optimization problem coupled with the
             # previous time step.
-            obj, consts, optim_vars, soc = self._single_step_optimization_problem(
-                P_load_forecast, P_gen_forecast, soc)
-            objective += self.gamma ** i * obj
+            obj, consts, optim_vars, soc = self._single_step_optimization_problem(P_load_forecast, P_gen_forecast, soc)
+            objective += self.gamma**i * obj
             constraints += consts
 
             # Store the optimization variables.
-            self.P_dev_vars.append(optim_vars['P_dev'])
-            self.V_bus_ang_vars.append(optim_vars['V_bus_ang'])
+            self.P_dev_vars.append(optim_vars["P_dev"])
+            self.V_bus_ang_vars.append(optim_vars["V_bus_ang"])
 
         # 3. Construct the final N-stage optimization problem.
         problem = cp.Problem(cp.Minimize(objective), constraints)
@@ -250,7 +241,7 @@ class MPCAgent(object):
         # P_bus[i] = \sum_{ij} B_{ij} (V_ang[i] - V_ang[j]).
         a = []
         for i in self.bus_ids:
-            c = 0.
+            c = 0.0
             for j, k in self.branch_ids:
                 l = self.bus_id_mapping[j]
                 m = self.bus_id_mapping[k]
@@ -294,7 +285,7 @@ class MPCAgent(object):
             p_charging = cp.Variable(nonneg=True)
             p_discharging = cp.Variable(nonneg=True)
             delta_soc_charging = p_charging * self.delta_t * self.des_eff[i]
-            delta_soc_discharging = - p_discharging * self.delta_t / self.des_eff[i]
+            delta_soc_discharging = -p_discharging * self.delta_t / self.des_eff[i]
             new_soc = soc_prev[i] + delta_soc_charging + delta_soc_discharging
             new_socs.append(new_soc)
             c.append(P_dev[self.dev_id_mapping[des]] == p_discharging - p_charging)
@@ -304,30 +295,26 @@ class MPCAgent(object):
         constraints += _make_list_le_constraints(new_socs, self.soc_max)
 
         # - \pi <= V_angle <= \pi
-        constraints += _make_list_le_constraints([- np.pi] * self.n_bus,
-                                                 V_bus_ang)
-        constraints += _make_list_le_constraints(V_bus_ang,
-                                                 [np.pi] * self.n_bus)
+        constraints += _make_list_le_constraints([-np.pi] * self.n_bus, V_bus_ang)
+        constraints += _make_list_le_constraints(V_bus_ang, [np.pi] * self.n_bus)
 
         # V_angle[0] = 0
-        constraints.append(V_bus_ang[self.dev_id_mapping[self.slack_dev_id]]
-                           == 0.)
+        constraints.append(V_bus_ang[self.dev_id_mapping[self.slack_dev_id]] == 0.0)
 
         # 4. Construct the objective function.
-        cost_1 = 0.
+        cost_1 = 0.0
         for gen in self.gen_ids:
             if gen not in self.gen_rer_ids:
                 cost_1 += P_dev[self.dev_id_mapping[gen]]
 
-        cost_2 = 0.
+        cost_2 = 0.0
         for p, rate in zip(P_branch, self.branch_rate):
             cost_2 += cp.maximum(0, cp.abs(p) - self.safety_margin * rate)
 
         obj = cost_1 + self.lamb * cost_2
 
         # 5. Optimization variable dictionary to return.
-        optim_vars = {'V_bus_ang': V_bus_ang, 'P_dev': P_dev, 'P_bus': P_bus,
-                      'P_branch': P_branch}
+        optim_vars = {"V_bus_ang": V_bus_ang, "P_dev": P_dev, "P_bus": P_bus, "P_branch": P_branch}
 
         return obj, constraints, optim_vars, new_socs
 
@@ -383,7 +370,7 @@ class MPCAgent(object):
         raise NotImplementedError()
 
     def _solve(self, simulator, load_forecasts, gen_forecasts):
-        """ Select an action by solving the N-stage DC OPF. """
+        """Select an action by solving the N-stage DC OPF."""
 
         # Initialize the optimization problem during the first iteration.
         if self.dc_opf is None:
@@ -394,16 +381,14 @@ class MPCAgent(object):
 
         # Solve the DC OPF (convex program).
         self.dc_opf.solve()
-        if self.dc_opf.status != 'optimal':
-            print('OPF problem is ' + self.dc_opf.status)
+        if self.dc_opf.status != "optimal":
+            print("OPF problem is " + self.dc_opf.status)
 
         # Extract the control variables (scale from p.u. to MW or MVAr).
-        P_gen = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
-                 for d in self.non_slack_gen_ids]
-        Q_gen = [0.] * len(P_gen)
-        P_des = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA
-                 for d in self.des_ids]
-        Q_des = [0.] * len(P_des)
+        P_gen = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA for d in self.non_slack_gen_ids]
+        Q_gen = [0.0] * len(P_gen)
+        P_des = [self.P_dev.value[self.dev_id_mapping[d]] * self.baseMVA for d in self.des_ids]
+        Q_des = [0.0] * len(P_des)
 
         return np.concatenate((P_gen, Q_gen, P_des, Q_des))
 
@@ -431,8 +416,7 @@ class MPCAgent(object):
         self.P_gen_forecast.value = np.array(P_gen_forecasts)
 
         # Set the initial state of charge of DES units.
-        self.init_soc.value = [simulator.state['des_soc']['pu'][i]
-                               for i in self.des_ids]
+        self.init_soc.value = [simulator.state["des_soc"]["pu"][i] for i in self.des_ids]
 
 
 def _make_list_eq_constraints(a, b):

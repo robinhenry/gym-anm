@@ -9,8 +9,7 @@ from .servers import WsServer, HttpServer
 from .constants import RENDERING_FOLDER, RENDERING_RELATIVE_PATH, RENDERING_LOGS
 
 
-def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max,
-          costs_range):
+def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max, costs_range):
     """
     Start visualizing the state of the environment in a new browser window.
 
@@ -54,10 +53,10 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
     http_server = HttpServer()
     ws_server = WsServer()
 
-    print('\n#######################')
-    a = http_server.address + '/' + RENDERING_RELATIVE_PATH
-    print('Rendering the environment at : ' + a)
-    print('#######################\n')
+    print("\n#######################")
+    a = http_server.address + "/" + RENDERING_RELATIVE_PATH
+    print("Rendering the environment at : " + a)
+    print("#######################\n")
 
     # Write html file.
     write_html(ws_server.address)
@@ -83,29 +82,32 @@ def start(title, dev_type, p_max, q_max, s_rate, v_magn_min, v_magn_max, soc_max
         if page.status_code == 200:
             break
         elif time.time() > timeout:
-            raise ConnectionError('Connection to HTTP server timeout.')
+            raise ConnectionError("Connection to HTTP server timeout.")
     webbrowser.open_new_tab(p)
 
-    message = json.dumps({'messageLabel': 'init',
-                          'deviceType': dev_type,
-                          'pMax': p_max,
-                          'qMax': q_max,
-                          'sRate': s_rate,
-                          'vMagnMin': v_magn_min,
-                          'vMagnMax': v_magn_max,
-                          'socMax': soc_max,
-                          'energyLossMax': costs_range[0],
-                          'penaltyMax': costs_range[1],
-                          'title': title},
-                         separators=(',', ':'))
+    message = json.dumps(
+        {
+            "messageLabel": "init",
+            "deviceType": dev_type,
+            "pMax": p_max,
+            "qMax": q_max,
+            "sRate": s_rate,
+            "vMagnMin": v_magn_min,
+            "vMagnMax": v_magn_max,
+            "socMax": soc_max,
+            "energyLossMax": costs_range[0],
+            "penaltyMax": costs_range[1],
+            "title": title,
+        },
+        separators=(",", ":"),
+    )
     ws.send(message)
     ws.close()
 
     return http_server, ws_server
 
 
-def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential,
-           bus_v_magn, costs, network_collapsed):
+def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential, bus_v_magn, costs, network_collapsed):
     """
     Update the visualization of the environment.
 
@@ -140,17 +142,21 @@ def update(ws_address, cur_time, year_count, p, q, s, soc, p_potential,
     ws = create_connection(ws_address)
 
     time_array = [cur_time.month, cur_time.day, cur_time.hour, cur_time.minute]
-    message = json.dumps({'messageLabel': 'update',
-                          'time': time_array,
-                          'yearCount': year_count,
-                          'pInjections': p,
-                          'qInjections': q,
-                          'sFlows': s,
-                          'socStorage': soc,
-                          'pPotential': p_potential,
-                          'vMagn' : bus_v_magn,
-                          'reward': costs,
-                          'networkCollapsed': network_collapsed})
+    message = json.dumps(
+        {
+            "messageLabel": "update",
+            "time": time_array,
+            "yearCount": year_count,
+            "pInjections": p,
+            "qInjections": q,
+            "sFlows": s,
+            "socStorage": soc,
+            "pPotential": p_potential,
+            "vMagn": bus_v_magn,
+            "reward": costs,
+            "networkCollapsed": network_collapsed,
+        }
+    )
 
     # Send the message.
     ws.send(message)
@@ -206,9 +212,11 @@ def write_html(address):
 </body>
 </html>
 
-    """.format(address)
+    """.format(
+        address
+    )
 
-    html_file = os.path.join(RENDERING_FOLDER, 'index.html')
+    html_file = os.path.join(RENDERING_FOLDER, "index.html")
 
-    with open(html_file, 'w') as f:
+    with open(html_file, "w") as f:
         f.write(s)
