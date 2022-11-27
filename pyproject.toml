@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gym-anm"
-version = "1.1.0"
+version = "1.1.2"
 description = "A framework to build Reinforcement Learning environments for Active Network Management tasks in electricity networks."
 authors = [
     "Robin Henry <robin@robinxhenry.com>",
