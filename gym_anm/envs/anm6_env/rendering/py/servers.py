@@ -34,7 +34,7 @@ class WsServer(object):
     """
 
     def __init__(self):
-        self.HOST = '127.0.0.1'
+        self.HOST = "127.0.0.1"
 
         # Default port is 9001, otherwise let the OS choose.
         if _is_port_in_use(self.HOST, 9001):
@@ -42,7 +42,7 @@ class WsServer(object):
         else:
             self.PORT = 9001
 
-        self.address = 'ws://' + self.HOST + ':' + str(self.PORT) + '/'
+        self.address = "ws://" + self.HOST + ":" + str(self.PORT) + "/"
         self.clients = {}
         self.init_message = None
         self.init_client = None
@@ -65,7 +65,7 @@ class WsServer(object):
         return process
 
     def _start_server(self):
-        """ Start the WebSocket server and keep it running. """
+        """Start the WebSocket server and keep it running."""
 
         # Create websocket server.
         server = WebsocketServer(self.PORT, self.HOST)
@@ -77,8 +77,7 @@ class WsServer(object):
         f = io.StringIO()
         with redirect_stdout(f):
             server.run_forever()
-        with open(os.path.join(os.path.join(RENDERING_LOGS), 'ws_stdout.log'),
-                  'w') as file:
+        with open(os.path.join(os.path.join(RENDERING_LOGS), "ws_stdout.log"), "w") as file:
             file.write(f.getvalue())
 
     def new_client(self, client, server):
@@ -93,11 +92,11 @@ class WsServer(object):
             The current server.
         """
 
-        id = client['id']
+        id = client["id"]
         self.clients[id] = client
 
         if self.init_message is not None and self.init_client is not None:
-            if id != self.init_client['id']:
+            if id != self.init_client["id"]:
                 server.send_message(client, self.init_message)
 
     def msg_received(self, client, server, msg):
@@ -116,11 +115,11 @@ class WsServer(object):
 
         message = json.loads(msg)
 
-        if message['messageLabel'] == 'init':
+        if message["messageLabel"] == "init":
             self.init_client = client
             self.init_message = msg
 
-        elif message['messageLabel'] == 'update':
+        elif message["messageLabel"] == "update":
             server.send_message_to_all(msg)
 
     def client_left(self, client, server):
@@ -136,10 +135,10 @@ class WsServer(object):
         """
 
         try:
-            self.clients.pop(client['id'])
+            self.clients.pop(client["id"])
         except:
             if client is not None:
-                print("Error in removing client %s" % client['id'])
+                print("Error in removing client %s" % client["id"])
 
 
 class HttpServer(object):
@@ -159,7 +158,7 @@ class HttpServer(object):
     """
 
     def __init__(self):
-        self.HOST = '127.0.0.1'
+        self.HOST = "127.0.0.1"
 
         # Default port is 8000, otherwise let the OS choose.
         if _is_port_in_use(self.HOST, 8000):
@@ -167,7 +166,7 @@ class HttpServer(object):
         else:
             self.PORT = 8000
 
-        self.address = 'http://' + self.HOST + ':' + str(self.PORT)
+        self.address = "http://" + self.HOST + ":" + str(self.PORT)
         self.process = self._start_http_process()
 
     def _start_http_process(self):
@@ -180,13 +179,13 @@ class HttpServer(object):
             The process running the server.
         """
 
-        service = Process(name='http_server', target=self._start_http_server)
+        service = Process(name="http_server", target=self._start_http_server)
         service.start()
 
         return service
 
     def _start_http_server(self):
-        """ Start the HTTP server and keep it running. """
+        """Start the HTTP server and keep it running."""
 
         # Go to project root directory.
         os.chdir(ROOT_FOLDER)
@@ -206,5 +205,5 @@ def _is_port_in_use(host, port):
 def _select_random_free_port():
     """Let the OS select an unused port."""
     soc = socket.socket()
-    soc.bind(('', 0))
+    soc.bind(("", 0))
     return soc.getsockname()[1]

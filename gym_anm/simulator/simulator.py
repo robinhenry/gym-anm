@@ -4,8 +4,7 @@ import copy
 from scipy.sparse import csc_matrix
 from logging import getLogger
 
-from .components import Load, TransmissionLine, \
-    ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
+from .components import Load, TransmissionLine, ClassicalGen, StorageUnit, RenewableGen, Bus, Generator
 from .components.constants import DEV_H
 from . import check_network
 from . import solve_load_flow
@@ -89,8 +88,7 @@ class Simulator(object):
         check_network.check_network_specs(network)
 
         # Load network.
-        self.baseMVA, self.buses, self.branches, self.devices = \
-            self._load_case(network)
+        self.baseMVA, self.buses, self.branches, self.devices = self._load_case(network)
 
         # Number of elements in all sets.
         self.N_bus = len(self.buses)
@@ -139,10 +137,10 @@ class Simulator(object):
             When the feature DEV_TYPE of a device is not valid.
         """
 
-        baseMVA = network['baseMVA']
+        baseMVA = network["baseMVA"]
 
         buses = {}
-        for bus_spec in network['bus']:
+        for bus_spec in network["bus"]:
             bus = Bus(bus_spec)
             buses[bus.id] = bus
 
@@ -152,13 +150,13 @@ class Simulator(object):
         bus_ids = list(buses.keys())
 
         branches = OrderedDict()  # order branches in the order they are provided.
-        for br_spec in network['branch']:
+        for br_spec in network["branch"]:
             branch = TransmissionLine(br_spec, baseMVA, bus_ids)
             branches[(branch.f_bus, branch.t_bus)] = branch
 
         devices = {}
-        for dev_spec in network['device']:
-            dev_type = int(dev_spec[DEV_H['DEV_TYPE']])
+        for dev_spec in network["device"]:
+            dev_type = int(dev_spec[DEV_H["DEV_TYPE"]])
 
             if dev_type == -1:
                 dev = Load(dev_spec, bus_ids, baseMVA)
@@ -191,8 +189,8 @@ class Simulator(object):
 
         for (f, t), br in self.branches.items():
             # Fill an off-diagonal elements of the admittance matrix Y_bus.
-            Y_bus[f, t] = - br.series / np.conjugate(br.tap)
-            Y_bus[t, f] = - br.series / br.tap
+            Y_bus[f, t] = -br.series / np.conjugate(br.tap)
+            Y_bus[t, f] = -br.series / br.tap
 
             # Increment diagonal element of the admittance matrix Y_bus.
             Y_bus[f, f] += (br.series + br.shunt) / (np.abs(br.tap) ** 2)
@@ -205,7 +203,7 @@ class Simulator(object):
         Compute the range of (P, Q) possible injections at each bus.
         """
 
-        P_min = {i:0 for i in self.buses.keys()}
+        P_min = {i: 0 for i in self.buses.keys()}
         P_max = copy.copy(P_min)
         Q_min, Q_max = copy.copy(P_min), copy.copy(P_min)
 
@@ -247,10 +245,10 @@ class Simulator(object):
         self.state = None
 
         # 1. Extract variables to pass to `transition` function.
-        P_dev = init_state[:self.N_device]
-        Q_dev = init_state[self.N_device: 2 * self.N_device]
-        soc = init_state[2 * self.N_device: 2 * self.N_device + self.N_des]
-        P_max = init_state[2 * self.N_device + self.N_des: 2 * self.N_device + self.N_des + self.N_non_slack_gen]
+        P_dev = init_state[: self.N_device]
+        Q_dev = init_state[self.N_device : 2 * self.N_device]
+        soc = init_state[2 * self.N_device : 2 * self.N_device + self.N_des]
+        P_max = init_state[2 * self.N_device + self.N_des : 2 * self.N_device + self.N_des + self.N_non_slack_gen]
 
         P_load = {}
         P_pot = {}
@@ -280,8 +278,7 @@ class Simulator(object):
                     dev.soc = dev.soc_max
 
         # 3. Compute all electrical quantities in the network.
-        _, _, _, _, pfe_converged = \
-            self.transition(P_load, P_pot, P_set_points, Q_set_points)
+        _, _, _, _, pfe_converged = self.transition(P_load, P_pot, P_set_points, Q_set_points)
 
         # 4. Update the SoC of each DES unit to match the `initial_state`.
         soc_idx = 0
@@ -322,21 +319,22 @@ class Simulator(object):
 
         v_bus = {}
         for bus_id, bus in self.buses.items():
-            v_bus[bus_id] = {'pu': (bus.v_min, bus.v_max),
-                             'kV': (bus.v_min * bus.baseKV, bus.v_max * bus.baseKV)}
+            v_bus[bus_id] = {"pu": (bus.v_min, bus.v_max), "kV": (bus.v_min * bus.baseKV, bus.v_max * bus.baseKV)}
 
         branch_s = {}
         for branch_id, branch in self.branches.items():
-            branch_s[branch_id] = {'MVA': (0, branch.rate * self.baseMVA),
-                                   'pu': (0, branch.rate)}
+            branch_s[branch_id] = {"MVA": (0, branch.rate * self.baseMVA), "pu": (0, branch.rate)}
 
-        specs = {'bus_p': self.state_bounds['bus_p'],
-                 'bus_q': self.state_bounds['bus_q'],
-                 'dev_p': self.state_bounds['dev_p'],
-                 'dev_q': self.state_bounds['dev_q'],
-                 'bus_v': v_bus, 'dev_type': dev_type,
-                 'des_soc': self.state_bounds['des_soc'],
-                 'branch_s': branch_s}
+        specs = {
+            "bus_p": self.state_bounds["bus_p"],
+            "bus_q": self.state_bounds["bus_q"],
+            "dev_p": self.state_bounds["dev_p"],
+            "dev_q": self.state_bounds["dev_q"],
+            "bus_v": v_bus,
+            "dev_type": dev_type,
+            "des_soc": self.state_bounds["des_soc"],
+            "branch_s": branch_s,
+        }
 
         return specs
 
@@ -402,64 +400,64 @@ class Simulator(object):
         bus_v_magn, bus_v_ang = {}, {}
         bus_i_magn, bus_i_ang = {}, {}
         for bus_id, bus in self.buses.items():
-            bus_p[bus_id] = {'MW': (bus.p_min * self.baseMVA, bus.p_max * self.baseMVA),
-                             'pu': (bus.p_min, bus.p_max)}
-            bus_q[bus_id] = {'MVAr': (bus.q_min * self.baseMVA, bus.q_max * self.baseMVA),
-                             'pu': (bus.q_min, bus.q_max)}
+            bus_p[bus_id] = {"MW": (bus.p_min * self.baseMVA, bus.p_max * self.baseMVA), "pu": (bus.p_min, bus.p_max)}
+            bus_q[bus_id] = {"MVAr": (bus.q_min * self.baseMVA, bus.q_max * self.baseMVA), "pu": (bus.q_min, bus.q_max)}
             if bus.is_slack:
-                bus_v_magn[bus_id] = {'pu': (bus.v_slack, bus.v_slack),
-                                      'kV': (bus.v_slack * bus.baseKV, bus.v_slack * bus.baseKV)}
-                bus_v_ang[bus_id] = {'degree': (0, 0),
-                                     'rad': (0, 0)}
+                bus_v_magn[bus_id] = {
+                    "pu": (bus.v_slack, bus.v_slack),
+                    "kV": (bus.v_slack * bus.baseKV, bus.v_slack * bus.baseKV),
+                }
+                bus_v_ang[bus_id] = {"degree": (0, 0), "rad": (0, 0)}
             else:
-                bus_v_magn[bus_id] = {'pu': (- np.inf, np.inf),
-                                      'kV': (- np.inf, np.inf)}
-                bus_v_ang[bus_id] = {'degree': (- 180, 180),
-                                     'rad': (- np.pi, np.pi)}
-            bus_i_magn[bus_id] = {'pu': (- np.inf, np.inf),
-                                  'kA': (- np.inf, np.inf)}
-            bus_i_ang[bus_id] = {'degree': (- 180, 180),
-                                 'rad': (- np.pi, np.pi)}
+                bus_v_magn[bus_id] = {"pu": (-np.inf, np.inf), "kV": (-np.inf, np.inf)}
+                bus_v_ang[bus_id] = {"degree": (-180, 180), "rad": (-np.pi, np.pi)}
+            bus_i_magn[bus_id] = {"pu": (-np.inf, np.inf), "kA": (-np.inf, np.inf)}
+            bus_i_ang[bus_id] = {"degree": (-180, 180), "rad": (-np.pi, np.pi)}
 
         # Device bounds.
         dev_p, dev_q = {}, {}
         des_soc, gen_p_max = {}, {}
         for dev_id, dev in self.devices.items():
-            dev_p[dev_id] = {'MW': (dev.p_min * self.baseMVA, dev.p_max * self.baseMVA),
-                             'pu': (dev.p_min, dev.p_max)}
-            dev_q[dev_id] = {'MVAr': (dev.q_min * self.baseMVA, dev.q_max * self.baseMVA),
-                             'pu': (dev.q_min, dev.q_max)}
+            dev_p[dev_id] = {"MW": (dev.p_min * self.baseMVA, dev.p_max * self.baseMVA), "pu": (dev.p_min, dev.p_max)}
+            dev_q[dev_id] = {"MVAr": (dev.q_min * self.baseMVA, dev.q_max * self.baseMVA), "pu": (dev.q_min, dev.q_max)}
             if isinstance(dev, StorageUnit):
-                des_soc[dev_id] = {'MWh': (dev.soc_min * self.baseMVA, dev.soc_max * self.baseMVA),
-                                   'pu': (dev.soc_min, dev.soc_max)}
+                des_soc[dev_id] = {
+                    "MWh": (dev.soc_min * self.baseMVA, dev.soc_max * self.baseMVA),
+                    "pu": (dev.soc_min, dev.soc_max),
+                }
             if isinstance(dev, Generator) and not dev.is_slack:
-                gen_p_max[dev_id] = {'MW': (dev.p_min * self.baseMVA, dev.q_max * self.baseMVA),
-                                     'pu': (dev.p_min, dev.p_max)}
+                gen_p_max[dev_id] = {
+                    "MW": (dev.p_min * self.baseMVA, dev.q_max * self.baseMVA),
+                    "pu": (dev.p_min, dev.p_max),
+                }
 
         # Branch bounds.
         branch_p, branch_q = {}, {}
         branch_s, branch_i_magn, branch_i_ang = {}, {}, {}
         for br_id, branch in self.branches.items():
-            branch_p[br_id] = {'MW': (- np.inf, np.inf),
-                               'pu': (- np.inf, np.inf)}
-            branch_q[br_id] = {'MVAr': (- np.inf, np.inf),
-                               'pu': (- np.inf, np.inf)}
-            branch_s[br_id] = {'MVA': (- np.inf, np.inf),
-                               'pu': (- np.inf, np.inf)}
-            branch_i_magn[br_id] = {'pu': (- np.inf, np.inf),
-                                    'kA': (- np.inf, np.inf)}
-            branch_i_ang[br_id] = {'rad': (- np.pi, np.pi),
-                                   'degree': (- 180, 180)}
+            branch_p[br_id] = {"MW": (-np.inf, np.inf), "pu": (-np.inf, np.inf)}
+            branch_q[br_id] = {"MVAr": (-np.inf, np.inf), "pu": (-np.inf, np.inf)}
+            branch_s[br_id] = {"MVA": (-np.inf, np.inf), "pu": (-np.inf, np.inf)}
+            branch_i_magn[br_id] = {"pu": (-np.inf, np.inf), "kA": (-np.inf, np.inf)}
+            branch_i_ang[br_id] = {"rad": (-np.pi, np.pi), "degree": (-180, 180)}
 
-        specs = {'bus_p': bus_p, 'bus_q': bus_q,
-                 'bus_v_magn': bus_v_magn, 'bus_v_ang': bus_v_ang,
-                 'bus_i_magn': bus_i_magn, 'bus_i_ang': bus_i_ang,
-                 'dev_p': dev_p, 'dev_q': dev_q,
-                 'des_soc': des_soc, 'gen_p_max': gen_p_max,
-                 'branch_p': branch_p, 'branch_q': branch_q,
-                 'branch_s': branch_s,
-                 'branch_i_magn': branch_i_magn, 'branch_i_ang': branch_i_ang
-                }
+        specs = {
+            "bus_p": bus_p,
+            "bus_q": bus_q,
+            "bus_v_magn": bus_v_magn,
+            "bus_v_ang": bus_v_ang,
+            "bus_i_magn": bus_i_magn,
+            "bus_i_ang": bus_i_ang,
+            "dev_p": dev_p,
+            "dev_q": dev_q,
+            "des_soc": des_soc,
+            "gen_p_max": gen_p_max,
+            "branch_p": branch_p,
+            "branch_q": branch_q,
+            "branch_s": branch_s,
+            "branch_i_magn": branch_i_magn,
+            "branch_i_ang": branch_i_ang,
+        }
 
         return specs
 
@@ -511,28 +509,24 @@ class Simulator(object):
             # 2. Compute the (P, Q) injection point of each non-slack generator.
             elif isinstance(dev, Generator) and not dev.is_slack:
                 dev.p_pot = np.clip(P_potential[dev_id] / self.baseMVA, dev.p_min, dev.p_max)
-                dev.map_pq(P_set_points[dev_id] / self.baseMVA,
-                           Q_set_points[dev_id] / self.baseMVA)
+                dev.map_pq(P_set_points[dev_id] / self.baseMVA, Q_set_points[dev_id] / self.baseMVA)
 
             # 3. Compute the (P, Q) injection point of each DES unit and update the
             # new SoC.
             elif isinstance(dev, StorageUnit):
-                dev.map_pq(P_set_points[dev_id] / self.baseMVA,
-                           Q_set_points[dev_id] / self.baseMVA,
-                           self.delta_t)
+                dev.map_pq(P_set_points[dev_id] / self.baseMVA, Q_set_points[dev_id] / self.baseMVA, self.delta_t)
                 dev.update_soc(self.delta_t)
 
             # 4a. Initialize the (P, Q) injection point of the slack bus device to 0.
             elif dev.is_slack:
-                dev.p = 0.
-                dev.q = 0.
+                dev.p = 0.0
+                dev.q = 0.0
 
         # 4b. Compute the total (P, Q) injection at each bus.
         self._get_bus_total_injections()
 
         # 5. Solve the network equations and compute nodal V, P, and Q vectors.
-        _, self.pfe_converged = \
-            solve_load_flow.solve_pfe_newton_raphson(self, xtol=1e-5)
+        _, self.pfe_converged = solve_load_flow.solve_pfe_newton_raphson(self, xtol=1e-5)
 
         # 6. Construct the new state of the network.
         self.state = self._gather_state()
@@ -547,8 +541,8 @@ class Simulator(object):
         Compute the total (P, Q) injection point at each bus.
         """
         for bus in self.buses.values():
-            bus.p = 0.
-            bus.q = 0.
+            bus.p = 0.0
+            bus.q = 0.0
 
         for dev in self.devices.values():
             self.buses[dev.bus_id].p += dev.p
@@ -562,81 +556,82 @@ class Simulator(object):
         """
 
         # Collect bus variables.
-        bus_p, bus_q = {'pu': {}, 'MW': {}}, {'pu': {}, 'MVAr': {}}
-        bus_v_magn, bus_v_ang = {'pu': {}, 'kV': {}}, {'rad': {}, 'degree': {}}
-        bus_i_magn, bus_i_ang = {'pu': {}, 'kA': {}}, {'rad': {}, 'degree': {}}
+        bus_p, bus_q = {"pu": {}, "MW": {}}, {"pu": {}, "MVAr": {}}
+        bus_v_magn, bus_v_ang = {"pu": {}, "kV": {}}, {"rad": {}, "degree": {}}
+        bus_i_magn, bus_i_ang = {"pu": {}, "kA": {}}, {"rad": {}, "degree": {}}
         for bus_id, bus in self.buses.items():
-            bus_p['pu'][bus_id] = bus.p
-            bus_p['MW'][bus_id] = bus.p * self.baseMVA
+            bus_p["pu"][bus_id] = bus.p
+            bus_p["MW"][bus_id] = bus.p * self.baseMVA
 
-            bus_q['pu'][bus_id] = bus.q
-            bus_q['MVAr'][bus_id] = bus.q * self.baseMVA
+            bus_q["pu"][bus_id] = bus.q
+            bus_q["MVAr"][bus_id] = bus.q * self.baseMVA
 
-            bus_v_magn['pu'][bus_id] = np.abs(bus.v)
-            bus_v_magn['kV'][bus_id] = np.abs(bus.v) * bus.baseKV
+            bus_v_magn["pu"][bus_id] = np.abs(bus.v)
+            bus_v_magn["kV"][bus_id] = np.abs(bus.v) * bus.baseKV
 
-            bus_v_ang['rad'][bus_id] = np.angle(bus.v)
-            bus_v_ang['degree'][bus_id] = np.angle(bus.v) * 180 / np.pi
+            bus_v_ang["rad"][bus_id] = np.angle(bus.v)
+            bus_v_ang["degree"][bus_id] = np.angle(bus.v) * 180 / np.pi
 
-            bus_i_magn['pu'][bus_id] = np.abs(bus.i)
-            bus_i_magn['kA'][bus_id] = np.abs(bus.i) * self.baseMVA / bus.baseKV
+            bus_i_magn["pu"][bus_id] = np.abs(bus.i)
+            bus_i_magn["kA"][bus_id] = np.abs(bus.i) * self.baseMVA / bus.baseKV
 
-            bus_i_ang['rad'][bus_id] = np.angle(bus.i)
-            bus_i_ang['degree'][bus_id] = np.angle(bus.i) * 180 / np.pi
+            bus_i_ang["rad"][bus_id] = np.angle(bus.i)
+            bus_i_ang["degree"][bus_id] = np.angle(bus.i) * 180 / np.pi
 
         # Collect device variables.
-        dev_p, dev_q = {'pu': {}, 'MW': {}}, {'pu': {}, 'MVAr': {}}
-        des_soc, gen_p_max = {'pu': {}, 'MWh': {}}, {'pu': {}, 'MW': {}}
+        dev_p, dev_q = {"pu": {}, "MW": {}}, {"pu": {}, "MVAr": {}}
+        des_soc, gen_p_max = {"pu": {}, "MWh": {}}, {"pu": {}, "MW": {}}
         for dev_id, dev in self.devices.items():
-            dev_p['pu'][dev_id] = dev.p
-            dev_p['MW'][dev_id] = dev.p * self.baseMVA
+            dev_p["pu"][dev_id] = dev.p
+            dev_p["MW"][dev_id] = dev.p * self.baseMVA
 
-            dev_q['pu'][dev_id] = dev.q
-            dev_q['MVAr'][dev_id] = dev.q * self.baseMVA
+            dev_q["pu"][dev_id] = dev.q
+            dev_q["MVAr"][dev_id] = dev.q * self.baseMVA
 
             if isinstance(dev, StorageUnit):
-                des_soc['pu'][dev_id] = dev.soc
-                des_soc['MWh'][dev_id] = dev.soc * self.baseMVA
+                des_soc["pu"][dev_id] = dev.soc
+                des_soc["MWh"][dev_id] = dev.soc * self.baseMVA
 
             if isinstance(dev, Generator) and not dev.is_slack:
-                gen_p_max['pu'][dev_id] = dev.p_pot
-                gen_p_max['MW'][dev_id] = dev.p_pot * self.baseMVA
+                gen_p_max["pu"][dev_id] = dev.p_pot
+                gen_p_max["MW"][dev_id] = dev.p_pot * self.baseMVA
 
         # Collect branch variables.
-        branch_p, branch_q = {'pu': {}, 'MW': {}}, {'pu': {}, 'MVAr': {}}
-        branch_s = {'pu': {}, 'MVA': {}}
-        branch_i_magn, branch_i_ang = {'pu': {}}, {'rad': {}, 'degree': {}}
+        branch_p, branch_q = {"pu": {}, "MW": {}}, {"pu": {}, "MVAr": {}}
+        branch_s = {"pu": {}, "MVA": {}}
+        branch_i_magn, branch_i_ang = {"pu": {}}, {"rad": {}, "degree": {}}
         for (f, t), branch in self.branches.items():
-            branch_p['pu'][(f, t)] = branch.p_from
-            branch_p['MW'][(f, t)] = branch.p_from * self.baseMVA
+            branch_p["pu"][(f, t)] = branch.p_from
+            branch_p["MW"][(f, t)] = branch.p_from * self.baseMVA
 
-            branch_q['pu'][(f, t)] = branch.q_from
-            branch_q['MVAr'][(f, t)] = branch.q_from * self.baseMVA
+            branch_q["pu"][(f, t)] = branch.q_from
+            branch_q["MVAr"][(f, t)] = branch.q_from * self.baseMVA
 
-            branch_s['pu'][(f, t)] = branch.s_apparent_max
-            branch_s['MVA'][(f, t)] = branch.s_apparent_max * self.baseMVA
+            branch_s["pu"][(f, t)] = branch.s_apparent_max
+            branch_s["MVA"][(f, t)] = branch.s_apparent_max * self.baseMVA
 
-            branch_i_magn['pu'][(f, t)] = np.sign(branch.i_from).real * np.abs(branch.i_from)
+            branch_i_magn["pu"][(f, t)] = np.sign(branch.i_from).real * np.abs(branch.i_from)
 
-            branch_i_ang['rad'][(f, t)] = np.angle(branch.i_from)
-            branch_i_ang['degree'][(f, t)] = np.angle(branch.i_from) * 180 / np.pi
+            branch_i_ang["rad"][(f, t)] = np.angle(branch.i_from)
+            branch_i_ang["degree"][(f, t)] = np.angle(branch.i_from) * 180 / np.pi
 
-        state = {'bus_p': bus_p,
-                 'bus_q': bus_q,
-                 'bus_v_magn': bus_v_magn,
-                 'bus_v_ang': bus_v_ang,
-                 'bus_i_magn': bus_i_magn,
-                 'bus_i_ang': bus_i_ang,
-                 'dev_p': dev_p,
-                 'dev_q': dev_q,
-                 'des_soc': des_soc,
-                 'gen_p_max': gen_p_max,
-                 'branch_p': branch_p,
-                 'branch_q': branch_q,
-                 'branch_s': branch_s,
-                 'branch_i_magn': branch_i_magn,
-                 'branch_i_ang': branch_i_ang
-                 }
+        state = {
+            "bus_p": bus_p,
+            "bus_q": bus_q,
+            "bus_v_magn": bus_v_magn,
+            "bus_v_ang": bus_v_ang,
+            "bus_i_magn": bus_i_magn,
+            "bus_i_ang": bus_i_ang,
+            "dev_p": dev_p,
+            "dev_q": dev_q,
+            "des_soc": des_soc,
+            "gen_p_max": gen_p_max,
+            "branch_p": branch_p,
+            "branch_q": branch_q,
+            "branch_s": branch_s,
+            "branch_i_magn": branch_i_magn,
+            "branch_i_ang": branch_i_ang,
+        }
 
         return state
 
@@ -661,7 +656,7 @@ class Simulator(object):
         """
 
         # Compute the energy loss.
-        e_loss = 0.
+        e_loss = 0.0
         for dev in self.devices.values():
             if isinstance(dev, (Generator, Load)):
                 e_loss += dev.p
@@ -672,11 +667,10 @@ class Simulator(object):
         e_loss *= self.delta_t
 
         # Compute the penalty term.
-        penalty = 0.
+        penalty = 0.0
         for bus in self.buses.values():
             v_magn = np.abs(bus.v)
-            penalty += np.maximum(0, v_magn - bus.v_max) \
-                       + np.maximum(0, bus.v_min - v_magn)
+            penalty += np.maximum(0, v_magn - bus.v_max) + np.maximum(0, bus.v_min - v_magn)
 
         for branch in self.branches.values():
             penalty += np.maximum(0, np.abs(branch.s_apparent_max) - branch.rate)
@@ -684,6 +678,6 @@ class Simulator(object):
         penalty *= self.delta_t * self.lamb
 
         # Compute the total reward.
-        reward = - (e_loss + penalty)
+        reward = -(e_loss + penalty)
 
         return reward, e_loss, penalty

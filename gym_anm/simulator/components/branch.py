@@ -69,60 +69,70 @@ class TransmissionLine(object):
 
     def _check_input_specs(self, br_spec, baseMVA, bus_ids):
 
-        self.f_bus = br_spec[BRANCH_H['F_BUS']]
+        self.f_bus = br_spec[BRANCH_H["F_BUS"]]
         if self.f_bus is None or self.f_bus not in bus_ids:
-            raise BranchSpecError('The F_BUS value of the branch is {} but should be in {}.'.format(self.f_bus, bus_ids))
+            raise BranchSpecError(
+                "The F_BUS value of the branch is {} but should be in {}.".format(self.f_bus, bus_ids)
+            )
         else:
             self.f_bus = int(self.f_bus)
 
-        self.t_bus = br_spec[BRANCH_H['T_BUS']]
+        self.t_bus = br_spec[BRANCH_H["T_BUS"]]
         if self.t_bus is None or self.t_bus not in bus_ids:
-            raise BranchSpecError('The T_BUS value of the branch is {} but should be in {}.'.format(self.t_bus, bus_ids))
+            raise BranchSpecError(
+                "The T_BUS value of the branch is {} but should be in {}.".format(self.t_bus, bus_ids)
+            )
         else:
             self.t_bus = int(self.t_bus)
 
-        self.r = br_spec[BRANCH_H['BR_R']]
+        self.r = br_spec[BRANCH_H["BR_R"]]
         if self.r is None:
-            self.r = 0.
+            self.r = 0.0
         elif self.r < 0:
-            raise BranchSpecError('The BR_R value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError("The BR_R value for branch (%d, %d) should be >= 0." % (self.f_bus, self.t_bus))
 
-        self.x = br_spec[BRANCH_H['BR_X']]
+        self.x = br_spec[BRANCH_H["BR_X"]]
         if self.x is None:
-            self.x = 0.
+            self.x = 0.0
         elif self.x < 0:
-            raise BranchSpecError('The BR_X value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError("The BR_X value for branch (%d, %d) should be >= 0." % (self.f_bus, self.t_bus))
 
         if self.r == 0 and self.x == 0:
-            raise BranchSpecError('Branch (%d, %d) has r=x=0. This is not supported, as it will lead to infinite impedance.'
-                                  'Possible workaround: set a small reactance x=0.0001.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError(
+                "Branch (%d, %d) has r=x=0. This is not supported, as it will lead to infinite impedance."
+                "Possible workaround: set a small reactance x=0.0001." % (self.f_bus, self.t_bus)
+            )
 
-        self.b = br_spec[BRANCH_H['BR_B']]
+        self.b = br_spec[BRANCH_H["BR_B"]]
         if self.b is None:
-            self.b = 0.
+            self.b = 0.0
         elif self.b < 0:
-            raise BranchSpecError('The BR_B value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError("The BR_B value for branch (%d, %d) should be >= 0." % (self.f_bus, self.t_bus))
 
-        self.rate = br_spec[BRANCH_H['RATE']]
+        self.rate = br_spec[BRANCH_H["RATE"]]
         if self.rate is None:
             self.rate = np.inf
         elif self.rate < 0:
-            raise BranchSpecError('The RATE value for branch (%d, %d) should be >= 0.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError("The RATE value for branch (%d, %d) should be >= 0." % (self.f_bus, self.t_bus))
         else:
             self.rate /= baseMVA
 
-        self.tap_magn = br_spec[BRANCH_H['TAP']]
+        self.tap_magn = br_spec[BRANCH_H["TAP"]]
         if self.tap_magn is None:
-            self.tap_magn = 1.
+            self.tap_magn = 1.0
         elif self.tap_magn <= 0:
-            raise BranchSpecError('The TAP value for branch (%d, %d) should be > 0. Use TAP=1 and SHIFT=0 to model'
-                                  'the absence of an off-nominal transformer.' % (self.f_bus, self.t_bus))
+            raise BranchSpecError(
+                "The TAP value for branch (%d, %d) should be > 0. Use TAP=1 and SHIFT=0 to model"
+                "the absence of an off-nominal transformer." % (self.f_bus, self.t_bus)
+            )
 
-        self.shift = br_spec[BRANCH_H['SHIFT']]
+        self.shift = br_spec[BRANCH_H["SHIFT"]]
         if self.shift is None:
-            self.shift = 0.
+            self.shift = 0.0
         elif self.shift < 0 or self.shift > 360:
-            raise BranchSpecError('The BR_SHIFT value for branch (%d, %d) should be in [0, 360].' % (self.f_bus, self.t_bus))
+            raise BranchSpecError(
+                "The BR_SHIFT value for branch (%d, %d) should be in [0, 360]." % (self.f_bus, self.t_bus)
+            )
         else:
             self.shift = self.shift * np.pi / 180
 
@@ -132,13 +142,13 @@ class TransmissionLine(object):
         """
 
         # Compute the branch series admittance as y_{ij} = 1 / (r + jx).
-        self.series = 1. / (self.r + 1.j * self.x)
+        self.series = 1.0 / (self.r + 1.0j * self.x)
 
         # Compute the branch shunt admittance y_{ij}^{sh} = jb / 2.
-        self.shunt = 1.j * self.b / 2.
+        self.shunt = 1.0j * self.b / 2.0
 
         # Create complex tap ratio of generator as: tap = a exp(j shift).
-        self.tap = self.tap_magn * np.exp(1.j * self.shift)
+        self.tap = self.tap_magn * np.exp(1.0j * self.shift)
 
     def compute_currents(self, v_f, v_t):
         """
@@ -154,12 +164,12 @@ class TransmissionLine(object):
 
         # Forward current.
         i_1 = (self.series + self.shunt) * v_f / (np.absolute(self.tap) ** 2)
-        i_2 = - self.series * v_t / np.conjugate(self.tap)
+        i_2 = -self.series * v_t / np.conjugate(self.tap)
         self.i_from = i_1 + i_2
 
         # Backward current.
         i_1 = (self.series + self.shunt) * v_t
-        i_2 = - self.series * v_f / self.tap
+        i_2 = -self.series * v_f / self.tap
         self.i_to = i_1 + i_2
 
     def compute_power_flows(self, v_f, v_t):
@@ -185,5 +195,4 @@ class TransmissionLine(object):
         self.q_to = s_to.imag
 
         # Compute directed apparent power flow.
-        self.s_apparent_max = np.sign(self.p_from) \
-                              * np.maximum(np.abs(s_from), np.abs(s_to))
+        self.s_apparent_max = np.sign(self.p_from) * np.maximum(np.abs(s_from), np.abs(s_to))

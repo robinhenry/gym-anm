@@ -4,8 +4,7 @@ from gym_anm.errors import ArgsError, ObsSpaceError, ObsNotSupportedError, Units
 from gym_anm.simulator.components.constants import STATE_VARIABLES
 
 
-def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
-                   state_bounds):
+def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds, state_bounds):
     """
     Raises an error if the arguments of the new environment do not match the
     requirements.
@@ -39,32 +38,34 @@ def check_env_args(K, delta_t, lamb, gamma, observation, aux_bounds,
     """
 
     if K < 0:
-        raise ArgsError('The argument K is %d but should be >= 0.' % (K))
+        raise ArgsError("The argument K is %d but should be >= 0." % (K))
     if delta_t <= 0:
-        raise ArgsError('The argument delta_t is %.2f but should be > 0.' % (delta_t))
+        raise ArgsError("The argument delta_t is %.2f but should be > 0." % (delta_t))
     if lamb < 0:
-        raise ArgsError('The argument lamb is %d but should be >= 0.' % (lamb))
+        raise ArgsError("The argument lamb is %d but should be >= 0." % (lamb))
     if gamma < 0 or gamma > 1:
-        raise ArgsError('The argument gamma is %.4f but should be in [0, 1].' % (gamma))
+        raise ArgsError("The argument gamma is %.4f but should be in [0, 1]." % (gamma))
 
     # Check that the observation space is correctly specified.
-    if isinstance(observation, str) and observation == 'state':
+    if isinstance(observation, str) and observation == "state":
         pass
     elif isinstance(observation, list):
         _check_observation_vars(observation, state_bounds, K)
     elif callable(observation):
         pass
     else:
-        raise ArgsError('The argument observation is of type {} but should be '
-                        'either a list, a callable, or the string "state".'
-                        .format(type(observation)))
+        raise ArgsError(
+            "The argument observation is of type {} but should be "
+            'either a list, a callable, or the string "state".'.format(type(observation))
+        )
 
     # Check that aux_bounds is correctly specified.
     if aux_bounds is not None:
         if len(aux_bounds) != K:
-            raise ArgsError('The argument aux_bounds has length {} but the '
-                            'environment has K={} auxiliary variables.'
-                            .format(len(aux_bounds), K))
+            raise ArgsError(
+                "The argument aux_bounds has length {} but the "
+                "environment has K={} auxiliary variables.".format(len(aux_bounds), K)
+            )
 
 
 def _check_observation_vars(observation, state_bounds, K):
@@ -85,8 +86,7 @@ def _check_observation_vars(observation, state_bounds, K):
 
     for obs in observation:
         if len(obs) not in [2, 3]:
-            raise ObsSpaceError('The observation tuple {} should be a list with '
-                                '2 or 3 elements.'.format(obs))
+            raise ObsSpaceError("The observation tuple {} should be a list with " "2 or 3 elements.".format(obs))
 
         # Check that the observation variable is supported.
         key = obs[0]
@@ -95,19 +95,18 @@ def _check_observation_vars(observation, state_bounds, K):
 
         # Check that the nodes/devices/branches specified exist.
         nodes = obs[1]
-        if isinstance(nodes, str) and nodes == 'all':
+        if isinstance(nodes, str) and nodes == "all":
             pass
-        elif key == 'aux':
+        elif key == "aux":
             for n in nodes:
                 if n >= K:
-                    raise ObsSpaceError('Aux variable index {} is out of bound '
-                                        'for {} aux variables.'.format(n, K))
+                    raise ObsSpaceError("Aux variable index {} is out of bound " "for {} aux variables.".format(n, K))
         elif isinstance(nodes, list):
             for n in nodes:
                 if n not in state_bounds[key].keys():
-                    raise ObsSpaceError('Observation {} is not supported for '
-                                        'device/branch/bus with ID {}.'
-                                        .format(key, n))
+                    raise ObsSpaceError(
+                        "Observation {} is not supported for " "device/branch/bus with ID {}.".format(key, n)
+                    )
         else:
             raise ObsSpaceError()
 

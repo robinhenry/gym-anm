@@ -7,13 +7,13 @@ from gym_anm.simulator.components.errors import *
 
 
 class TestBus(unittest.TestCase):
-
     def setUp(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))  # Set the working directory to the root.
+        os.chdir(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )  # Set the working directory to the root.
 
     def test_simple_bus(self):
-        spec = np.array([2, 1, 10, 1.5, 1.])
+        spec = np.array([2, 1, 10, 1.5, 1.0])
         bus = Bus(spec)
 
         self.assertEqual(bus.id, spec[0])
@@ -24,7 +24,7 @@ class TestBus(unittest.TestCase):
         self.assertEqual(bus.is_slack, False)
 
     def test_simple_slack(self):
-        spec = np.array([2, 0, 10, 1.5, 1.])
+        spec = np.array([2, 0, 10, 1.5, 1.0])
         bus = Bus(spec)
 
         self.assertEqual(bus.id, spec[0])
@@ -35,19 +35,19 @@ class TestBus(unittest.TestCase):
         self.assertEqual(bus.is_slack, True)
 
     def test_bad_type(self):
-        spec = np.array([2, 2, 10, 1.5, 1.])
+        spec = np.array([2, 2, 10, 1.5, 1.0])
 
         with self.assertRaises(BusSpecError):
             bus = Bus(spec)
 
     def test_negative_baskV(self):
-        spec = np.array([2, 1, -1, 1.5, 1.])
+        spec = np.array([2, 1, -1, 1.5, 1.0])
 
         with self.assertRaises(BusSpecError):
             bus = Bus(spec)
 
     def test_negative_v_bounds(self):
-        spec = np.array([2, 1, 10, -1, 1.])
+        spec = np.array([2, 1, 10, -1, 1.0])
         with self.assertRaises(BusSpecError):
             bus = Bus(spec)
 
@@ -57,5 +57,5 @@ class TestBus(unittest.TestCase):
             bus = Bus(spec)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

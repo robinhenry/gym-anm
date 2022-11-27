@@ -32,9 +32,9 @@ class MPCAgentPerfect(MPCAgent):
             P_gen_pot = np.concatenate((P_gen_pot, env.P_maxs), axis=-1)
 
         # Extract the P_loads for the next `planning_steps` steps.
-        P_load_forecast = P_loads[:, t_start: t_end] / self.baseMVA
+        P_load_forecast = P_loads[:, t_start:t_end] / self.baseMVA
 
         # Extract the potential generation P_pot from non-slack generators.
-        P_gen_forecast = P_gen_pot[:, t_start: t_end] / self.baseMVA
+        P_gen_forecast = P_gen_pot[:, t_start:t_end] / self.baseMVA
 
         return P_load_forecast, P_gen_forecast

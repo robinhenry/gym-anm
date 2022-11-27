@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "gym-anm"
+version = "1.1.0"
+description = "A framework to build Reinforcement Learning environments for Active Network Management tasks in electricity networks."
+authors = [
+    "Robin Henry <robin@robinxhenry.com>",
+]
+license = "MIT"
+readme = "README.md"
+documentation = "https://gym-anm.readthedocs.io/en/latest/"
+repository = "https://github.com/robinhenry/gym-anm"
+packages = [
+    { include = "gym_anm" },
+]
+exclude = ["tests", "tests.*"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "^1.23.5"
+pandas = "^1.5.2"
+cvxpy = "^1.2.2"
+gym = "^0.26.2"
+websocket-client = "0.56.0"
+websocket-server = "0.4"
+requests = "^2.28.1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.8.0"
+mypy = "^0.981"
+pytest = "^7.1.3"
+pytest-cov = "^3.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+
+[tool.mypy]
+files = ["gym_anm/**/*.py"]
+
+[tool.coverage.run]
+source = ["gym_anm"]

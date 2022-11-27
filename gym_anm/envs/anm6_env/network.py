@@ -48,29 +48,35 @@ import numpy as np
 
 network = {"baseMVA": 100.0}
 
-network["bus"] = np.array([
-    [0, 0, 132, 1., 1.],
-    [1, 1, 33, 1.1, 0.9],
-    [2, 1, 33, 1.1, 0.9],
-    [3, 1, 33, 1.1, 0.9],
-    [4, 1, 33, 1.1, 0.9],
-    [5, 1, 33, 1.1, 0.9]
-])
+network["bus"] = np.array(
+    [
+        [0, 0, 132, 1.0, 1.0],
+        [1, 1, 33, 1.1, 0.9],
+        [2, 1, 33, 1.1, 0.9],
+        [3, 1, 33, 1.1, 0.9],
+        [4, 1, 33, 1.1, 0.9],
+        [5, 1, 33, 1.1, 0.9],
+    ]
+)
 
-network["device"] = np.array([
-    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],
-    [1, 3, -1, 0.2, 0, -10,  None, None, None, None, None, None, None, None, None],
-    [2, 3, 2, None, 30, 0, 30, -30, 20, None, 15, -15, None, None, None],
-    [3, 4, -1, 0.2, 0, -30, None, None, None, None, None, None, None, None, None],
-    [4, 4, 2, None, 50, 0, 50, -50, 35, None, 20, -20, None, None, None],
-    [5, 5, -1, 0.2, 0, -30, None, None, None, None, None, None, None, None, None],
-    [6, 5, 3, None, 50, -50, 50, -50, 30, -30, 25, -25, 100, 0, 0.9]
-])
+network["device"] = np.array(
+    [
+        [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],
+        [1, 3, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],
+        [2, 3, 2, None, 30, 0, 30, -30, 20, None, 15, -15, None, None, None],
+        [3, 4, -1, 0.2, 0, -30, None, None, None, None, None, None, None, None, None],
+        [4, 4, 2, None, 50, 0, 50, -50, 35, None, 20, -20, None, None, None],
+        [5, 5, -1, 0.2, 0, -30, None, None, None, None, None, None, None, None, None],
+        [6, 5, 3, None, 50, -50, 50, -50, 30, -30, 25, -25, 100, 0, 0.9],
+    ]
+)
 
-network["branch"] = np.array([
-    [0, 1, 0.0036, 0.1834, 0., 32, 1, 0],
-    [1, 2,   0.03,  0.022, 0., 25, 1, 0],
-    [1, 3, 0.0307, 0.0621, 0., 18, 1, 0],
-    [2, 4, 0.0303, 0.0611, 0., 18, 1, 0],
-    [2, 5, 0.0159, 0.0502, 0., 18, 1, 0]
-])
+network["branch"] = np.array(
+    [
+        [0, 1, 0.0036, 0.1834, 0.0, 32, 1, 0],
+        [1, 2, 0.03, 0.022, 0.0, 25, 1, 0],
+        [1, 3, 0.0307, 0.0621, 0.0, 18, 1, 0],
+        [2, 4, 0.0303, 0.0611, 0.0, 18, 1, 0],
+        [2, 5, 0.0159, 0.0502, 0.0, 18, 1, 0],
+    ]
+)

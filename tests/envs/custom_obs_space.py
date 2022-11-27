@@ -6,22 +6,21 @@ from gym_anm.envs import ANMEnv
 
 
 class TestCustomObservationSpace(unittest.TestCase):
-
     def setUp(self):
         self.baseMVA = 10
 
         network = {
-            'baseMVA': self.baseMVA,
-            'bus': np.array([[0, 0, 50, 1.1, 0.9],
-                             [1, 1, 50, 1.1, 0.9],
-                             [2, 1, 100, 1., 1.]]),  # slack bus
-            'branch': np.array([[0, 1, 0.1, 0.2, 0.3, 20, 1, 90],
-                                [1, 2, 0.4, 0.5, 0.6, 20, 2, 0]]),
-            'device': np.array([
-                [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],
-                [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],
-                [2, 2, 2, None, 30, 0, 30, -30, None, None, None, None, None, None, None],
-                [3, 2, 3, None, 50, -50, 50, -50, None, None, None, None, 100, 0, 0.9]])
+            "baseMVA": self.baseMVA,
+            "bus": np.array([[0, 0, 50, 1.1, 0.9], [1, 1, 50, 1.1, 0.9], [2, 1, 100, 1.0, 1.0]]),  # slack bus
+            "branch": np.array([[0, 1, 0.1, 0.2, 0.3, 20, 1, 90], [1, 2, 0.4, 0.5, 0.6, 20, 2, 0]]),
+            "device": np.array(
+                [
+                    [0, 0, 0, None, 200, -200, 200, -200, None, None, None, None, None, None, None],
+                    [1, 1, -1, 0.2, 0, -10, None, None, None, None, None, None, None, None, None],
+                    [2, 2, 2, None, 30, 0, 30, -30, None, None, None, None, None, None, None],
+                    [3, 2, 3, None, 50, -50, 50, -50, None, None, None, None, 100, 0, 0.9],
+                ]
+            ),
         }
         self.network = network
         self.delta_t = 1
@@ -32,18 +31,14 @@ class TestCustomObservationSpace(unittest.TestCase):
         """Test an environment built by specifying a list of values for the obs space."""
 
         K = 0
-        observation = [('bus_p', 'all', 'MW'), ('dev_q', [0, 2], 'pu'),
-                       ('branch_s', 'all', 'pu')]
-        env = ANMEnv(self.network, observation, K, self.delta_t, self.gamma,
-                     self.lamb, None, None, None)
+        observation = [("bus_p", "all", "MW"), ("dev_q", [0, 2], "pu"), ("branch_s", "all", "pu")]
+        env = ANMEnv(self.network, observation, K, self.delta_t, self.gamma, self.lamb, None, None, None)
 
         env.init_state = lambda: np.random.rand(10)
         env.reset()
 
         # Check the environment has correctly stored the provided obs values.
-        true_obs_values = [('bus_p', [0, 1, 2], 'MW'),
-                           ('dev_q', [0, 2], 'pu'),
-                           ('branch_s', [(0, 1), (1, 2)], 'pu')]
+        true_obs_values = [("bus_p", [0, 1, 2], "MW"), ("dev_q", [0, 2], "pu"), ("branch_s", [(0, 1), (1, 2)], "pu")]
         self.assertEqual(env.obs_values, true_obs_values)
 
         # Check that the observation space bounds have been updated.
@@ -73,6 +68,6 @@ class TestCustomObservationSpace(unittest.TestCase):
         for i in range(3):
             self.assertEqual(obs[i], ps[i])
         for i in range(2):
-            self.assertEqual(obs[3+i], qs[i] / self.baseMVA)
+            self.assertEqual(obs[3 + i], qs[i] / self.baseMVA)
         for i in range(2):
-            self.assertEqual(obs[5+i], branch_ss[i] / self.baseMVA)
+            self.assertEqual(obs[5 + i], branch_ss[i] / self.baseMVA)
