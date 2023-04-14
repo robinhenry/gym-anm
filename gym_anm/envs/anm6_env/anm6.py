@@ -90,6 +90,7 @@ class ANM6(ANMEnv):
 
             # Render the initial state.
             self.render(mode=mode, skip_frames=skip_frames)
+            self.is_rendering = True
 
         else:
             self.skipped_frames = (self.skipped_frames + 1) % (skip_frames + 1)
@@ -228,5 +229,10 @@ class ANM6(ANMEnv):
         """
         Close the rendering.
         """
-        rendering.close(self.http_server, self.ws_server)
+        # Close the rendering if it is currently active
+        if self.is_rendering:
+            try:
+                rendering.close(self.http_server, self.ws_server)
+            except AttributeError:
+                pass
         self.render_mode = None
