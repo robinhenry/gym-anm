@@ -7,7 +7,7 @@ jobs:
       max-parallel: 6
       matrix:
         python-version: ["3.8", "3.10"]
-        poetry-version: ["1.2"]
+        poetry-version: ["1.4"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
