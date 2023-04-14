@@ -217,8 +217,8 @@ class TestSimulatorTransition(unittest.TestCase):
             self.assertAlmostEqual(bus.q, s.imag, places=self.places)
 
         # Check that I = YV (matrix notation).
-        I_true = np.zeros(simulator.N_bus, dtype=np.complex)
-        V = np.zeros(simulator.N_bus, dtype=np.complex)
+        I_true = np.zeros(simulator.N_bus, dtype=np.complex128)
+        V = np.zeros(simulator.N_bus, dtype=np.complex128)
         for bus in simulator.buses.values():
             I_true[bus.id] = bus.i
             V[bus.id] = bus.v
