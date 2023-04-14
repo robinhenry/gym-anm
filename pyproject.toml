@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gym-anm"
-version = "1.1.5"
+version = "0.0.0"  # placeholder, will be replaced by git tag
 description = "A framework to build Reinforcement Learning environments for Active Network Management tasks in electricity networks."
 authors = [
     "Robin Henry <robin@robinxhenry.com>",
@@ -30,9 +30,17 @@ mypy = "^0.981"
 pytest = "^7.1.3"
 pytest-cov = "^3.0.0"
 
+# This block will ensure that the version number is automatically detected from the git tag
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
+pattern = "^v?(?P<base>\\d+(\\.\\d+)*)"
+bump = true
+
 [build-system]
-requires = ["poetry-core>=1.2.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.3.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"
 
 [tool.black]
 line-length = 120
