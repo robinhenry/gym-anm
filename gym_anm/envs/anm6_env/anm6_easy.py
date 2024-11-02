@@ -64,8 +64,8 @@ class ANM6Easy(ANM6):
 
         return np.array(vars)
 
-    def reset(self, date_init=None):
-        obs = super().reset()
+    def reset(self, **kwargs):
+        obs = super().reset(**kwargs)
 
         # Reset the time of the day based on the auxiliary variable.
         date = self.date

@@ -2,10 +2,10 @@
 
 import gymnasium as gym
 from gymnasium import spaces
-from gymnasium.utils import seeding
 import numpy as np
 from logging import getLogger
 from copy import deepcopy
+from typing import Optional
 import warnings
 from scipy.sparse.linalg import MatrixRankWarning
 
@@ -74,8 +74,6 @@ class ANMEnv(gym.Env):
     pfe_converged : bool
         True if the last transition converged to a load flow solution (i.e.,
         the network is stable); False otherwise.
-    np_random : numpy.random.RandomState
-        The random state/seed of the environment.
     """
 
     def __init__(self, network, observation, K, delta_t, gamma, lamb, aux_bounds=None, costs_clipping=None, seed=None):
@@ -114,7 +112,8 @@ class ANMEnv(gym.Env):
             A random seed.
         """
 
-        self.seed(seed)
+        # Initialize the random number generator.
+        super().reset(seed=seed)
 
         self.K = K
         self.gamma = gamma
@@ -160,7 +159,7 @@ class ANMEnv(gym.Env):
         """
         Sample an initial state :math:`s_0`.
 
-        For reproducibility, the RandomState :py:obj:`self.np_random` should be used to
+        For reproducibility, the RandomState :py:obj:`self._np_random` should be used to
         generate random numbers.
 
         Returns
@@ -233,7 +232,7 @@ class ANMEnv(gym.Env):
 
         return space
 
-    def reset(self):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         """
         Reset the environment.
 
@@ -242,11 +241,20 @@ class ANMEnv(gym.Env):
         observation space are set to :code:`(- np.inf, np.inf)` here (after the size of the
         observation vectors is known).
 
+        Parameters
+        ----------
+        seed: int, optional
+            A random seed for reproducibility.
+        options : dict, optional
+            A dictionary of options to pass to the environment.
+
         Returns
         -------
         obs : numpy.ndarray
             The initial observation vector.
         """
+        
+        super().reset(seed=seed, options=options)
 
         self.done = False
         self.render_mode = None
@@ -457,11 +465,6 @@ class ANMEnv(gym.Env):
         NotImplementedError
         """
         raise NotImplementedError()
-
-    def seed(self, seed=None):
-        """Seed the random number generator."""
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def _build_action_space(self):
         """

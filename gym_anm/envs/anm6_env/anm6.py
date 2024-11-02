@@ -2,6 +2,7 @@
 
 import datetime as dt
 import numpy as np
+from typing import Optional
 
 from ..anm_env import ANMEnv
 from .rendering.py import rendering
@@ -26,7 +27,7 @@ class ANM6(ANMEnv):
     :py:func:`render()` and :py:func:`close()`.
     """
 
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render_modes": ["human"]}
 
     def __init__(self, observation, K, delta_t, gamma, lamb, aux_bounds=None, costs_clipping=(None, None), seed=None):
 
@@ -120,21 +121,21 @@ class ANM6(ANMEnv):
 
         return obs, r, done, info
 
-    def reset(self, date_init=None):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         # Save rendering setup to restore after the reset().
         render_mode = self.render_mode
 
-        obs = super().reset()
+        obs = super().reset(seed=seed, options=options)
 
         # Restore the rendering setup.
         self.render_mode = render_mode
 
         # Reset the date (for rendering).
         self.year_count = 0
-        if date_init is None:
-            self.date_init = random_date(self.np_random, 2020)
+        if options is not None and "date_init" in options:
+            self.date_init = options["date_init"]
         else:
-            self.date_init = date_init
+            self.date_init = random_date(self.np_random, 2020)
         self.date = self.date_init
 
         return obs
