@@ -5,7 +5,7 @@ environment gets reset.
 
 For more information, see https://gym-anm.readthedocs.io/en/latest/topics/using_env.html.
 """
-import gym
+import gymnasium as gym
 import time
 
 

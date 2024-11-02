@@ -9,7 +9,7 @@ If the :code:`gym-anm` environment you would like to use has already been regist
 (see the `Gym documentation <https://gym.openai.com/docs/#available-environments>`_), you can initialize it with
 :code:`gym.make('gym_anm:<ENV_ID>')`, where :code:`<ENV_ID>` it the ID of the environment. For example: ::
 
-    import gym
+    import gymnasium as gym
     env = gym.make('gym_anm:ANM6Easy-v0')
 
 *Note: all environments provided as part of the* :code:`gym-anm` *package are automatically registered.*

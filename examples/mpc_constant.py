@@ -8,7 +8,7 @@ optimization horizon.
 
 For more information, see https://gym-anm.readthedocs.io/en/latest/topics/mpc.html#constant-forecast.
 """
-import gym
+import gymnasium as gym
 from gym_anm import MPCAgentConstant
 
 

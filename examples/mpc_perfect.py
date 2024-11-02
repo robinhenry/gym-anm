@@ -7,7 +7,7 @@ over the optimization horizon.
 
 For more information, see https://gym-anm.readthedocs.io/en/latest/topics/mpc.html#perfect-forecast.
 """
-import gym
+import gymnasium as gym
 from gym_anm import MPCAgentPerfect
 
 

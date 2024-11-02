@@ -11,7 +11,7 @@ If the task you would like to solve already exist, the environment can be initia
 :code:`gym.make('gym_anm:<ENV_ID>')`. The following example uses the :ref:`ANM6Easy-v0 <anm6_label>` task and the actions
 are randomly sampled from the action space at each time step: ::
 
-    import gym
+    import gymnasium as gym
     import time
 
     def run():

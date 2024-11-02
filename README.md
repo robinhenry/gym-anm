@@ -57,7 +57,7 @@ The following code snippet illustrates how `gym-anm` environments can be used. I
 actions are randomly sampled from the action space of the environment `ANM6Easy-v0`. For more information
 about the agent-environment interface, see the official [OpenAI Gym documentation](https://github.com/openai/gym).
 ```
-import gym
+import gymnasium as gym
 import time
 
 def run():
