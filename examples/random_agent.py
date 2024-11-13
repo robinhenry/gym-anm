@@ -15,7 +15,7 @@ def run():
 
     for i in range(10):
         a = env.action_space.sample()
-        o, r, terminated, _, info = env.step(a)
+        o, r, terminated, _, _ = env.step(a)
         env.render()
         time.sleep(0.5)  # otherwise the rendering is too fast for the human eye
 
