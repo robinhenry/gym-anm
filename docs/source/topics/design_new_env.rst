@@ -45,7 +45,7 @@ where:
   way to infer the bounds of observation vectors :math:`o_t` and :code:`observation_bounds()` can be used
   to specify them.
 * :code:`render()` and :code:`close()` are optional methods that can be implemented to support rendering
-  of the environment. For more information, see the official `Gym <https://gym.openai.com/docs/>`_ documentation.
+  of the environment. For more information, see the official `Gymnasium <https://gymnasium.farama.org/>`_ documentation.
 
 
 Example
