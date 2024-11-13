@@ -19,7 +19,7 @@ class TestDCOPFAgent(BaseTest):
         done = True
         while done:
             self.env.reset()
-            done = self.env.done
+            done = self.env.terminated
 
         self.safety_margin = 0.9
         self.B = self.env.simulator.Y_bus.imag.toarray()

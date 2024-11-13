@@ -53,7 +53,7 @@ class ANMEnv(gym.Env):
         The observation space from which observation vectors are constructed.
     observation_N : int
         The number of observation variables.
-    done : bool
+    terminated : bool
         True if a terminal state has been reached (if the network collapsed);
         False otherwise.
     render_mode : str
@@ -256,7 +256,7 @@ class ANMEnv(gym.Env):
         
         super().reset(seed=seed, options=options)
 
-        self.done = False
+        self.terminated = False
         self.render_mode = None
         self.timestep = 0
         self.e_loss = 0.0
@@ -304,11 +304,11 @@ class ANMEnv(gym.Env):
 
         # Cast state and obs vectors to 0 (arbitrary) if a terminal state has
         # been reached.
-        if self.done:
+        if self.terminated:
             self.state = self._terminal_state(self.state_N)
             obs = self._terminal_state(self.observation_N)
 
-        return obs
+        return obs, {}
 
     def observation(self, s_t):
         """
@@ -345,20 +345,26 @@ class ANMEnv(gym.Env):
             The observation vector :math:`o_{t+1}`.
         reward : float
             The reward associated with the transition :math:`r_t`.
-        done : bool
+        terminated : bool
             True if a terminal state has been reached; False otherwise.
+        truncated: bool
+            True if the episode was truncated; False otherwise. Always False here.
         info : dict
             A dictionary with further information (used for debugging).
         """
 
         err_msg = "Action %r (%s) invalid." % (action, type(action))
         assert self.action_space.contains(action), err_msg
+        
+        # Fix the truncated flag and info dict
+        truncated = False
+        info = {}
 
         # 0. Remain in a terminal state and output reward=0 if the environment
         # has already reached a terminal state.
-        if self.done:
+        if self.terminated:
             obs = self._terminal_state(self.observation_N)
-            return obs, 0.0, self.done, {}
+            return obs, 0.0, self.terminated, truncated, info
 
         # 1a. Sample the internal stochastic variables.
         vars = self.next_vars(self.state)
@@ -412,10 +418,10 @@ class ANMEnv(gym.Env):
 
             # A terminal state has been reached if no solution to the power
             # flow equations is found.
-            self.done = not pfe_converged
+            self.terminated = not pfe_converged
 
         # 3b. Clip the reward.
-        if not self.done:
+        if not self.terminated:
             self.e_loss = np.sign(e_loss) * np.clip(np.abs(e_loss), 0, self.costs_clipping[0])
             self.penalty = np.clip(penalty, 0, self.costs_clipping[1])
             r = -(self.e_loss + self.penalty)
@@ -426,7 +432,7 @@ class ANMEnv(gym.Env):
             self.penalty = self.costs_clipping[1]
 
         # 4. Construct the state and observation vector.
-        if not self.done:
+        if not self.terminated:
             for k in range(self.K):
                 self.state[k - self.K] = aux[k]
             self.state = self._construct_state()
@@ -444,7 +450,7 @@ class ANMEnv(gym.Env):
         # 5. Update the timestep.
         self.timestep += 1
 
-        return obs, r, self.done, {}
+        return obs, r, self.terminated, truncated, info
 
     def render(self, mode="human"):
         """
