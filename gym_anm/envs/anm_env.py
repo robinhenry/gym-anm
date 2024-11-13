@@ -253,7 +253,7 @@ class ANMEnv(gym.Env):
         obs : numpy.ndarray
             The initial observation vector.
         """
-        
+
         super().reset(seed=seed, options=options)
 
         self.terminated = False
@@ -355,7 +355,7 @@ class ANMEnv(gym.Env):
 
         err_msg = "Action %r (%s) invalid." % (action, type(action))
         assert self.action_space.contains(action), err_msg
-        
+
         # Fix the truncated flag and info dict
         truncated = False
         info = {}
