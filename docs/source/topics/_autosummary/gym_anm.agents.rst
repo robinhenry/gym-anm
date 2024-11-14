@@ -28,7 +28,7 @@ gym\_anm.agents
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.agents.mpc
-   gym_anm.agents.mpc_constant
-   gym_anm.agents.mpc_perfect
+   mpc
+   mpc_constant
+   mpc_perfect
 

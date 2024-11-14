@@ -28,8 +28,8 @@ gym\_anm.simulator
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.simulator.check_network
-   gym_anm.simulator.components
-   gym_anm.simulator.simulator
-   gym_anm.simulator.solve_load_flow
+   check_network
+   components
+   simulator
+   solve_load_flow
 

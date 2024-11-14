@@ -28,5 +28,5 @@ gym\_anm.envs.anm6\_env.rendering
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.envs.anm6_env.rendering.py
+   py
 

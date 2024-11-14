@@ -1,4 +1,4 @@
-gym\_anm.envs.anm6\_env.anm6\_easy.ANM6Easy
+﻿gym\_anm.envs.anm6\_env.anm6\_easy.ANM6Easy
 ===========================================
 
 .. currentmodule:: gym_anm.envs.anm6_env.anm6_easy
@@ -18,6 +18,8 @@ gym\_anm.envs.anm6\_env.anm6\_easy.ANM6Easy
    
       ~ANM6Easy.__init__
       ~ANM6Easy.close
+      ~ANM6Easy.get_wrapper_attr
+      ~ANM6Easy.has_wrapper_attr
       ~ANM6Easy.init_state
       ~ANM6Easy.next_vars
       ~ANM6Easy.observation
@@ -25,7 +27,7 @@ gym\_anm.envs.anm6\_env.anm6\_easy.ANM6Easy
       ~ANM6Easy.render
       ~ANM6Easy.reset
       ~ANM6Easy.reset_date
-      ~ANM6Easy.seed
+      ~ANM6Easy.set_wrapper_attr
       ~ANM6Easy.step
    
    
@@ -36,11 +38,13 @@ gym\_anm.envs.anm6\_env.anm6\_easy.ANM6Easy
 
    .. autosummary::
    
-      ~ANM6Easy.action_space
       ~ANM6Easy.metadata
-      ~ANM6Easy.observation_space
-      ~ANM6Easy.reward_range
+      ~ANM6Easy.np_random
+      ~ANM6Easy.np_random_seed
+      ~ANM6Easy.render_mode
       ~ANM6Easy.spec
       ~ANM6Easy.unwrapped
+      ~ANM6Easy.action_space
+      ~ANM6Easy.observation_space
    
    

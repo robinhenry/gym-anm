@@ -28,7 +28,7 @@ gym\_anm.envs
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.envs.anm6_env
-   gym_anm.envs.anm_env
-   gym_anm.envs.utils
+   anm6_env
+   anm_env
+   utils
 

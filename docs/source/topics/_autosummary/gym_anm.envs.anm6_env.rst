@@ -28,9 +28,9 @@ gym\_anm.envs.anm6\_env
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.envs.anm6_env.anm6
-   gym_anm.envs.anm6_env.anm6_easy
-   gym_anm.envs.anm6_env.network
-   gym_anm.envs.anm6_env.rendering
-   gym_anm.envs.anm6_env.utils
+   anm6
+   anm6_easy
+   network
+   rendering
+   utils
 

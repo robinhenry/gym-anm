@@ -28,9 +28,9 @@ gym\_anm.simulator.components
    :template: custom-module-template.rst
    :recursive:
 
-   gym_anm.simulator.components.branch
-   gym_anm.simulator.components.bus
-   gym_anm.simulator.components.constants
-   gym_anm.simulator.components.devices
-   gym_anm.simulator.components.errors
+   branch
+   bus
+   constants
+   devices
+   errors
 
