@@ -213,13 +213,13 @@ def _newton_raphson_sparse(v_guess, p, q, Y, x_tol=1e-10, lim_iter=100):
 
     n_iter = 0
     F = _f(v_guess, p, q, Y)
-    diff = norm(F, np.Inf)
+    diff = norm(F, np.inf)
 
     while diff > x_tol and n_iter < lim_iter:
         n_iter += 1
         v_guess = v_guess - spsolve(_dfdx(v_guess, Y), F)
         F = _f(v_guess, p, q, Y)
-        diff = norm(F, np.Inf)
+        diff = norm(F, np.inf)
 
     converged = False if np.isnan(diff) else True
 
