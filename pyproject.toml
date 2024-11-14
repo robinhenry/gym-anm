@@ -15,9 +15,9 @@ packages = [
 exclude = ["tests", "tests.*"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-numpy = "^1.23.5"
-pandas = "^1.5.2"
+python = "^3.10"
+numpy = "^2.1"
+pandas = "^2.0"
 cvxpy = "^1.2.2"
 gymnasium = "^1.0.0"
 websocket-client = "0.56.0"
