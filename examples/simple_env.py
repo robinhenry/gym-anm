@@ -68,5 +68,5 @@ if __name__ == "__main__":
 
     for t in range(10):
         a = env.action_space.sample()
-        o, r, done, _ = env.step(a)
+        o, r, terminated, _, _ = env.step(a)
         print(f"t={t}, r_t={r:.3}")

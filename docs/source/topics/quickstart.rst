@@ -11,16 +11,16 @@ If the task you would like to solve already exist, the environment can be initia
 :code:`gym.make('gym_anm:<ENV_ID>')`. The following example uses the :ref:`ANM6Easy-v0 <anm6_label>` task and the actions
 are randomly sampled from the action space at each time step: ::
 
-    import gym
+    import gymnasium as gym
     import time
 
     def run():
         env = gym.make('gym_anm:ANM6Easy-v0')
-        o = env.reset()
+        o, _ = env.reset()
 
         for i in range(100):
             a = env.action_space.sample()
-            o, r, done, info = env.step(a)
+            o, r, terminated, _, _ = env.step(a)
             env.render()
             time.sleep(0.5)  # otherwise the rendering is too fast for the human eye.
 
@@ -29,7 +29,7 @@ are randomly sampled from the action space at each time step: ::
     if __name__ == '__main__':
         run()
 
-For more information about the Gym interface, read the `official documentation <https://github.com/openai/gym>`_.
+For more information about the Gymnasium interface, read the `official documentation <https://gymnasium.farama.org/>`_.
 
 
 Designing your own ANM task

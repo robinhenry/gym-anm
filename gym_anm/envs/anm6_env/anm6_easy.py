@@ -64,15 +64,14 @@ class ANM6Easy(ANM6):
 
         return np.array(vars)
 
-    def reset(self, date_init=None):
-        obs = super().reset()
+    def reset(self, **kwargs):
+        obs, info = super().reset(**kwargs)
 
         # Reset the time of the day based on the auxiliary variable.
-        date = self.date
         new_date = self.date + self.state[-1] * self.timestep_length
         super().reset_date(new_date)
 
-        return obs
+        return obs, info
 
 
 def _get_load_time_series():
@@ -145,7 +144,7 @@ if __name__ == "__main__":
     for i in range(T):
         print(i)
         a = env.action_space.sample()
-        o, r, _, _ = env.step(a)
+        o, r, _, _, _ = env.step(a)
         env.render()
         time.sleep(0.5)
 

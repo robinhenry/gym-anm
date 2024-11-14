@@ -1,6 +1,6 @@
 """A package for designing RL ANM tasks in power grids."""
 
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 
 from .agents import MPCAgentPerfect, MPCAgentConstant
 from .envs import ANMEnv

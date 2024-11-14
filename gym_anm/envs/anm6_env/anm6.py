@@ -2,6 +2,7 @@
 
 import datetime as dt
 import numpy as np
+from typing import Optional
 
 from ..anm_env import ANMEnv
 from .rendering.py import rendering
@@ -26,7 +27,7 @@ class ANM6(ANMEnv):
     :py:func:`render()` and :py:func:`close()`.
     """
 
-    metadata = {"render.modes": ["human"]}
+    metadata = {"render_modes": ["human"]}
 
     def __init__(self, observation, K, delta_t, gamma, lamb, aux_bounds=None, costs_clipping=(None, None), seed=None):
 
@@ -110,7 +111,7 @@ class ANM6(ANMEnv):
             self._update_render(dev_p, dev_q, branch_s, des_soc, gen_p_max, bus_v_magn, costs, network_collapsed)
 
     def step(self, action):
-        obs, r, done, info = super().step(action)
+        obs, r, terminated, truncated, info = super().step(action)
 
         # Increment the date (for rendering).
         self.date += self.timestep_length
@@ -118,26 +119,26 @@ class ANM6(ANMEnv):
         # Increment the year count.
         self.year_count = (self.date - self.date_init).days // 365
 
-        return obs, r, done, info
+        return obs, r, terminated, truncated, info
 
-    def reset(self, date_init=None):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         # Save rendering setup to restore after the reset().
         render_mode = self.render_mode
 
-        obs = super().reset()
+        obs, info = super().reset(seed=seed, options=options)
 
         # Restore the rendering setup.
         self.render_mode = render_mode
 
         # Reset the date (for rendering).
         self.year_count = 0
-        if date_init is None:
-            self.date_init = random_date(self.np_random, 2020)
+        if options is not None and "date_init" in options:
+            self.date_init = options["date_init"]
         else:
-            self.date_init = date_init
+            self.date_init = random_date(self.np_random, 2020)
         self.date = self.date_init
 
-        return obs
+        return obs, info
 
     def reset_date(self, date_init):
         """Reset the date displayed in the visualization (and the year count)."""

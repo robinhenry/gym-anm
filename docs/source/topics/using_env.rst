@@ -5,11 +5,10 @@ Using an Environment
 
 Initializing
 -------------
-If the :code:`gym-anm` environment you would like to use has already been registered in the :code:`gym`'s registry
-(see the `Gym documentation <https://gym.openai.com/docs/#available-environments>`_), you can initialize it with
+If the :code:`gym-anm` environment you would like to use has already been registered in the :code:`gymnasium`'s registry, you can initialize it with
 :code:`gym.make('gym_anm:<ENV_ID>')`, where :code:`<ENV_ID>` it the ID of the environment. For example: ::
 
-    import gym
+    import gymnasium as gym
     env = gym.make('gym_anm:ANM6Easy-v0')
 
 *Note: all environments provided as part of the* :code:`gym-anm` *package are automatically registered.*
@@ -21,22 +20,22 @@ Alternatively, the environment can be initialized directly from its class: ::
 
 Agent-environment interactions
 ------------------------------
-Built on top of `Gym <https://github.com/openai/gym>`_, :code:`gym-anm` provides 2 core functions: :code:`reset()` and
+Built on top of `Gymnasium <https://gymnasium.farama.org/>`_, :code:`gym-anm` provides 2 core functions: :code:`reset()` and
 :code:`step(a)`.
 
 :code:`reset()` can be used to reset the environment and collect the first observation of the trajectory: ::
 
-    obs = env.reset()
+    obs, _ = env.reset(seed=...)
 
 After the agent has selected an action :code:`a` to apply to the environment, :code:`step(a)` can be used to do so: ::
 
-    obs, r, done, info = env.step(a)
+    obs, r, terminated, _, info = env.step(a)
 
 where:
 
 * :code:`obs` is the vector of observations :math:`o_{t+1}`,
 * :code:`r` is the reward :math:`r_t`,
-* :code:`done` is a boolean value set to :code:`true` if :math:`s_{t+1}` is a terminal state,
+* :code:`terminated` is a boolean value set to :code:`true` if :math:`s_{t+1}` is a terminal state,
 * :code:`info` gathers information about the transition (it is seldom used in :code:`gym-anm`).
 
 Render the environment
@@ -58,16 +57,16 @@ Complete example
 A complete example of agent-environment interactions with an arbitrary agent :code:`agent`: ::
 
     env = gym.make('gym_anm:ANM6Easy-v0')
-    o = env.reset()
+    o, _ = env.reset()
 
     for i in range(1000):
         a = agent.act(o)
-        o, r, done, info = env.step(a)
+        o, r, terminated, _, info = env.step(a)
         env.render()
         time.sleep(0.5)   # otherwise the rendering is too fast for the human eye
 
         if done:
-            o = env.reset()
+            o, _ = env.reset()
 
 The above example would be rendered in your favorite web browser as:
 
