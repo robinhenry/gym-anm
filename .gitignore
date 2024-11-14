@@ -18,3 +18,4 @@ gym_anm/.DS_Store
 gym_anm/envs/anm6_env/rendering/index.html
 .vscode/
 .venv/
+docs/source/_build
