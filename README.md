@@ -2,7 +2,7 @@
 [![Downloads](https://pepy.tech/badge/gym-anm)](https://pepy.tech/project/gym-anm)
 [![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](https://gym-anm.readthedocs.io/en/latest/)
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
-[![Checks](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml/badge.svg)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml)
+[![Checks](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml/badge.svg?branch=main)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `gym-anm` is a framework for designing reinforcement learning (RL) environments that model Active Network
@@ -32,8 +32,10 @@ Documentation is provided online at [https://gym-anm.readthedocs.io/en/latest/](
 ## Installation
 
 ### Requirements
-`gym-anm` requires Python 3.8+ and can run on Linux, MaxOS, and Windows. Some rendering features may not work properly
+`gym-anm` requires Python 3.10+ and can run on Linux, MaxOS, and Windows. Some rendering features may not work properly
 on Windows (not tested).
+
+If you need Python 3.8 or 3.9, you can use `gym-anm < 2.0`.
 
 We recommend installing `gym-anm` in a Python environment (e.g., [virtualenv](https://virtualenv.pypa.io/en/latest/)
 or [conda](https://conda.io/en/latest/#)).
