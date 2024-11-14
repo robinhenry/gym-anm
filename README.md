@@ -1,6 +1,6 @@
 # Gym-ANM
 [![Downloads](https://pepy.tech/badge/gym-anm)](https://pepy.tech/project/gym-anm)
-[![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](https://gym-anm.readthedocs.io/en/latest/)
+[![Documentation Status](https://readthedocs.org/projects/ansicolortags/badge/?version=latest)](https://gym-anm.readthedocs.io/)
 [![codecov](https://codecov.io/gh/robinhenry/gym-anm/branch/master/graph/badge.svg?token=7JSMJPPIQ7)](https://codecov.io/gh/robinhenry/gym-anm)
 [![Checks](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml/badge.svg?branch=main)](https://github.com/robinhenry/gym-anm/actions/workflows/ci_checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
