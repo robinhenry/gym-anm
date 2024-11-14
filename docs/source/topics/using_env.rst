@@ -25,7 +25,7 @@ Built on top of `Gymnasium <https://gymnasium.farama.org/>`_, :code:`gym-anm` pr
 
 :code:`reset()` can be used to reset the environment and collect the first observation of the trajectory: ::
 
-    obs, _ = env.reset()
+    obs, _ = env.reset(seed=...)
 
 After the agent has selected an action :code:`a` to apply to the environment, :code:`step(a)` can be used to do so: ::
 
