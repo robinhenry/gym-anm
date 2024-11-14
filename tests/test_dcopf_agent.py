@@ -13,13 +13,13 @@ class TestDCOPFAgent(BaseTest):
         np.random.seed(self.seed)
 
         self.env = ANM6Easy()
-        self.env.seed(self.seed)
+        self.env.reset(seed=self.seed)
 
         # Reset the environment, ensuring it is in a non-terminal state.
-        done = True
-        while done:
+        terminated = True
+        while terminated:
             self.env.reset()
-            done = self.env.terminated
+            terminated = self.env.terminated
 
         self.safety_margin = 0.9
         self.B = self.env.simulator.Y_bus.imag.toarray()
@@ -34,8 +34,8 @@ class TestDCOPFAgent(BaseTest):
             a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
-            _, _, done, _ = self.env.step(a)
-            while done:
+            _, _, terminated, _, _ = self.env.step(a)
+            while terminated:
                 self.env.reset()
 
     def test_ANM6Easy_horizon_3(self):
@@ -46,8 +46,8 @@ class TestDCOPFAgent(BaseTest):
             a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
-            _, _, done, _ = self.env.step(a)
-            while done:
+            _, _, terminated, _, _ = self.env.step(a)
+            while terminated:
                 self.env.reset()
 
     def test_ANM6Easy_horizon_20(self):
@@ -58,8 +58,8 @@ class TestDCOPFAgent(BaseTest):
             a = agent.act(self.env)
             self._check_ANM6Easy_constraints(agent)
 
-            _, _, done, _ = self.env.step(a)
-            while done:
+            _, _, terminated, _, _ = self.env.step(a)
+            while terminated:
                 self.env.reset()
 
     def _check_ANM6Easy_constraints(self, agent):
